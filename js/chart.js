@@ -40,6 +40,7 @@ export class Chart {
         this.hoverKey = null;
         this.hoverT = NaN;                    // time of the reading bar; NaN = none
         this.pinT = NaN;                      // mouse: where a click left the bar
+        this.onHover = opts.onHover || null;  // called with the bar's time when you move it (NaN = gone)
         this.box = { left: 0, right: 1 };
         this.cv = null;
     }
@@ -78,7 +79,26 @@ export class Chart {
     }
     view() { return isNaN(this.view0) ? this.home() : [this.view0, this.view1]; }
     resetView() { this.view0 = this.view1 = NaN; this.paint(); }
-    hoverAt(x) { this.hoverT = this.timeAt(x); this.paint(); }
+    // Bar under a finger / pointer at x (kept inside the plot), and tell the page.
+    hoverAt(x) {
+        x = Math.min(Math.max(x, this.box.left), this.box.right);
+        this.setHoverT(this.timeAt(x));
+    }
+    setHoverT(t) {
+        this.hoverT = t;
+        this.paint();
+        if (this.onHover) this.onHover(t);
+    }
+    // Put the bar on a time picked somewhere else (an hour in the weather);
+    // slides the view over if that time is off screen. Doesn't call onHover.
+    showTime(t) {
+        this.hoverT = this.pinT = t;
+        const v = this.view(), e = this.extents();
+        if (v && e && !isNaN(t) && (t < v[0] || t > v[1]) && t >= e[0] && t <= e[1]) {
+            const span = v[1] - v[0];
+            this.setView(t - span / 2, t + span / 2);
+        } else this.paint();
+    }
     setView(a, b) {
         const e = this.extents();
         if (!e) return;
@@ -109,11 +129,18 @@ export class Chart {
             return { d: Math.max(20, Math.abs(a.x - b.x)), m: (a.x + b.x) / 2, v: this.view() };
         };
 
+        // A touch that starts anywhere else ends whatever the chart was doing, so a
+        // lost "finger up" can never leave the chart grabbing taps meant for the tabs.
+        const reset = () => {
+            for (const id of pts.keys()) { try { cv.releasePointerCapture(id); } catch (err) { /* already gone */ } }
+            pts.clear(); mode = "";
+        };
+        document.addEventListener("pointerdown", e => { if (e.target !== cv && pts.size) reset(); }, true);
+
         cv.addEventListener("pointerdown", e => {
             const p = local(e);
             pts.set(e.pointerId, p);
-            cv.setPointerCapture(e.pointerId);
-            if (e.pointerType === "mouse") { mode = "pan"; lastMouseX = mouseDownX = p.x; return; }
+            if (e.pointerType === "mouse") { cv.setPointerCapture(e.pointerId); mode = "pan"; lastMouseX = mouseDownX = p.x; return; }
             if (pts.size === 2) { mode = "pinch"; start = pinchState(); }
             else if (pts.size === 1) { mode = "maybe"; start = { x: p.x, y: p.y, t: e.timeStamp }; }
         });
@@ -146,13 +173,13 @@ export class Chart {
             const had = pts.delete(e.pointerId);
             if (e.pointerType === "mouse") {
                 // a click (no drag) pins the bar there, like a tap on the phone
-                if (e.type === "pointerup" && Math.abs(local(e).x - mouseDownX) < 4) { this.pinT = this.timeAt(local(e).x); }
+                if (e.type === "pointerup" && Math.abs(local(e).x - mouseDownX) < 4) { this.pinT = this.hoverT; }
                 mode = ""; return;
             }
             if (!had) return;
             if (mode === "maybe" && e.type === "pointerup") {   // a tap
                 const p = local(e);
-                if (e.timeStamp - lastTap < 320 && Math.abs(p.x - lastTapX) < 30) { this.hoverT = NaN; this.resetView(); lastTap = 0; }
+                if (e.timeStamp - lastTap < 320 && Math.abs(p.x - lastTapX) < 30) { this.resetView(); this.setHoverT(NaN); lastTap = 0; }
                 else { this.hoverAt(p.x); lastTap = e.timeStamp; lastTapX = p.x; }
             }
             if (pts.size === 1 && mode === "pinch") { mode = "done"; }
@@ -160,8 +187,8 @@ export class Chart {
         };
         cv.addEventListener("pointerup", end);
         cv.addEventListener("pointercancel", end);
-        cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") { this.hoverT = this.pinT; this.paint(); } });
-        cv.addEventListener("dblclick", () => { this.hoverT = this.pinT = NaN; this.resetView(); });
+        cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") this.setHoverT(this.pinT); });
+        cv.addEventListener("dblclick", () => { this.pinT = NaN; this.resetView(); this.setHoverT(NaN); });
         cv.addEventListener("wheel", e => {
             const v = this.view();
             if (!v) return;

@@ -455,6 +455,7 @@ function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hour
 function resetView() {
     S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
+    bigChart.hoverT = bigChart.pinT = NaN;
     $("#q").blur();
     $("#scroll").scrollTop = 0;
 }
@@ -492,7 +493,8 @@ async function runSearch(text) {
 
 // ════════════ rendering ════════════
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
-const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours });
+const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
+                            onHover: t => syncWeather(t) });
 let dragging = null;     // reorder in progress (render waits)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
@@ -716,6 +718,9 @@ function renderCustomize(cur) {
         <span class="cz-stn">${esc(name || p[kind])}</span>
         ${both ? `<button class="cz-rm" data-act="removeStation" data-kind="${kind}">Remove</button>` : ""}</div>` : "";
     const body = `
+        <div class="cz-head">Name</div>
+        <input class="cz-name" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
+            data-set="name" value="${esc(p.name)}" data-key="${esc(p.name)}">
         <div class="cz-head">Show</div>
         <div class="cz-chips">${chips}</div>
         ${ranges ? `<div class="cz-head">Good range</div>${ranges}
@@ -860,10 +865,32 @@ function paint(cur = lastCur) {
     if (!cur) return;
     lastCur = cur;
     const cv = $("#bigChart");
-    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, S.selected + "|" + S.focusDay);
+    // the reading bar stays put across tabs and picked days; only another place clears it
+    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
     else bigChart.cv = null;
     document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, spark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
     paintHourly(cur);
+    syncWeather(bigChart.hoverT);
+}
+
+// The big chart's reading bar and the weather follow each other:
+//   week view: the day under the bar is highlighted (not opened)
+//   day view:  the hour under the bar is picked, and picking an hour moves the bar
+function syncWeather(t) {
+    const ok = !isNaN(t) && !!$("#bigChart");
+    document.querySelectorAll(".wx-day").forEach(el => {
+        const a = +el.dataset.start;
+        el.classList.toggle("hl", ok && t >= a && t < a + DAY_MS);
+    });
+    const H = lastCur && lastCur.hours;
+    if (!ok || !H || H.length < 2 || t < H[0].t || t >= H[H.length - 1].t + 3600000) return;
+    let i = 0;
+    while (i + 1 < H.length && H[i + 1].t <= t) i++;
+    if (i === S.hourHover) return;
+    S.hourHover = i;
+    const line = $("#hourLine");
+    if (line) { line.textContent = hourText(H[i]); line.classList.add("on"); }
+    paintHourly();
 }
 
 function paintHourly(cur = lastCur) {
@@ -947,6 +974,7 @@ function bindHourly(cv) {
         const line = $("#hourLine");
         line.textContent = hourText(H[i]); line.classList.add("on");
         paintHourly();
+        if (lastCur && lastCur.g) bigChart.showTime(H[i].t);   // same hour on the big chart
     };
     cv.addEventListener("pointerdown", e => { start = { x: e.clientX, y: e.clientY }; scrub = e.pointerType === "mouse"; cv.setPointerCapture(e.pointerId); });
     cv.addEventListener("pointermove", e => {
@@ -1102,13 +1130,14 @@ function wire() {
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
         const el = e.target;
-        if (!el.matches || !el.matches(".cz-in")) return;
-        if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
+        if (!el.matches || !el.matches(".cz-in, .cz-name")) return;
+        if (el.dataset.set === "name") rename(S.selected, el.value);
+        else if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
         else if (el.dataset.set === "jetty") setJetty(el.dataset.k, el.value);
         render();
     });
     $("#body").addEventListener("keydown", e => {
-        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in")) { e.preventDefault(); e.target.blur(); }
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name")) { e.preventDefault(); e.target.blur(); }
     });
 
     // rename field

@@ -49,8 +49,18 @@ Tap **Customize** at the bottom of a place:
 - **Stations**: remove the river gauge or the tide station from a place (with Undo).
   To remove the last one, remove the place under Edit.
 
-The reading bar you get by tapping or dragging on the big chart stays on the same
-time when you switch tabs (Height → Flow → Tide → Waves).
+- **Name**: rename the place (tapping the name at the top works too).
+
+### The reading bar and the weather move together
+
+Tap or drag on the big chart to get the reading bar. It stays on the same time when
+you switch tabs (Height → Flow → Tide → Waves), open a day and go back to the week.
+Only switching to another place clears it.
+
+- While the bar moves, the day it's on is highlighted in **7-day weather** (it doesn't
+  open it). Drag through a week-long forecast and the highlight follows.
+- With a weather day open, the bar picks the hour it's on in the hourly graph, and
+  picking an hour there moves the bar to that hour.
 
 ### Where "Waves" comes from
 
