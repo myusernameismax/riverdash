@@ -1,9 +1,11 @@
 // Line chart (port of the widget's Chart.qml): solid past, dashed forecast,
-// "now" line, optional threshold (flood stage) and labelled markers (tide highs/lows).
+// "now" line, optional threshold (flood stage), labelled markers (tide highs/lows)
+// and an optional "ideal" band: the line is green inside it and red outside.
 // minimal: true = bare sparkline (the places list).
 //
 // Big chart on the phone:
-//   drag sideways  show the value and time under your finger (stays after you let go)
+//   drag sideways  show the value and time under your finger (stays after you let go,
+//                  and stays on the same time when you switch to another chart)
 //   pinch          zoom around your fingers; move two fingers to pan
 //   double-tap     back to the normal view
 // On a computer: hover, scroll to zoom, drag to pan, double-click.
@@ -35,17 +37,32 @@ export class Chart {
         this.minSpanHours = opts.minSpanHours || 2;
         this.viewKey = null;
         this.view0 = NaN; this.view1 = NaN;   // current view; NaN = home
-        this.hoverX = -1;
+        this.hoverKey = null;
+        this.hoverT = NaN;                    // time of the reading bar; NaN = none
+        this.pinT = NaN;                      // mouse: where a click left the bar
         this.box = { left: 0, right: 1 };
         this.cv = null;
     }
 
-    // data: {series, forecast, color, decimals, nowValue, threshold, thresholdLabel, markers, unit, homeT0, homeT1}
-    set(cv, g, viewKey) {
-        if (viewKey !== this.viewKey) { this.viewKey = viewKey; this.view0 = this.view1 = NaN; this.hoverX = -1; }
+    // data: {series, forecast, color, decimals, nowValue, threshold, thresholdLabel, markers, unit, homeT0, homeT1,
+    //        ideal: {lo, hi, good, bad}}  (lo / hi may be NaN = no bound on that side)
+    // viewKey changes reset the zoom; hoverKey changes clear the reading bar
+    // (so switching Height → Flow → Tide keeps the bar on the same time).
+    set(cv, g, viewKey, hoverKey = viewKey) {
+        if (viewKey !== this.viewKey) { this.viewKey = viewKey; this.view0 = this.view1 = NaN; }
+        if (hoverKey !== this.hoverKey) { this.hoverKey = hoverKey; this.hoverT = this.pinT = NaN; }
+        const newView = isNaN(this.view0);
         this.g = g;
         if (cv !== this.cv) { this.cv = cv; if (!this.minimal) this.bind(cv); }
         this.clampView();
+        // Switched charts with the reading bar up: if its time is off this chart's
+        // normal view (but within the data), slide the view over so the bar shows.
+        const h = newView ? this.home() : null, e = this.extents(), t = this.hoverT;
+        if (h && e && !isNaN(t) && (t < h[0] || t > h[1]) && t >= e[0] && t <= e[1]) {
+            const span = h[1] - h[0];
+            this.setView(t - span / 2, t + span / 2);
+            return;
+        }
         this.paint();
     }
 
@@ -61,6 +78,7 @@ export class Chart {
     }
     view() { return isNaN(this.view0) ? this.home() : [this.view0, this.view1]; }
     resetView() { this.view0 = this.view1 = NaN; this.paint(); }
+    hoverAt(x) { this.hoverT = this.timeAt(x); this.paint(); }
     setView(a, b) {
         const e = this.extents();
         if (!e) return;
@@ -84,7 +102,7 @@ export class Chart {
 
     bind(cv) {
         const pts = new Map();   // pointerId -> {x, y}
-        let mode = "", start = null, lastTap = 0, lastTapX = 0, lastMouseX = 0;
+        let mode = "", start = null, lastTap = 0, lastTapX = 0, lastMouseX = 0, mouseDownX = NaN;
         const local = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
         const pinchState = () => {
             const [a, b] = [...pts.values()];
@@ -95,8 +113,8 @@ export class Chart {
             const p = local(e);
             pts.set(e.pointerId, p);
             cv.setPointerCapture(e.pointerId);
-            if (e.pointerType === "mouse") { mode = "pan"; lastMouseX = p.x; return; }
-            if (pts.size === 2) { mode = "pinch"; start = pinchState(); this.hoverX = -1; this.paint(); }
+            if (e.pointerType === "mouse") { mode = "pan"; lastMouseX = mouseDownX = p.x; return; }
+            if (pts.size === 2) { mode = "pinch"; start = pinchState(); }
             else if (pts.size === 1) { mode = "maybe"; start = { x: p.x, y: p.y, t: e.timeStamp }; }
         });
         cv.addEventListener("pointermove", e => {
@@ -107,13 +125,13 @@ export class Chart {
                     this.setView(v[0] + dt, v[1] + dt);
                     lastMouseX = p.x;
                 }
-                this.hoverX = p.x; this.paint();
+                this.hoverAt(p.x);
                 return;
             }
             if (!pts.has(e.pointerId)) return;
             pts.set(e.pointerId, p);
             if (mode === "maybe" && Math.abs(p.x - start.x) > 6 && Math.abs(p.x - start.x) > Math.abs(p.y - start.y)) mode = "scrub";
-            if (mode === "scrub") { e.preventDefault(); this.hoverX = p.x; this.paint(); }
+            if (mode === "scrub") { e.preventDefault(); this.hoverAt(p.x); }
             else if (mode === "pinch" && pts.size === 2) {
                 e.preventDefault();
                 const now = pinchState(), s = start, span = (s.v[1] - s.v[0]) * s.d / now.d;
@@ -126,20 +144,24 @@ export class Chart {
         });
         const end = e => {
             const had = pts.delete(e.pointerId);
-            if (e.pointerType === "mouse") { mode = ""; return; }
+            if (e.pointerType === "mouse") {
+                // a click (no drag) pins the bar there, like a tap on the phone
+                if (e.type === "pointerup" && Math.abs(local(e).x - mouseDownX) < 4) { this.pinT = this.timeAt(local(e).x); }
+                mode = ""; return;
+            }
             if (!had) return;
             if (mode === "maybe" && e.type === "pointerup") {   // a tap
                 const p = local(e);
-                if (e.timeStamp - lastTap < 320 && Math.abs(p.x - lastTapX) < 30) { this.hoverX = -1; this.resetView(); lastTap = 0; }
-                else { this.hoverX = p.x; this.paint(); lastTap = e.timeStamp; lastTapX = p.x; }
+                if (e.timeStamp - lastTap < 320 && Math.abs(p.x - lastTapX) < 30) { this.hoverT = NaN; this.resetView(); lastTap = 0; }
+                else { this.hoverAt(p.x); lastTap = e.timeStamp; lastTapX = p.x; }
             }
             if (pts.size === 1 && mode === "pinch") { mode = "done"; }
             if (pts.size === 0) mode = "";
         };
         cv.addEventListener("pointerup", end);
         cv.addEventListener("pointercancel", end);
-        cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") { this.hoverX = -1; this.paint(); } });
-        cv.addEventListener("dblclick", () => { this.hoverX = -1; this.resetView(); });
+        cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") { this.hoverT = this.pinT; this.paint(); } });
+        cv.addEventListener("dblclick", () => { this.hoverT = this.pinT = NaN; this.resetView(); });
         cv.addEventListener("wheel", e => {
             const v = this.view();
             if (!v) return;
@@ -153,7 +175,7 @@ export class Chart {
                 const anchor = Math.min(Math.max(this.timeAt(p.x), v[0]), v[1]);
                 this.setView(anchor - (anchor - v[0]) * f, anchor + (v[1] - anchor) * f);
             }
-            this.hoverX = p.x;
+            this.hoverAt(p.x);
         }, { passive: false });
     }
 
@@ -187,6 +209,11 @@ export class Chart {
         const span0 = Math.max(v1 - v0, 0.5);
         const showThr = thr !== undefined && thr !== null && !isNaN(thr) && thr <= v1 + span0 * 1.5 && thr >= v0 - span0 * 1.5;
         if (showThr) { v1 = Math.max(v1, thr); v0 = Math.min(v0, thr); }
+        // Ideal band: its edges are pulled into view when they're close to the data.
+        const ib = g.ideal, ok = x => x !== undefined && x !== null && !isNaN(x);
+        const band = ib && (ok(ib.lo) || ok(ib.hi)) ? ib : null;
+        if (band && !minimal) for (const b of [band.lo, band.hi])
+            if (ok(b) && b <= v1 + span0 * 1.5 && b >= v0 - span0 * 1.5) { v1 = Math.max(v1, b); v0 = Math.min(v0, b); }
         const pad = Math.max((v1 - v0) * 0.12, 0.1);
         v0 -= pad; v1 += pad;
 
@@ -227,18 +254,38 @@ export class Chart {
             ctx.fillText(g.thresholdLabel || "", left + 3, Y(thr) - 1);
         }
 
+        // ideal band (y of its top and bottom edge; an open side runs off the chart)
+        const bandTop = band && ok(band.hi) ? Y(band.hi) : -1e4, bandBot = band && ok(band.lo) ? Y(band.lo) : 1e4;
+        if (band && !minimal) {
+            const y0 = Math.max(top, bandTop), y1 = Math.min(bottom, bandBot);
+            if (y1 > y0) { ctx.globalAlpha = 0.12; ctx.fillStyle = band.good; ctx.fillRect(left, y0, right - left, y1 - y0); }
+            ctx.globalAlpha = 0.55; ctx.strokeStyle = band.good; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+            for (const y of [bandTop, bandBot]) if (y >= top && y <= bottom) {
+                ctx.beginPath(); ctx.moveTo(left, Math.round(y) + 0.5); ctx.lineTo(right, Math.round(y) + 0.5); ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
         // area + line
         const path = pts => { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); };
+        // With an ideal band the line is drawn in pieces: green inside the band, red outside.
+        const stroke = (pts, alpha, dash) => {
+            ctx.lineWidth = lineWidth; ctx.lineJoin = "round"; ctx.setLineDash(dash);
+            if (!band) { path(pts); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.stroke(); }
+            else for (const [y0, y1, c] of [[-1e4, bandTop, band.bad], [bandTop, bandBot, band.good], [bandBot, 1e4, band.bad]]) {
+                if (y1 <= y0) continue;
+                ctx.save(); ctx.beginPath(); ctx.rect(-10, y0, width + 20, y1 - y0); ctx.clip();
+                path(pts); ctx.globalAlpha = alpha; ctx.strokeStyle = c; ctx.stroke();
+                ctx.restore();
+            }
+            ctx.setLineDash([]);
+        };
         if (past.length > 1) {
             path(past); ctx.lineTo(X(past[past.length - 1][0]), bottom); ctx.lineTo(X(past[0][0]), bottom); ctx.closePath();
             ctx.globalAlpha = this.fillOpacity; ctx.fillStyle = color; ctx.fill();
-            path(past); ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.lineJoin = "round"; ctx.stroke();
+            stroke(past, 1, []);
         }
-        if (fut.length > 1) {
-            const f = past.length ? [past[past.length - 1]].concat(fut) : fut;
-            path(f); ctx.globalAlpha = 0.8; ctx.strokeStyle = color; ctx.lineWidth = lineWidth;
-            ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
-        }
+        if (fut.length > 1) stroke(past.length ? [past[past.length - 1]].concat(fut) : fut, 0.8, [4, 3]);
 
         // now line + dot
         if (now > t0 && now < t1) {
@@ -274,9 +321,9 @@ export class Chart {
         ctx.restore();
 
         // readout under the finger / pointer
-        const hx = this.hoverX;
-        if (!minimal && hx >= left && hx <= right) {
-            const t = t0 + (hx - left) / (right - left) * (t1 - t0);
+        const ht = this.hoverT;
+        if (!minimal && ht >= t0 && ht <= t1) {
+            const t = ht;
             const v = this.valueAt(t);
             if (!isNaN(v)) {
                 const x = X(t), y = Y(v);

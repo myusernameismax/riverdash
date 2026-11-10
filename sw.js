@@ -1,7 +1,7 @@
 // Offline shell: the app's own files are fetched fresh when there's a connection
 // (so a push to GitHub shows up on the next open) and served from the cache when
 // there isn't. NOAA / Open-Meteo data is cached separately by js/data.js.
-const SHELL = "rivertides-shell-v1";
+const SHELL = "rivertides-shell-v2";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/config.js", "js/data.js", "js/chart.js",
                "js/icons.js", "js/fmt.js", "js/morph.js", "manifest.webmanifest", "icons/apple-touch-icon.png",
                "icons/icon-192.png", "data/gauges.json", "data/tides.json"];

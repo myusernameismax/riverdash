@@ -1,4 +1,4 @@
-# Riverdash: River & Tides for iPhone
+# Flow Tides: rivers & tides for iPhone
 
 River height and flow, tides, jetty/surf conditions and weather for the
 places you pick, in one screen. A phone version of my KDE Plasma
@@ -10,7 +10,7 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 
 1. Open **https://myusernameismax.github.io/riverdash/** in **Safari**.
 2. Tap Share → **Add to Home Screen** → Add.
-3. Open it from the home screen icon ("Rivers"). It runs full screen without Safari's bars.
+3. Open it from the home screen icon ("Flow Tides"). It runs full screen without Safari's bars.
 
 It starts empty: tap **+ Add** and search for a river, town, bay or gauge id.
 Places are saved on the phone only (nothing is sent anywhere but the public
@@ -32,8 +32,33 @@ Only the inputs change from the desktop widget:
 | Hover the hourly graph | Drag a finger along it, or tap an hour. |
 | Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
-| Right-click → Configure… | Not needed. Colors and timing are in `js/config.js`. |
+| Right-click → Configure… | Per place: tap **Customize** under the place (below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. |
+
+## Customize a place
+
+Tap **Customize** at the bottom of a place:
+
+- **Show**: turn tabs (Height, Flow, Tide, Waves) on or off for this place. A hidden tab
+  also hides its section (Next tides, Jetty / surf).
+- **Good range**: a low and/or high bound for height, flow or tide. The chart shades
+  that band and draws the line green inside it and red outside; the tile and the
+  places list show *in shape* / *too low* / *too high*. Leave a side blank for no limit.
+- **Jetty / surf rating**: the wave heights for calm and sketchy, and the gust limits,
+  for this spot (defaults come from `js/config.js`). **Reset** goes back to them.
+- **Stations**: remove the river gauge or the tide station from a place (with Undo).
+  To remove the last one, remove the place under Edit.
+
+The reading bar you get by tapping or dragging on the big chart stays on the same
+time when you switch tabs (Height → Flow → Tide → Waves).
+
+### Where "Waves" comes from
+
+Open-Meteo's marine forecast model (`wave_height`): the *significant wave height* of
+the whole sea, i.e. swell and local wind waves combined. It is not the swell alone.
+The swell part (`swell_wave_height`, with its period and direction) is shown when you
+tap a day in *Jetty / surf* ("Biggest swell …"). It's a model forecast for the nearest
+sea grid cell to the tide station, not a buoy reading.
 
 ## Files
 
