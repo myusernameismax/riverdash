@@ -83,8 +83,11 @@ async function writeCache(name, data) {
 
 // Cached JSON younger than maxAge seconds, else fetch() and store it.
 // If the fetch fails, an older cached copy is used rather than nothing.
+// savedOnly (see savedPlaces): any saved copy however old, and no downloads.
+let savedOnly = false;
 async function cached(name, maxAge, fetchFn) {
     const c = await readCache(name);
+    if (savedOnly) { if (c) return c.data; throw new Error("nothing saved yet"); }
     if (c && Date.now() - c.t < maxAge * 1000) return c.data;
     let data;
     try {
@@ -319,7 +322,7 @@ async function tide(sid) {
             }
         } catch (e) {
             obs = false;
-            await writeCache(`tide-obs-${sid}.json`, { none: true });
+            if (!savedOnly) await writeCache(`tide-obs-${sid}.json`, { none: true });
         }
     }
 
@@ -461,6 +464,13 @@ async function place(p) {
         }
     } catch (e) { out.errors.push(`Weather: ${e.message}`); }
     return out;
+}
+
+// Same as fetchPlaces, but only from what's saved on the phone: instant, no network.
+// Used at startup so the last readings show while fresh ones download.
+export async function savedPlaces(places) {
+    savedOnly = true;
+    try { return await fetchPlaces(places); } finally { savedOnly = false; }
 }
 
 export async function fetchPlaces(places) {

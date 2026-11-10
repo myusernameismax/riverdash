@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, search as searchStations, warmSearch } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -1195,12 +1195,13 @@ function wire() {
 
     // leaving and coming back
     let hiddenAt = 0;
-    document.addEventListener("visibilitychange", async () => {
+    document.addEventListener("visibilitychange", () => {
         if (document.hidden) { hiddenAt = Date.now(); return; }
         if (hiddenAt && Date.now() - hiddenAt > LOOK.resetAfterAwaySec * 1000) {
-            // away a while: if a new version was pushed, reload into it (places are kept)
-            if (await appChanged()) { reloadForUpdate(); return; }
+            // away a while: a new version saved earlier is loaded now (places are kept)
+            if (updateReady) { reloadForUpdate(); return; }
             resetView();
+            checkForUpdate();         // background; used next time
         }
         refresh();
     });
@@ -1210,25 +1211,21 @@ function wire() {
 }
 
 // ── updates ─────────────────────────────────────────────────────────
-// iPhone keeps a home-screen app alive in the background, so a new version pushed
-// to GitHub isn't picked up just by switching back to it. On startup we note each
-// app file's version tag (ETag); when you come back after being away a while, the
-// tags are checked again and the app reloads itself if any changed. Places, the ★
+// The app opens from the copy saved on the phone (instant, works with no signal).
+// The service worker (sw.js) checks GitHub for a new version in the background with
+// a few tiny requests, saves it, and then the app reloads into it: right away if you
+// haven't touched anything yet, else the next time you come back to it. Places, the ★
 // and downloaded data live in the phone's storage, so a reload keeps them.
-const APP_FILES = ["index.html", "css/app.css", "js/app.js", "js/config.js", "js/data.js", "js/chart.js",
-                   "js/icons.js", "js/fmt.js", "js/morph.js", "sw.js"];
-let appTags = null;
-async function fileTags() {
-    const tags = await Promise.all(APP_FILES.map(f => fetch(f, { method: "HEAD", cache: "no-store" })
-        .then(r => r.ok ? (r.headers.get("ETag") || r.headers.get("Last-Modified") || "") : "").catch(() => "")));
-    return tags.some(t => t) ? tags : null;      // null = offline / can't tell
-}
-async function appChanged() {
-    if (location.protocol !== "https:") return false;
-    const now = await fileTags();
-    if (!now) return false;
-    if (!appTags) { appTags = now; return false; }
-    return now.some((t, i) => t && appTags[i] && t !== appTags[i]);
+let touched = false, updateReady = false;
+function checkForUpdate() {
+    const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!sw || navigator.onLine === false) return Promise.resolve(false);
+    return new Promise(resolve => {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = e => resolve(!!(e.data && e.data.updated));
+        sw.postMessage({ type: "check" }, [ch.port2]);
+        setTimeout(() => resolve(false), 60000);
+    }).then(u => { if (u) updateReady = true; return updateReady; });
 }
 function reloadForUpdate() {
     try { sessionStorage.setItem("rt:updated", "1"); } catch (e) { /* fine */ }
@@ -1238,11 +1235,17 @@ function reloadForUpdate() {
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 wire();
 render();
-refresh();
+// Show the last saved readings straight away (no waiting on a weak signal), then update.
+savedPlaces(S.places).then(r => {
+    for (const p of r.places) if (!S.results[p.key] && (p.river || p.tide)) S.results[p.key] = p;
+    render();
+}).catch(() => {}).finally(refresh);
 
 if ("serviceWorker" in navigator && location.protocol === "https:")
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
-appChanged();                                     // note this version's file tags
+document.addEventListener("pointerdown", () => { touched = true; }, { capture: true, once: true });
+// just opened: if there's a new version and you haven't touched anything yet, switch now
+setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hidden) reloadForUpdate(); }), 1500);
 try {
     if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
 } catch (e) { /* fine */ }
