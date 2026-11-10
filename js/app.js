@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, search as searchStations, warmSearch } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -455,6 +455,7 @@ function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hour
 function resetView() {
     S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
+    bigChart.hoverT = bigChart.pinT = NaN;
     $("#q").blur();
     $("#scroll").scrollTop = 0;
 }
@@ -492,7 +493,8 @@ async function runSearch(text) {
 
 // ════════════ rendering ════════════
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
-const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours });
+const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
+                            onHover: t => syncWeather(t) });
 let dragging = null;     // reorder in progress (render waits)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
@@ -716,6 +718,9 @@ function renderCustomize(cur) {
         <span class="cz-stn">${esc(name || p[kind])}</span>
         ${both ? `<button class="cz-rm" data-act="removeStation" data-kind="${kind}">Remove</button>` : ""}</div>` : "";
     const body = `
+        <div class="cz-head">Name</div>
+        <input class="cz-name" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
+            data-set="name" value="${esc(p.name)}" data-key="${esc(p.name)}">
         <div class="cz-head">Show</div>
         <div class="cz-chips">${chips}</div>
         ${ranges ? `<div class="cz-head">Good range</div>${ranges}
@@ -860,10 +865,32 @@ function paint(cur = lastCur) {
     if (!cur) return;
     lastCur = cur;
     const cv = $("#bigChart");
-    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, S.selected + "|" + S.focusDay);
+    // the reading bar stays put across tabs and picked days; only another place clears it
+    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
     else bigChart.cv = null;
     document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, spark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
     paintHourly(cur);
+    syncWeather(bigChart.hoverT);
+}
+
+// The big chart's reading bar and the weather follow each other:
+//   week view: the day under the bar is highlighted (not opened)
+//   day view:  the hour under the bar is picked, and picking an hour moves the bar
+function syncWeather(t) {
+    const ok = !isNaN(t) && !!$("#bigChart");
+    document.querySelectorAll(".wx-day").forEach(el => {
+        const a = +el.dataset.start;
+        el.classList.toggle("hl", ok && t >= a && t < a + DAY_MS);
+    });
+    const H = lastCur && lastCur.hours;
+    if (!ok || !H || H.length < 2 || t < H[0].t || t >= H[H.length - 1].t + 3600000) return;
+    let i = 0;
+    while (i + 1 < H.length && H[i + 1].t <= t) i++;
+    if (i === S.hourHover) return;
+    S.hourHover = i;
+    const line = $("#hourLine");
+    if (line) { line.textContent = hourText(H[i]); line.classList.add("on"); }
+    paintHourly();
 }
 
 function paintHourly(cur = lastCur) {
@@ -947,6 +974,7 @@ function bindHourly(cv) {
         const line = $("#hourLine");
         line.textContent = hourText(H[i]); line.classList.add("on");
         paintHourly();
+        if (lastCur && lastCur.g) bigChart.showTime(H[i].t);   // same hour on the big chart
     };
     cv.addEventListener("pointerdown", e => { start = { x: e.clientX, y: e.clientY }; scrub = e.pointerType === "mouse"; cv.setPointerCapture(e.pointerId); });
     cv.addEventListener("pointermove", e => {
@@ -1102,13 +1130,14 @@ function wire() {
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
         const el = e.target;
-        if (!el.matches || !el.matches(".cz-in")) return;
-        if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
+        if (!el.matches || !el.matches(".cz-in, .cz-name")) return;
+        if (el.dataset.set === "name") rename(S.selected, el.value);
+        else if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
         else if (el.dataset.set === "jetty") setJetty(el.dataset.k, el.value);
         render();
     });
     $("#body").addEventListener("keydown", e => {
-        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in")) { e.preventDefault(); e.target.blur(); }
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name")) { e.preventDefault(); e.target.blur(); }
     });
 
     // rename field
@@ -1168,7 +1197,12 @@ function wire() {
     let hiddenAt = 0;
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) { hiddenAt = Date.now(); return; }
-        if (hiddenAt && Date.now() - hiddenAt > LOOK.resetAfterAwaySec * 1000) resetView();
+        if (hiddenAt && Date.now() - hiddenAt > LOOK.resetAfterAwaySec * 1000) {
+            // away a while: a new version saved earlier is loaded now (places are kept)
+            if (updateReady) { reloadForUpdate(); return; }
+            resetView();
+            checkForUpdate();         // background; used next time
+        }
         refresh();
     });
     setInterval(() => { if (!document.hidden) refresh(); }, Math.max(5, LOOK.refreshMinutes) * 60000);
@@ -1176,12 +1210,45 @@ function wire() {
     setInterval(() => { if (!document.hidden && !dragging) render(); }, 60000);
 }
 
+// ── updates ─────────────────────────────────────────────────────────
+// The app opens from the copy saved on the phone (instant, works with no signal).
+// The service worker (sw.js) checks GitHub for a new version in the background with
+// a few tiny requests, saves it, and then the app reloads into it: right away if you
+// haven't touched anything yet, else the next time you come back to it. Places, the ★
+// and downloaded data live in the phone's storage, so a reload keeps them.
+let touched = false, updateReady = false;
+function checkForUpdate() {
+    const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!sw || navigator.onLine === false) return Promise.resolve(false);
+    return new Promise(resolve => {
+        const ch = new MessageChannel();
+        ch.port1.onmessage = e => resolve(!!(e.data && e.data.updated));
+        sw.postMessage({ type: "check" }, [ch.port2]);
+        setTimeout(() => resolve(false), 60000);
+    }).then(u => { if (u) updateReady = true; return updateReady; });
+}
+function reloadForUpdate() {
+    try { sessionStorage.setItem("rt:updated", "1"); } catch (e) { /* fine */ }
+    location.reload();
+}
+
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 wire();
 render();
-refresh();
+// Show the last saved readings straight away (no waiting on a weak signal), then update.
+savedPlaces(S.places).then(r => {
+    for (const p of r.places) if (!S.results[p.key] && (p.river || p.tide)) S.results[p.key] = p;
+    render();
+}).catch(() => {}).finally(refresh);
 
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:")
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+document.addEventListener("pointerdown", () => { touched = true; }, { capture: true, once: true });
+// just opened: if there's a new version and you haven't touched anything yet, switch now
+setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hidden) reloadForUpdate(); }), 1500);
+try {
+    if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
+} catch (e) { /* fine */ }
 
 // for testing from a computer (tools/shot.py)
 window.__rt = { S, render, refresh, ACTIONS, select, pickDay, goBack, bigChart };

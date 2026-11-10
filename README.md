@@ -49,8 +49,18 @@ Tap **Customize** at the bottom of a place:
 - **Stations**: remove the river gauge or the tide station from a place (with Undo).
   To remove the last one, remove the place under Edit.
 
-The reading bar you get by tapping or dragging on the big chart stays on the same
-time when you switch tabs (Height → Flow → Tide → Waves).
+- **Name**: rename the place (tapping the name at the top works too).
+
+### The reading bar and the weather move together
+
+Tap or drag on the big chart to get the reading bar. It stays on the same time when
+you switch tabs (Height → Flow → Tide → Waves), open a day and go back to the week.
+Only switching to another place clears it.
+
+- While the bar moves, the day it's on is highlighted in **7-day weather** (it doesn't
+  open it). Drag through a week-long forecast and the highlight follows.
+- With a weather day open, the bar picks the hour it's on in the hourly graph, and
+  picking an hour there moves the bar to that hour.
 
 ### Where "Waves" comes from
 
@@ -90,7 +100,16 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 
 - **A red line under the name:** a NOAA site is down, or an id is wrong. The last copy keeps showing meanwhile.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
-- **Change didn't show up on the phone:** close the app fully (swipe it away in the app switcher) and open it again.
+- **Updates:** no need to reinstall. The app always opens from the copy saved on the
+  phone (instant, works with no signal) and checks GitHub for a new version in the
+  background with a few tiny requests. A new version is downloaded whole, then the
+  app switches to it: right away if you just opened it and haven't touched anything,
+  otherwise the next time you come back after a minute away. A short "Updated to the
+  latest version" note shows; your places are kept.
+- **Weak or no signal:** the last downloaded readings show the moment the app opens,
+  and fresh ones replace them when they arrive.
+- **Don't delete and re-add the home-screen icon to update:** the home-screen app has
+  its own storage, and removing the icon can wipe your saved places.
 
 ## Data sources (free, no key)
 
