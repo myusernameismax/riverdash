@@ -1,4 +1,4 @@
-// River & Tides for the phone: the widget's popup (main.qml) as a home-screen web app.
+// Flow Tides: the River & Tides widget's popup (main.qml) as a home-screen web app.
 // One ★ place opens first; tap around for details and the rest.
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
@@ -44,6 +44,7 @@ const S = {
     // edit mode, rename, toast
     editing: false,
     renaming: false,
+    customizing: false,      // the "Customize" panel for the shown place
     nowOpen: false,          // feels-like / wind line under the header
     hourHover: -1,           // picked hour in the day view
     undoData: null,
@@ -78,38 +79,72 @@ const flooding = r => !!r && ["action", "minor", "moderate", "major"].includes(r
 const shortName = n => n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0].replace(/ River$/, "").trim();
 const dayLabel = ms => fmtDay(ms) + " " + fmtMonthDay(ms);
 
+// ── per-place settings (saved with the place) ───────────────────────
+// place.hide:  charts/tabs not shown, e.g. ["surf"]
+// place.ideal: {stage: [lo, hi], flow: [lo, hi], tide: [lo, hi]}; null = no bound on that side
+// place.jetty: {calm, sketchy, cautionGust, sketchyGust}; missing = the config.js default
+const MODES = { stage: "Height", flow: "Flow", tide: "Tide", surf: "Waves" };
+const hidden = (p, m) => !!p && Array.isArray(p.hide) && p.hide.includes(m);
+const num = v => typeof v === "number" && isFinite(v);
+function jettyLim(p) {
+    const j = (p && p.jetty) || {};
+    return { calm: num(j.calm) ? j.calm : LOOK.jettyCalmMaxFt, sketchy: num(j.sketchy) ? j.sketchy : LOOK.jettySketchyFt,
+             cautionGust: num(j.cautionGust) ? j.cautionGust : LOOK.jettyCautionGustMph,
+             sketchyGust: num(j.sketchyGust) ? j.sketchyGust : LOOK.jettySketchyGustMph };
+}
+function idealOf(p, mode) {
+    const r = p && p.ideal && p.ideal[mode];
+    if (!Array.isArray(r) || !(num(r[0]) || num(r[1]))) return null;
+    return { lo: num(r[0]) ? r[0] : NaN, hi: num(r[1]) ? r[1] : NaN, good: LOOK.calmColor, bad: LOOK.sketchyColor };
+}
+// -1 too low, 0 in shape, 1 too high; null = no ideal range set (or no reading)
+function shape(p, mode, v) {
+    const b = idealOf(p, mode);
+    if (!b || !has(v)) return null;
+    return v < b.lo ? -1 : v > b.hi ? 1 : 0;
+}
+const shapeColor = k => k === 0 ? LOOK.calmColor : LOOK.sketchyColor;
+const shapeWord = k => k === 0 ? "in shape" : k < 0 ? "too low" : "too high";
+
 // Short colored pieces for the list rows.
-function parts(d) {
+// Readings with an ideal range set are green when in shape, red when not.
+function parts(d, p) {
     const out = [];
     if (!d) return [{ text: "…", color: "var(--text)" }];
     const r = d.river, t = d.tide;
-    if (r && has(r.stage)) out.push({ text: ft(r.stage) + arrow(r.stageTrend, 0.05), color: flooding(r) ? categoryColor(r.category) : LOOK.stageColor });
-    if (r && has(r.flow)) out.push({ text: cfsShort(r.flow), color: LOOK.flowColor });
-    if (t) {
+    const tint = (mode, v, color) => { const k = shape(p, mode, v); return k === null ? color : shapeColor(k); };
+    if (r && has(r.stage) && !hidden(p, "stage"))
+        out.push({ text: ft(r.stage) + arrow(r.stageTrend, 0.05), color: flooding(r) ? categoryColor(r.category) : tint("stage", r.stage, LOOK.stageColor) });
+    if (r && has(r.flow) && !hidden(p, "flow")) out.push({ text: cfsShort(r.flow), color: tint("flow", r.flow, LOOK.flowColor) });
+    if (t && !hidden(p, "tide")) {
         const n = t.next && t.next[0];
-        if (!r && has(t.height)) out.push({ text: ft(t.height) + (t.rising === null ? "" : t.rising ? "↑" : "↓"), color: LOOK.tideColor });
+        if (!r && has(t.height)) out.push({ text: ft(t.height) + (t.rising === null ? "" : t.rising ? "↑" : "↓"), color: tint("tide", t.height, LOOK.tideColor) });
         if (n) out.push({ text: n.type + " " + clockShort(n.time), color: LOOK.tideColor });
     }
     const sn = surfNow(d.surf);
-    if (sn && !r) out.push({ text: "≈" + Math.round(sn[1]) + "ft", color: rateColor(rate(sn)) });
+    if (sn && !r && !hidden(p, "surf")) out.push({ text: "≈" + Math.round(sn[1]) + "ft", color: rateColor(rate(sn, jettyLim(p))) });
     if (!out.length) out.push({ text: d.errors && d.errors.length ? "!" : "–", color: "var(--negative)" });
     return out;
 }
 
-// Which graph to draw, and its data.
-function bestMode(d, wanted) {
+// Which charts this data has (whether hidden or not).
+function haveModes(d) {
     const r = d ? d.river : null, t = d ? d.tide : null;
-    const ok = m => (m === "tide" && !!t) || (m === "stage" && !!r)
+    return Object.keys(MODES).filter(m => (m === "tide" && !!t) || (m === "stage" && !!r)
         || (m === "surf" && !!d && !!d.surf && d.surf.hours.length > 1)
-        || (m === "flow" && !!r && r.series.some(p => p[2] !== null));
-    if (wanted && ok(wanted)) return wanted;
-    return ok("flow") ? "flow" : r ? "stage" : t ? "tide" : "";
+        || (m === "flow" && !!r && r.series.some(p => p[2] !== null)));
+}
+// Which graph to draw (skipping the place's hidden ones).
+function bestMode(d, wanted, p) {
+    const ok = haveModes(d).filter(m => !hidden(p, m));
+    if (wanted && ok.includes(wanted)) return wanted;
+    return ["flow", "stage", "tide", "surf"].find(m => ok.includes(m)) || "";
 }
 const tideMarkers = evs => evs.map(e => ({ time: e.time, value: e.height, above: e.type === "H", label: e.type + " " + clockShort(e.time) }));
 // Big chart: like graph(), but when a future day is picked, it opens on that day
 // (and the tide chart switches to the whole-week curve).
-function bigGraph(d, mode) {
-    const g = graph(d, mode);
+function bigGraph(d, mode, p) {
+    const g = graph(d, mode, p);
     if (S.focusDay < 0) return g;
     const a = S.focusDay, b = S.focusDay + DAY_MS, t = d ? d.tide : null;
     if (mode === "tide" && t && t.weekCurve && t.weekCurve.length > 1) {
@@ -122,23 +157,24 @@ function bigGraph(d, mode) {
     if (g.dayCovered) { g.homeT0 = a; g.homeT1 = b; }
     return g;
 }
-function graph(d, mode) {
+function graph(d, mode, p) {
     const r = d ? d.river : null, t = d ? d.tide : null;
     if (mode === "tide" && t)
-        return { series: t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft",
+        return { series: t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft", ideal: idealOf(p, "tide"),
                  homeT0: Date.now() - 6 * 3600000, homeT1: Date.now() + 24 * 3600000,
                  nowValue: has(t.height) ? t.height : NaN, markers: tideMarkers(t.events) };
     if (mode === "surf" && d && d.surf) {
-        const now = Date.now(), pts = d.surf.hours.map(h => [h[0], h[1]]);
-        return { series: pts.filter(p => p[0] <= now), forecast: pts.filter(p => p[0] > now),
+        const now = Date.now(), pts = d.surf.hours.map(h => [h[0], h[1]]), L = jettyLim(p);
+        return { series: pts.filter(x => x[0] <= now), forecast: pts.filter(x => x[0] > now),
                  color: LOOK.surfColor, decimals: 1, unit: " ft", nowValue: NaN, markers: [],
-                 threshold: LOOK.jettyCalmMaxFt, thresholdLabel: "calm limit " + LOOK.jettyCalmMaxFt + " ft",
+                 threshold: L.calm, thresholdLabel: "calm limit " + L.calm + " ft",
                  homeT0: now - 6 * 3600000, homeT1: NaN };
     }
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
-        return { series: r.series.map(p => [p[0], p[c]]), forecast: r.forecast.map(p => [p[0], p[c]]),
+        return { series: r.series.map(x => [x[0], x[c]]), forecast: r.forecast.map(x => [x[0], x[c]]),
                  color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, nowValue: NaN, markers: [],
+                 ideal: idealOf(p, mode),
                  unit: c === 2 ? " cfs" : " ft", homeT0: NaN, homeT1: NaN,
                  threshold: c === 1 && r.flood.minor ? r.flood.minor : NaN,
                  thresholdLabel: "flood stage " + r.flood.minor + " ft" };
@@ -146,8 +182,9 @@ function graph(d, mode) {
     return { series: [], forecast: [], color: LOOK.stageColor, decimals: 1, nowValue: NaN, markers: [], threshold: NaN };
 }
 // Same data, trimmed to a short window so it stays readable when tiny.
-function spark(d) {
-    const full = graph(d, bestMode(d, ""));
+function spark(i) {
+    const d = dataFor(i), p = S.places[i];
+    const full = graph(d, bestMode(d, "", p), p);
     const lo = Date.now() - LOOK.sparkPastHours * 3600000, hi = Date.now() + LOOK.sparkFutureHours * 3600000;
     const win = a => a.filter(p => p[0] >= lo && p[0] <= hi);
     return { ...full, series: win(full.series), forecast: win(full.forecast) };
@@ -156,12 +193,12 @@ function spark(d) {
 // ── swell / jetty rating (coastal tide stations) ────────────────────
 // hour row: [ms, wave ft, period s, wave dir, swell ft, swell s, swell dir, wind mph, gust mph, wind dir]
 const compass = deg => has(deg) ? ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(deg / 45) % 8] : "";
-function rate(h) {   // 0 calm, 1 caution, 2 sketchy, -1 unknown
+function rate(h, L) {   // 0 calm, 1 caution, 2 sketchy, -1 unknown; L = jettyLim(place)
     if (!h || !has(h[1])) return -1;
     const eff = h[1] * (has(h[2]) && h[2] >= LOOK.jettyLongPeriodS ? LOOK.jettyLongPeriodFactor : 1);
     const g = has(h[8]) ? h[8] : 0;
-    return eff > LOOK.jettySketchyFt || g > LOOK.jettySketchyGustMph ? 2
-         : eff > LOOK.jettyCalmMaxFt || g > LOOK.jettyCautionGustMph ? 1 : 0;
+    return eff > L.sketchy || g > L.sketchyGust ? 2
+         : eff > L.calm || g > L.cautionGust ? 1 : 0;
 }
 const rateColor = l => l === 0 ? LOOK.calmColor : l === 1 ? LOOK.cautionColor : l === 2 ? LOOK.sketchyColor : "var(--disabled)";
 const rateWord = l => l === 0 ? "Calm" : l === 1 ? "Caution" : l === 2 ? "Sketchy" : "–";
@@ -174,7 +211,8 @@ const isDaylight = (s, ms) => s.daylight.some(p => ms >= p[0] && ms <= p[1]);
 const midnight = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 // One entry per local day from today on: ranges, worst daylight rating, and a
 // rating per hour (24 slots) for the little strip.
-function surfDays(s) {
+function surfDays(s, L) {
+    const rate_ = h => rate(h, L);
     if (!s) return [];
     const days = [], byDay = {}, today = midnight(Date.now());
     for (const h of s.hours) {
@@ -189,13 +227,13 @@ function surfDays(s) {
         const waves = use.map(h => h[1]), gusts = use.map(h => h[8] || 0);
         const big = use.reduce((a, h) => h[1] > a[1] ? h : a);
         const slots = Array.from({ length: 24 }, () => ({ level: -1, day: false }));
-        for (const h of d.hours) slots[new Date(h[0]).getHours()] = { level: rate(h), day: isDaylight(s, h[0]) };
-        const calm = lit.filter(h => rate(h) === 0);
+        for (const h of d.hours) slots[new Date(h[0]).getHours()] = { level: rate_(h), day: isDaylight(s, h[0]) };
+        const calm = lit.filter(h => rate_(h) === 0);
         return {
             start: d.start, label: d.start === today ? "Today" : fmtDay(d.start),
             lo: Math.min(...waves), hi: Math.max(...waves),
             period: big[2], dir: compass(big[3]), swell: big[4], swellPeriod: big[5], swellDir: compass(big[6]),
-            gust: Math.max(...gusts), level: Math.max(...use.map(rate)), slots,
+            gust: Math.max(...gusts), level: Math.max(...use.map(rate_)), slots,
             calm: calm.length ? clockShort(calm[0][0]) + "–" + clockShort(calm[calm.length - 1][0] + 3600000) : "",
         };
     });
@@ -240,7 +278,7 @@ function savePlaces(list) {
 function select(i) {
     if (i === S.selected) return;
     S.selected = i;
-    S.chartMode = ""; S.focusDay = -1; S.renaming = false; S.hourHover = -1; S.nowOpen = false;
+    S.chartMode = ""; S.focusDay = -1; S.renaming = false; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
     flash.selected = true;
     $("#scroll").scrollTop = 0;
 }
@@ -292,6 +330,70 @@ function undoRemove() {
     S.toast.shown = false;
     refresh();
 }
+// Change the shown place's settings (and save them).
+function updatePlace(i, fn) {
+    const list = S.places.map(p => JSON.parse(JSON.stringify(p)));
+    if (!list[i]) return;
+    fn(list[i]);
+    S.places = list;
+    save("rt:places", list);
+}
+function toggleTab(mode) {
+    updatePlace(S.selected, p => {
+        const h = new Set(p.hide || []);
+        if (h.has(mode)) h.delete(mode); else h.add(mode);
+        if (h.size) p.hide = [...h]; else delete p.hide;
+    });
+}
+// Take the river gauge or tide station off a place (a place keeps at least one).
+function removeStation(kind) {
+    const i = S.selected, p = S.places[i];
+    if (!p || !p[kind] || !(p.river && p.tide)) return;
+    const before = JSON.parse(JSON.stringify(p)), old = S.results[keyOf(p)];
+    updatePlace(i, q => { delete q[kind]; });
+    const q = S.places[i];
+    // show what's left right away instead of a spinner
+    if (old && !S.results[keyOf(q)]) S.results[keyOf(q)] = kind === "tide" ? { ...old, key: keyOf(q), tide: null, surf: null } : { ...old, key: keyOf(q), river: null };
+    toast("Removed " + (kind === "tide" ? "tide station" : "river gauge") + " from " + q.name, "Undo", () => {
+        if (!S.places[i]) return;
+        const list = S.places.slice();
+        list[i] = before;
+        savePlaces(list);
+    });
+    refresh();
+}
+// A number typed in the Customize panel. Blank = no value.
+function readNum(text) {
+    const t = String(text).replace(/[, ]/g, "");
+    if (t === "") return null;
+    const v = parseFloat(t);
+    return isFinite(v) ? v : undefined;      // undefined = not a number, ignore
+}
+function setIdeal(mode, side, text) {
+    const v = readNum(text);
+    if (v === undefined) return;
+    updatePlace(S.selected, p => {
+        const ideal = p.ideal || {}, r = (ideal[mode] || [null, null]).slice();
+        r[side] = v;
+        if (num(r[0]) && num(r[1]) && r[0] > r[1]) r.reverse();
+        if (num(r[0]) || num(r[1])) ideal[mode] = r; else delete ideal[mode];
+        if (Object.keys(ideal).length) p.ideal = ideal; else delete p.ideal;
+    });
+}
+function setJetty(key, text) {
+    const v = readNum(text);
+    if (v === undefined) return;
+    updatePlace(S.selected, p => {
+        const j = { ...(p.jetty || {}) };
+        if (v === null || v < 0) delete j[key]; else j[key] = v;
+        // keep calm ≤ sketchy and caution ≤ sketchy gusts
+        const L = jettyLim({ jetty: j });
+        if (L.calm > L.sketchy) { if (key === "calm") j.sketchy = L.calm; else j.calm = L.sketchy; }
+        if (L.cautionGust > L.sketchyGust) { if (key === "cautionGust") j.sketchyGust = L.cautionGust; else j.cautionGust = L.sketchyGust; }
+        if (Object.keys(j).length) p.jetty = j; else delete p.jetty;
+    });
+}
+
 function openAdd(target, kind) {
     S.attachTo = target; S.attachKind = kind;
     S.searchResults = []; S.searchError = ""; S.searching = false; S.searchSeq++;
@@ -340,6 +442,7 @@ function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 function goBack() {
     if (S.adding) closeAdd();
     else if (S.renaming) S.renaming = false;
+    else if (S.customizing) S.customizing = false;
     else if (S.editing) S.editing = false;
     else if (S.focusDay >= 0) S.focusDay = -1;
     else return false;
@@ -350,7 +453,7 @@ function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hour
 // Everything you looked at (another place, another chart, a future day) is
 // forgotten when you leave the app for a while, so it reopens on "now" for the ★ place.
 function resetView() {
-    S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false;
+    S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
     $("#q").blur();
     $("#scroll").scrollTop = 0;
@@ -399,9 +502,9 @@ function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, b
     return `<div class="sec ${cls}"${id ? ` id="${id}"` : ""}>${head}<div class="sec-box" style="padding:${pad}px;gap:${gap}px">${body}</div></div>`;
 }
 
-function tile({ title, num, unit, detail, mode, active, accent }) {
+function tile({ title, num, unit, detail, mode, active, accent, shape: k = null }) {
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
-        <div class="t-title">${title}</div>
+        <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
         <div class="t-val"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
         ${detail ? `<div class="t-det">${esc(detail)}</div>` : ""}
     </button>`;
@@ -432,29 +535,34 @@ function renderHeader(cur) {
 }
 
 function renderTiles(cur) {
-    const { d, r, t, mode } = cur;
+    const { d, r, t, mode, place: p } = cur;
     if (!d) return "";
     const out = [];
-    if (r) out.push(tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
+    if (r && !hidden(p, "stage")) out.push(tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
+        shape: shape(p, "stage", r.stage),
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: change(r.stageTrend, " ft", 2) }));
-    if (r && has(r.flow)) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
+    if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
+        shape: shape(p, "flow", r.flow),
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
         detail: r.flowNote === "NOAA" ? change(r.flowTrend, " cfs", 0) : r.flowNote + ", " + ago(r.flowTime) }));
-    if (t) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
+    if (t && !hidden(p, "tide")) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
+        shape: shape(p, "tide", t.height),
         num: has(t.height) ? t.height.toFixed(1) : "–", unit: " ft " + (t.rising === null ? "" : t.rising ? "↑" : "↓"),
         detail: (t.rising ? "Rising" : "Falling") + (t.live ? "" : " (predicted)") }));
     const h = surfNow(d.surf);
-    if (h) out.push(tile({ title: "WAVES", accent: LOOK.surfColor, mode: "surf", active: mode === "surf",
-        num: has(h[1]) ? h[1].toFixed(1) : "–", unit: " ft", detail: Math.round(h[2]) + " s " + compass(h[3]) + " · " + rateWord(rate(h)) }));
+    if (h && !hidden(p, "surf")) out.push(tile({ title: "WAVES", accent: LOOK.surfColor, mode: "surf", active: mode === "surf",
+        num: has(h[1]) ? h[1].toFixed(1) : "–", unit: " ft", detail: Math.round(h[2]) + " s " + compass(h[3]) + " · " + rateWord(rate(h, jettyLim(p))) }));
+    if (!out.length) return "";
     return `<div class="tiles n${out.length}">${out.join("")}</div>`;
 }
 
 function renderChart(cur) {
     const { d, r, mode } = cur;
-    const g = bigGraph(d, mode);
+    const g = bigGraph(d, mode, cur.place);
     cur.g = g;
     if (!d || g.series.length <= 1) return "";
-    const what = mode === "surf" ? "Waves · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs" : "Height · ft";
+    const b = g.ideal, rng = !b ? "" : " · good " + (isNaN(b.lo) ? "below " + b.hi : isNaN(b.hi) ? "above " + b.lo : b.lo + "–" + b.hi);
+    const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs" : "Height · ft") + rng;
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const p = r ? r.forecastPeak : null;
     return section({ pad: 9, body: `
@@ -465,7 +573,7 @@ function renderChart(cur) {
 
 function renderTides(cur) {
     const t = cur.t;
-    if (!t) return "";
+    if (!t || hidden(cur.place, "tide")) return "";
     const list = S.focusDay < 0 ? t.next : (t.week || []).filter(e => e.time >= S.focusDay && e.time < S.focusDay + DAY_MS);
     if (!list.length) return "";
     const today = new Date().getDate();
@@ -552,7 +660,7 @@ const hourText = h => clockShort(h.t) + " · " + h.temp + "° " + wxWord(h.code)
 
 function renderSurf(cur) {
     const d = cur.d, t = cur.t;
-    const days = surfDays(d ? d.surf : null);
+    const days = hidden(cur.place, "surf") ? [] : surfDays(d ? d.surf : null, jettyLim(cur.place));
     if (!days.length) return "";
     const legend = [0, 1, 2].map(l => `<span class="legend"><i style="background:${rateColor(l)}"></i>${rateWord(l)}</span>`).join("");
     const rows = days.map(x => {
@@ -574,13 +682,60 @@ function renderSurf(cur) {
     return section({ title: "Jetty / surf · 7 days", trailing: legend, pad: 4, gap: 0, body: rows });
 }
 
+// "Customize" panel: tabs shown, good ranges, jetty limits, stations.
+function numField(attrs, value, unit, mode = "decimal") {
+    const v = num(value) ? String(value) : "";
+    // data-key holds the saved value, so a reset or a cleaned-up value replaces the field
+    return `<span class="cz-num"><input class="cz-in" type="text" inputmode="${mode}" enterkeyhint="done" autocomplete="off"
+        placeholder="–" value="${esc(v)}" data-key="${esc(v)}" ${attrs}>${unit ? `<span class="cz-u">${unit}</span>` : ""}</span>`;
+}
+function renderCustomize(cur) {
+    const p = cur.place, d = cur.d;
+    if (!S.customizing || !p || !d) return "";
+    const have = haveModes(d);
+    const chips = have.map(m => {
+        const on = !hidden(p, m);
+        return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${on ? "✓ " : ""}${MODES[m]}</button>`;
+    }).join("");
+    const unit = { stage: "ft", flow: "cfs", tide: "ft" };
+    const ranges = have.filter(m => unit[m]).map(m => {
+        const r = (p.ideal && p.ideal[m]) || [null, null], int = m === "flow" ? "numeric" : "decimal";
+        return `<div class="cz-row"><span class="cz-label">${MODES[m]}</span>
+            ${numField(`data-set="ideal" data-mode="${m}" data-side="0"`, r[0], "", int)}<span class="cz-to">to</span>
+            ${numField(`data-set="ideal" data-mode="${m}" data-side="1"`, r[1], unit[m], int)}</div>`;
+    }).join("");
+    const L = jettyLim(p), custom = !!p.jetty;
+    const jetty = have.includes("surf") ? `
+        <div class="cz-head">Jetty / surf rating${custom ? `<button class="cz-link" data-act="resetJetty">Reset</button>` : ""}</div>
+        <div class="cz-row"><span class="cz-label" style="color:${LOOK.calmColor}">Calm</span><span class="cz-to">waves up to</span>${numField(`data-set="jetty" data-k="calm"`, L.calm, "ft")}</div>
+        <div class="cz-row"><span class="cz-label" style="color:${LOOK.sketchyColor}">Sketchy</span><span class="cz-to">waves above</span>${numField(`data-set="jetty" data-k="sketchy"`, L.sketchy, "ft")}</div>
+        <div class="cz-row"><span class="cz-label">Gusts</span><span class="cz-to" style="color:${LOOK.cautionColor}">caution</span>${numField(`data-set="jetty" data-k="cautionGust"`, L.cautionGust, "", "numeric")}<span class="cz-to" style="color:${LOOK.sketchyColor}">sketchy</span>${numField(`data-set="jetty" data-k="sketchyGust"`, L.sketchyGust, "mph", "numeric")}</div>
+        <div class="cz-note">In between is caution. “Waves” is the total wave height (swell + wind waves) from Open-Meteo’s forecast model, not a buoy; tap a day in Jetty / surf for the swell alone.</div>` : "";
+    const both = !!(p.river && p.tide);
+    const station = (kind, label, name) => p[kind] ? `<div class="cz-row"><span class="cz-label">${label}</span>
+        <span class="cz-stn">${esc(name || p[kind])}</span>
+        ${both ? `<button class="cz-rm" data-act="removeStation" data-kind="${kind}">Remove</button>` : ""}</div>` : "";
+    const body = `
+        <div class="cz-head">Show</div>
+        <div class="cz-chips">${chips}</div>
+        ${ranges ? `<div class="cz-head">Good range</div>${ranges}
+        <div class="cz-note">The chart turns green inside the range and red outside. Leave a side blank for no limit.</div>` : ""}
+        ${jetty}
+        <div class="cz-head">Stations</div>
+        ${station("river", "River", cur.r && cur.r.name)}
+        ${station("tide", "Tides", cur.t && cur.t.name)}
+        ${both ? "" : `<div class="cz-note">To remove the last station, remove the place under Edit.</div>`}`;
+    return section({ id: "czSec", title: "Customize · " + p.name, pad: 10, gap: 6,
+        trailing: `<button class="edit-btn on" data-act="customize">Done</button>`, body });
+}
+
 function renderPlaces() {
     if (!(S.places.length > 1 || S.editing)) return "";
     const firstVisible = S.places.findIndex((p, i) => S.editing || i !== S.selected);
     const rows = S.places.map((p, i) => {
         const hidden = !S.editing && i === S.selected;
         const isPin = i === pinned();
-        const parts_ = S.editing ? "" : parts(dataFor(i)).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
+        const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
         return `<div class="prow${hidden ? " hide" : ""}${i === firstVisible ? " first" : ""}${S.editing && i === S.selected ? " cur" : ""}"
                      data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
             ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
@@ -615,10 +770,12 @@ function renderBody(cur) {
         sel += renderTides(cur);
         sel += renderWeather(cur);
         sel += renderSurf(cur);
-        if (cur.d && (!place.river || !place.tide)) {
+        sel += renderCustomize(cur);
+        if (cur.d) {
             sel += `<div class="add-half">
                 ${!place.tide ? `<button data-act="attach" data-kind="tide">${icon("plus", 13)}Tide station</button>` : ""}
                 ${!place.river ? `<button data-act="attach" data-kind="river">${icon("plus", 13)}River gauge</button>` : ""}
+                ${S.customizing ? "" : `<button data-act="customize" class="cz-open">${icon("sliders", 13)}Customize</button>`}
             </div>`;
         }
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
@@ -685,7 +842,7 @@ function renderToast() {
 function render() {
     const place = S.places[S.selected] || null;
     const d = dataFor(S.selected);
-    const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode) };
+    const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
     document.body.classList.toggle("adding", S.adding);
     document.body.classList.toggle("editing", S.editing);
     renderHeader(cur);
@@ -703,9 +860,9 @@ function paint(cur = lastCur) {
     if (!cur) return;
     lastCur = cur;
     const cv = $("#bigChart");
-    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay);
+    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, S.selected + "|" + S.focusDay);
     else bigChart.cv = null;
-    document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, spark(dataFor(+c.dataset.spark)), 1.25, LOOK.fillOpacity));
+    document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, spark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
     paintHourly(cur);
 }
 
@@ -871,10 +1028,17 @@ const ACTIONS = {
     },
     week: () => { S.focusDay = -1; S.hourHover = -1; flash.week = true; },
     surfDay: el => {
-        const cur = bestMode(dataFor(S.selected), S.chartMode);
+        const cur = bestMode(dataFor(S.selected), S.chartMode, S.places[S.selected]);
         pickDay(+el.dataset.start);
         if (cur !== "tide") S.chartMode = "surf";
     },
+    customize: () => {
+        S.customizing = !S.customizing;
+        if (S.customizing) setTimeout(() => showSection("#czSec"), 30);
+    },
+    toggleTab: el => toggleTab(el.dataset.mode),
+    removeStation: el => removeStation(el.dataset.kind),
+    resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
     select: el => select(+el.dataset.i),
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     edit: () => {
@@ -910,8 +1074,9 @@ const ACTIONS = {
 };
 
 // Edit mode adds the current place to the list; scroll so the whole list is in view.
-function showList() {
-    const f = $("#scroll"), sec = $("#placesSec");
+function showList() { showSection("#placesSec"); }
+function showSection(sel) {
+    const f = $("#scroll"), sec = $(sel);
     if (!sec) return;
     const want = Math.min(sec.offsetTop + sec.offsetHeight - f.clientHeight + 12, f.scrollHeight - f.clientHeight);
     if (f.scrollTop < want) f.scrollTo({ top: want, behavior: ANIM ? "smooth" : "auto" });
@@ -932,6 +1097,18 @@ function wire() {
     $("#app").addEventListener("pointerdown", e => {
         const h = e.target.closest(".handle");
         if (h) startDrag(e, h);
+    });
+
+    // Customize panel number fields: saved when you leave the field or press Done
+    $("#body").addEventListener("change", e => {
+        const el = e.target;
+        if (!el.matches || !el.matches(".cz-in")) return;
+        if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
+        else if (el.dataset.set === "jetty") setJetty(el.dataset.k, el.value);
+        render();
+    });
+    $("#body").addEventListener("keydown", e => {
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in")) { e.preventDefault(); e.target.blur(); }
     });
 
     // rename field
@@ -1007,4 +1184,4 @@ refresh();
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 
 // for testing from a computer (tools/shot.py)
-window.__rt = { S, render, refresh, ACTIONS, select, pickDay, goBack };
+window.__rt = { S, render, refresh, ACTIONS, select, pickDay, goBack, bigChart };

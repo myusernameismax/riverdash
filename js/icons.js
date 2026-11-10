@@ -65,6 +65,7 @@ const UI = {
     star: `<path d="M16 3.5l3.8 7.9 8.6 1.2-6.3 6 1.6 8.6L16 23.1l-7.7 4.1 1.6-8.6-6.3-6 8.6-1.2z" fill="currentColor"/>`,
     starOutline: `<path d="M16 3.5l3.8 7.9 8.6 1.2-6.3 6 1.6 8.6L16 23.1l-7.7 4.1 1.6-8.6-6.3-6 8.6-1.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`,
     refresh: `<path d="M25.5 12.5A10 10 0 1 0 26 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M27 5v8h-8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    sliders: `<path d="M5 9h22M5 16h22M5 23h22" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="9" r="3.2" fill="var(--bg)" stroke="currentColor" stroke-width="2.2"/><circle cx="11" cy="16" r="3.2" fill="var(--bg)" stroke="currentColor" stroke-width="2.2"/><circle cx="18" cy="23" r="3.2" fill="var(--bg)" stroke="currentColor" stroke-width="2.2"/>`,
     plus: `<path d="M16 6v20M6 16h20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
     back: `<path d="M20 5L9 16l11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
     next: `<path d="M12 5l11 11-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
