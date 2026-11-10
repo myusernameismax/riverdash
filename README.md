@@ -100,7 +100,13 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 
 - **A red line under the name:** a NOAA site is down, or an id is wrong. The last copy keeps showing meanwhile.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
-- **Change didn't show up on the phone:** close the app fully (swipe it away in the app switcher) and open it again.
+- **Updates:** no need to reinstall. The app checks for a new version each time it
+  opens, and when you come back to it after more than a minute away; if there is
+  one it reloads itself (a short "Updated to the latest version" note shows) and
+  keeps your places. If a change still doesn't show, swipe the app away in the app
+  switcher and open it again.
+- **Don't delete and re-add the home-screen icon to update:** the home-screen app has
+  its own storage, and removing the icon can wipe your saved places.
 
 ## Data sources (free, no key)
 

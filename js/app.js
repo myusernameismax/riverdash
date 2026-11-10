@@ -1195,9 +1195,13 @@ function wire() {
 
     // leaving and coming back
     let hiddenAt = 0;
-    document.addEventListener("visibilitychange", () => {
+    document.addEventListener("visibilitychange", async () => {
         if (document.hidden) { hiddenAt = Date.now(); return; }
-        if (hiddenAt && Date.now() - hiddenAt > LOOK.resetAfterAwaySec * 1000) resetView();
+        if (hiddenAt && Date.now() - hiddenAt > LOOK.resetAfterAwaySec * 1000) {
+            // away a while: if a new version was pushed, reload into it (places are kept)
+            if (await appChanged()) { reloadForUpdate(); return; }
+            resetView();
+        }
         refresh();
     });
     setInterval(() => { if (!document.hidden) refresh(); }, Math.max(5, LOOK.refreshMinutes) * 60000);
@@ -1205,12 +1209,43 @@ function wire() {
     setInterval(() => { if (!document.hidden && !dragging) render(); }, 60000);
 }
 
+// ── updates ─────────────────────────────────────────────────────────
+// iPhone keeps a home-screen app alive in the background, so a new version pushed
+// to GitHub isn't picked up just by switching back to it. On startup we note each
+// app file's version tag (ETag); when you come back after being away a while, the
+// tags are checked again and the app reloads itself if any changed. Places, the ★
+// and downloaded data live in the phone's storage, so a reload keeps them.
+const APP_FILES = ["index.html", "css/app.css", "js/app.js", "js/config.js", "js/data.js", "js/chart.js",
+                   "js/icons.js", "js/fmt.js", "js/morph.js", "sw.js"];
+let appTags = null;
+async function fileTags() {
+    const tags = await Promise.all(APP_FILES.map(f => fetch(f, { method: "HEAD", cache: "no-store" })
+        .then(r => r.ok ? (r.headers.get("ETag") || r.headers.get("Last-Modified") || "") : "").catch(() => "")));
+    return tags.some(t => t) ? tags : null;      // null = offline / can't tell
+}
+async function appChanged() {
+    if (location.protocol !== "https:") return false;
+    const now = await fileTags();
+    if (!now) return false;
+    if (!appTags) { appTags = now; return false; }
+    return now.some((t, i) => t && appTags[i] && t !== appTags[i]);
+}
+function reloadForUpdate() {
+    try { sessionStorage.setItem("rt:updated", "1"); } catch (e) { /* fine */ }
+    location.reload();
+}
+
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 wire();
 render();
 refresh();
 
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:")
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+appChanged();                                     // note this version's file tags
+try {
+    if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
+} catch (e) { /* fine */ }
 
 // for testing from a computer (tools/shot.py)
 window.__rt = { S, render, refresh, ACTIONS, select, pickDay, goBack, bigChart };
