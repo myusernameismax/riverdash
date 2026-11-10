@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>River &amp; Tides</title>
+<meta name="description" content="NOAA river levels, flows, tides, waves and weather">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rivers">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.water.noaa.gov https://api.tidesandcurrents.noaa.gov https://api.waterdata.usgs.gov https://api.open-meteo.com https://marine-api.open-meteo.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+    <section id="details" class="page">
+        <header id="hdr"></header>
+        <main id="scroll"><div id="body"></div></main>
+        <footer id="ftr"></footer>
+    </section>
+
+    <section id="addPage" class="page">
+        <div class="add-top">
+            <button id="addBack" class="back-btn"><svg class="ic" width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M20 5L9 16l11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>
+            <h2 id="addTitle">Add a place</h2>
+        </div>
+        <div class="search-wrap">
+            <svg class="ic" width="17" height="17" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M20 20l7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+            <input id="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <main id="addScroll"><div id="addBody"></div></main>
+    </section>
+
+    <div id="toast"><span id="toastText"></span><button id="toastAct" hidden></button></div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
