@@ -31,6 +31,7 @@ Only the inputs change from the desktop widget:
 | Hover a *Jetty / surf* day | Tap it. The picked row also shows the biggest swell and the calm window. |
 | Hover the hourly graph | Drag a finger along it, or tap an hour. |
 | Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. |
+| (Back, one step at a time) | Closes what's on top (add page, share, Customize, Edit), then a picked day goes back to the week, then another place goes back to the ★ place. On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | Right-click → Configure… | Per place: tap **Customize** under the place (below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. |

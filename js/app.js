@@ -550,16 +550,22 @@ function toast(text, actionText, action) {
 function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 
 // Back gesture / Esc: leave the add page, edit mode or a picked day. false = nothing to go back from
+// One step at a time, innermost first: a page or panel on top, then a picked day
+// (back to the week), then another place (back to the ★ place).
 function goBack() {
     if (S.adding) closeAdd();
     else if (S.moving) closeMove();
     else if (S.renaming) S.renaming = false;
     else if (S.customizing) S.customizing = false;
     else if (S.editing) S.editing = false;
-    else if (S.focusDay >= 0) S.focusDay = -1;
+    else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
+    else if (S.places.length && S.selected !== pinned()) select(pinned());
     else return false;
     return true;
 }
+// Nothing left to go back from: a desktop wrapper (Linux panel) closes its popup.
+const embedded = () => !!document.documentElement.dataset.embed;
+function backAtTop() { if (embedded()) console.info("flowtides:close"); }
 function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hourHover = -1; }
 
 // Everything you looked at (another place, another chart, a future day) is
@@ -1329,7 +1335,15 @@ function wire() {
         edge = null;
     }, { passive: true });
     document.addEventListener("keydown", e => {
-        if (e.key === "Escape" && document.activeElement !== q && !(document.activeElement && document.activeElement.id === "nameEdit") && goBack()) render();
+        if (e.key !== "Escape" || document.activeElement === q || (document.activeElement && document.activeElement.id === "nameEdit")) return;
+        if (goBack()) render(); else backAtTop();
+    });
+
+    // mouse back button (button 3): same as Esc. Handled steps don't leave the page.
+    document.addEventListener("mouseup", e => {
+        if (e.button !== 3) return;
+        if (goBack()) { e.preventDefault(); render(); }
+        else if (embedded()) { e.preventDefault(); backAtTop(); }
     });
 
     window.addEventListener("resize", () => paint());
