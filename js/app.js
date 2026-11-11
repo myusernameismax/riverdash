@@ -241,11 +241,10 @@ function bigGraph(d, mode, p) {
     if (g.dayCovered) { g.homeT0 = a; g.homeT1 = b; }
     return g;
 }
-// The week view's charts show the same week as the weather (today + 6 days, or
-// as much of it as the data has); picking a day zooms to that day.
-const weekStart = () => midnight(Date.now());
+// The week view's charts show the last 2 days and the same week ahead as the
+// weather (through the 7th day), as far as the data goes; picking a day zooms to it.
 function graph(d, mode, p) {
-    const r = d ? d.river : null, t = d ? d.tide : null, w0 = weekStart(), w1 = w0 + 7 * DAY_MS;
+    const r = d ? d.river : null, t = d ? d.tide : null, w0 = Date.now() - 2 * DAY_MS, w1 = midnight(Date.now()) + 7 * DAY_MS;
     if (mode === "tide" && t)
         return { series: t.full || t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft", ideal: idealOf(p, "tide"),
                  homeT0: w0, homeT1: w1,

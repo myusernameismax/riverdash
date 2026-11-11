@@ -82,8 +82,8 @@ Only switching to another place clears it.
 
 - While the bar moves, the day it's on is highlighted in **7-day weather** (it doesn't
   open it). Drag through a week-long forecast and the highlight follows.
-- In the week view every chart shows the same week as the weather (today + 6 days,
-  as far as its data goes). Pick a day to see just that day.
+- In the week view every chart shows the last 2 days plus the same week as the weather
+  (through the 7th day), as far as its data goes. Pick a day to see just that day.
 - With a weather day open, the bar picks the hour it's on in the hourly graph, and
   picking an hour there moves the bar to that hour.
 - Opening a day while the bar is on a different day moves the bar to the same time
