@@ -47,6 +47,10 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 
 /* ── pages ─────────────────────────────────────────────────────────── */
 #app { position: fixed; inset: 0; overflow: hidden; }
+/* iPhone home-screen app: with the see-through status bar, "the whole page" stops
+   one status bar's height short of the bottom (dead space under the footer).
+   100vh is the real screen height there. Safari tabs keep inset: 0. */
+html.ios-app #app { bottom: auto; height: 100vh; }
 .page { position: absolute; inset: 0; display: flex; flex-direction: column;
         transition: transform var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
 #details { }

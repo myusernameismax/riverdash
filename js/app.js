@@ -1374,6 +1374,7 @@ function reloadForUpdate() {
 }
 
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
+if (navigator.standalone === true) document.documentElement.classList.add("ios-app");
 wire();
 render();
 // Show the last saved readings straight away (no waiting on a weak signal), then update.
