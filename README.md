@@ -61,8 +61,12 @@ Tap **Customize** at the bottom of a place:
 - **Show**: turn tabs (Height, Flow, Tide, Waves) on or off for this place. A hidden tab
   also hides its section (Next tides, Jetty / surf).
 - **Good range**: a low and/or high bound for height, flow or tide. The chart draws
-  the line green inside it and red outside (no shading); the tile and the
-  places list show *in shape* / *too low* / *too high*. Leave a side blank for no limit.
+  the line green inside it and red outside (no shading). Next to the place's name:
+  *in shape* / *too low* / *too high* (every reading with a range has to be in it).
+  Leave a side blank for no limit.
+- **Other places list:** each mini graph is one color that says how the place is
+  doing: green in shape, red not, gray with no good range set. Coastal tide stations
+  show the jetty / surf rating instead (green calm, yellow caution, red sketchy).
 - **Jetty / surf rating**: the wave heights for calm and sketchy, and the gust limits,
   for this spot (defaults come from `js/config.js`). **Reset** goes back to them.
 - **Stations**: remove the river gauge or the tide station from a place (with Undo).

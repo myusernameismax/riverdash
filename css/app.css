@@ -68,7 +68,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #hdr:empty { padding-bottom: 0; }
 .hrow { display: flex; align-items: flex-start; gap: 8px; }
 .hname { flex: 1; min-width: 0; padding-left: 2px; }
-.hname h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
+.htitle { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.hshape { flex: none; font-size: 14px; font-weight: 700; }
+.hname h1 { min-width: 0; margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name-edit { width: 100%; font-size: 22px; font-weight: 700; padding: 1px 8px; margin-left: -8px; border-radius: 9px;
              border: 1px solid color-mix(in srgb, #5cb8ff 60%, transparent); background: var(--tint); outline: none; }

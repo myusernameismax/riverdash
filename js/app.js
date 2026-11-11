@@ -181,6 +181,13 @@ function shape(p, mode, v) {
     return v < b.lo ? -1 : v > b.hi ? 1 : 0;
 }
 const shapeColor = k => k === 0 ? LOOK.calmColor : LOOK.sketchyColor;
+// The whole place: in shape only if every reading with a good range is; null = no range set.
+function placeShape(p, d) {
+    const r = d && d.river, t = d && d.tide;
+    const ks = [["stage", r && r.stage], ["flow", r && r.flow], ["tide", t && t.height]]
+        .filter(([m]) => !hidden(p, m)).map(([m, v]) => shape(p, m, v)).filter(k => k !== null);
+    return !ks.length ? null : ks.find(k => k !== 0) ?? 0;
+}
 const shapeWord = k => k === 0 ? "in shape" : k < 0 ? "too low" : "too high";
 
 // Short colored pieces for the list rows.
@@ -262,6 +269,19 @@ function graph(d, mode, p) {
     }
     return { series: [], forecast: [], color: LOOK.stageColor, decimals: 1, nowValue: NaN, markers: [], threshold: NaN };
 }
+// Mini graph in the places list: one color that says how the place is doing.
+// River: green in shape / red out of it (gray with no good range). Coastal tide
+// station: the jetty / surf rating right now (green calm, yellow caution, red sketchy).
+function listSparkColor(i) {
+    const d = dataFor(i), p = S.places[i], mode = bestMode(d, "", p);
+    if (d && (mode === "tide" || mode === "surf") && d.surf && !hidden(p, "surf")) {
+        const l = rate(surfNow(d.surf), jettyLim(p));
+        if (l >= 0) return rateColor(l);
+    }
+    const k = placeShape(p, d);
+    return k === null ? LOOK.sparkPlainColor : shapeColor(k);
+}
+function listSpark(i) { return { ...spark(i), ideal: null, color: listSparkColor(i) }; }
 // Same data, trimmed to a short window so it stays readable when tiny.
 function spark(i) {
     const d = dataFor(i), p = S.places[i];
@@ -741,11 +761,11 @@ function renderHeader(cur) {
     const wx = LOOK.showWeather && n && has(n.temp)
         ? `<button class="hwx" data-act="nowToggle">${wxIcon(n.code, n.day, 34)}<span class="hwx-t"><span class="hwx-temp">${n.temp}°</span><span class="hwx-word">${esc(wxWord(n.code))}</span></span></button>`
         : "";
-    const isPin = S.selected === pinned();
+    const isPin = S.selected === pinned(), k = placeShape(place, d);
     morphInto(hdr, `<div class="hrow">
         <div class="hname">
             ${S.renaming ? `<input id="nameEdit" class="name-edit" enterkeyhint="done" autocomplete="off" autocorrect="off">`
-                         : `<h1 data-act="rename">${esc(place.name)}</h1>`}
+                         : `<div class="htitle"><h1 data-act="rename">${esc(place.name)}</h1>${k === null ? "" : `<span class="hshape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>`}
             ${sub ? `<div class="hsub">${esc(sub)}</div>` : ""}
         </div>
         ${wx}
@@ -761,14 +781,11 @@ function renderTiles(cur) {
     if (!d) return "";
     const out = [];
     if (r && !hidden(p, "stage")) out.push(tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
-        shape: shape(p, "stage", r.stage),
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) }));
     if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
-        shape: shape(p, "flow", r.flow),
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
         detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) }));
     if (t && !hidden(p, "tide")) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
-        shape: shape(p, "tide", t.height),
         num: has(t.height) ? t.height.toFixed(1) : "–", unit: " ft " + (t.rising === null ? "" : t.rising ? "↑" : "↓"),
         detail: (t.rising ? "Rising" : "Falling") + (t.live ? "" : " (predicted)") }));
     const h = surfNow(d.surf);
@@ -1093,7 +1110,7 @@ function paint(cur = lastCur) {
     // the reading bar stays put across tabs and picked days; only another place clears it
     if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
     else bigChart.cv = null;
-    document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, spark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
+    document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, listSpark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
     paintHourly(cur);
     syncWeather(bigChart.hoverT);
 }

@@ -20,6 +20,7 @@ export const LOOK = {
     // ── Mini graphs in the places list ───────────────────────────────
     sparkPastHours: 24,      // graph window: hours back…
     sparkFutureHours: 12,    // …and hours ahead (forecast / tide prediction)
+    sparkPlainColor: "#8b939b", // their color when a place has no good range (and no jetty rating)
 
     // ── Details page ─────────────────────────────────────────────────
     chartHeight: 140,        // px
