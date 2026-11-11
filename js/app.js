@@ -480,7 +480,7 @@ function openAdd(target, kind) {
     const q = $("#q");
     q.value = p ? p.name : "";       // attaching: start with the place's name
     render();
-    q.focus();                        // inside the tap, so the keyboard comes up
+    q.focus({ preventScroll: true }); // inside the tap, so the keyboard comes up (the page slides in by itself)
     if (q.value) runSearch(q.value);
     warmSearch();
 }
@@ -1276,7 +1276,7 @@ const ACTIONS = {
     select: el => select(+el.dataset.i),
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     share: () => { openShare(); return "skip"; },
-    importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus(); }, ANIM + 20); return "skip"; },
+    importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus({ preventScroll: true }); }, ANIM + 20); return "skip"; },
     copyLink: () => { copyText(S.shareLink).then(ok => { toast(ok ? "Link copied" : "Couldn't copy", "", null); render(); }); return "skip"; },
     shareSheet: () => { navigator.share({ title: "Flow Tides places", url: S.shareLink }).catch(() => {}); return "skip"; },
     paste: () => {
@@ -1342,6 +1342,12 @@ function wire() {
         if (!fn) return;
         if (fn(el) !== "skip") render();
     });
+
+    // Pages slide in with CSS. Focusing a field on a page that's still sliding in made
+    // the browser scroll the whole app sideways to show it (blank screen, no way back),
+    // so the app frame never scrolls.
+    const appEl = $("#app");
+    appEl.addEventListener("scroll", () => { if (appEl.scrollLeft || appEl.scrollTop) appEl.scrollLeft = appEl.scrollTop = 0; });
 
     $("#app").addEventListener("pointerdown", e => {
         const h = e.target.closest(".handle");
