@@ -263,8 +263,11 @@ export class Chart {
             ctx.textBaseline = "top";
             const long = t1 - t0 > 30 * 3600000;
             const tl = t => long ? fmtDay(t) : sameDay(t, now) ? fmtTime(t, "h A") : fmtDay(t) + " " + fmtTime(t, "h A");
-            ctx.textAlign = "left"; ctx.fillText(tl(t0), left, bottom + 4);
-            ctx.textAlign = "right"; ctx.fillText(tl(t1), right, bottom + 4);
+            // end labels, unless "now" (drawn below) would overlap them
+            const nowX = now > t0 && now < t1 ? X(now) : NaN, gap = w => ctx.measureText("now").width / 2 + w + 8;
+            const l0 = tl(t0), l1 = tl(t1);
+            if (!(nowX - left < gap(ctx.measureText(l0).width))) { ctx.textAlign = "left"; ctx.fillText(l0, left, bottom + 4); }
+            if (!(right - nowX < gap(ctx.measureText(l1).width))) { ctx.textAlign = "right"; ctx.fillText(l1, right, bottom + 4); }
             // baseline
             ctx.globalAlpha = 0.15; ctx.strokeStyle = text; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(left, bottom + 0.5); ctx.lineTo(right, bottom + 0.5); ctx.stroke();
@@ -339,6 +342,7 @@ export class Chart {
             const x = X(m.time), y = Y(m.value);
             ctx.globalAlpha = 0.9; ctx.fillStyle = color;
             ctx.beginPath(); ctx.arc(x, y, 2.5, 0, 2 * Math.PI); ctx.fill();
+            if (t1 - t0 > 3 * 86400000) continue;   // a week of highs/lows: dots only, labels would pile up
             ctx.globalAlpha = 0.75; ctx.fillStyle = text;
             ctx.textBaseline = m.above ? "bottom" : "top";
             const w = ctx.measureText(m.label).width;

@@ -137,6 +137,7 @@ function projectTide(t, now) {
              rising: h === null || later === null ? null : later > h,
              next: ev.filter(e => e.time > now).slice(0, 4), previous: past.length ? past[past.length - 1] : null,
              curve: all.filter(p => now - 12 * HOUR_MS <= p[0] && p[0] <= now + 36 * HOUR_MS),
+             full: all.filter(p => p[0] >= now - 24 * HOUR_MS),          // the week view
              events: ev.filter(e => now - 12 * HOUR_MS <= e.time && e.time <= now + 36 * HOUR_MS) };
 }
 function projectWeather(w, now) {
@@ -223,8 +224,8 @@ function bigGraph(d, mode, p) {
     const g = graph(d, mode, p);
     if (S.focusDay < 0) return g;
     const a = S.focusDay, b = S.focusDay + DAY_MS, t = d ? d.tide : null;
-    if (mode === "tide" && t && t.weekCurve && t.weekCurve.length > 1) {
-        g.series = t.weekCurve;
+    if (mode === "tide" && t && (t.full || t.weekCurve) && (t.full || t.weekCurve).length > 1) {
+        g.series = t.full || t.weekCurve;
         g.markers = tideMarkers(t.week || []);
         g.nowValue = NaN;
     }
@@ -233,18 +234,21 @@ function bigGraph(d, mode, p) {
     if (g.dayCovered) { g.homeT0 = a; g.homeT1 = b; }
     return g;
 }
+// The week view's charts show the same week as the weather (today + 6 days, or
+// as much of it as the data has); picking a day zooms to that day.
+const weekStart = () => midnight(Date.now());
 function graph(d, mode, p) {
-    const r = d ? d.river : null, t = d ? d.tide : null;
+    const r = d ? d.river : null, t = d ? d.tide : null, w0 = weekStart(), w1 = w0 + 7 * DAY_MS;
     if (mode === "tide" && t)
-        return { series: t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft", ideal: idealOf(p, "tide"),
-                 homeT0: Date.now() - 6 * 3600000, homeT1: Date.now() + 24 * 3600000,
-                 nowValue: has(t.height) ? t.height : NaN, markers: tideMarkers(t.events) };
+        return { series: t.full || t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft", ideal: idealOf(p, "tide"),
+                 homeT0: w0, homeT1: w1,
+                 nowValue: has(t.height) ? t.height : NaN, markers: tideMarkers(t.week || t.events) };
     if (mode === "surf" && d && d.surf) {
         const now = Date.now(), pts = d.surf.hours.map(h => [h[0], h[1]]), L = jettyLim(p);
         return { series: pts.filter(x => x[0] <= now), forecast: pts.filter(x => x[0] > now),
                  color: LOOK.surfColor, decimals: 1, unit: " ft", nowValue: NaN, markers: [],
                  threshold: L.calm, thresholdLabel: "calm limit " + L.calm + " ft",
-                 homeT0: now - 6 * 3600000, homeT1: NaN };
+                 homeT0: w0, homeT1: w1 };
     }
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
@@ -252,7 +256,7 @@ function graph(d, mode, p) {
                  color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, markers: [],
                  nowValue: !r.predicted ? NaN : c === 2 ? (r.flowPredicted ? r.flow : NaN) : r.stage,
                  ideal: idealOf(p, mode),
-                 unit: c === 2 ? " cfs" : " ft", homeT0: NaN, homeT1: Date.now() + 3 * DAY_MS,   // opens on 3 days ahead; zoom out for the rest
+                 unit: c === 2 ? " cfs" : " ft", homeT0: w0, homeT1: w1,
                  threshold: c === 1 && r.flood.minor ? r.flood.minor : NaN,
                  thresholdLabel: "flood stage " + r.flood.minor + " ft" };
     }
@@ -670,7 +674,11 @@ async function refresh() {
     try { r = await fetchPlaces(S.places); } catch (e) { r = { error: "Couldn't get data: " + e.message }; }
     if (seq === fetchSeq) { S.loading = false; S.error = r.error || ""; S.offline = !!r.offline; }
     if (r.places) {                                   // merge, so nothing blinks out
-        for (const p of r.places) S.results[p.key] = p;
+        for (const p of r.places) {
+            const old = S.results[p.key];
+            // a failed download never wipes readings already on screen
+            S.results[p.key] = !old || p.river || p.tide ? p : { ...old, errors: p.errors };
+        }
         S.updated = Math.max(S.updated || 0, r.time);
         if (!r.offline) saveSnapshot();
     }
