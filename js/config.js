@@ -26,8 +26,8 @@ export const LOOK = {
     lineWidth: 2,            // chart line thickness
     fillOpacity: 0.18,       // chart area shading
     chartMinZoomHours: 2,    // most zoomed-in the big chart goes (pinch to zoom)
-    // Most zoomed-out = all data already downloaded: river 2 days back + 3 days
-    // forecast, tide 12 h back + 36 h ahead.
+    // Most zoomed-out = all data already downloaded: river 2 days back + the whole forecast (~7 days)
+    // and tide 12 h back + 36 h ahead.
 
     // ── Jetty / surf rating (coastal tide stations only) ─────────────
     // Each hour is rated from the forecast wave height (all swell + wind waves),

@@ -252,7 +252,7 @@ function graph(d, mode, p) {
                  color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, markers: [],
                  nowValue: !r.predicted ? NaN : c === 2 ? (r.flowPredicted ? r.flow : NaN) : r.stage,
                  ideal: idealOf(p, mode),
-                 unit: c === 2 ? " cfs" : " ft", homeT0: NaN, homeT1: NaN,
+                 unit: c === 2 ? " cfs" : " ft", homeT0: NaN, homeT1: Date.now() + 3 * DAY_MS,   // opens on 3 days ahead; zoom out for the rest
                  threshold: c === 1 && r.flood.minor ? r.flood.minor : NaN,
                  thresholdLabel: "flood stage " + r.flood.minor + " ft" };
     }

@@ -138,7 +138,8 @@ async function pool(items, n, fn) {
 
 // ---------------------------------------------------------------- rivers
 
-// Observed (last 3 days) and forecast (next 5 days) as [ms, stage ft, flow cfs].
+// Observed (last 3 days) and forecast (all of it: about 7 days, up to 10 at some gauges) as [ms, stage ft, flow cfs].
+// The later days are what NOAA's site calls the forecast trend; the API doesn't mark where it starts.
 async function stageflow(lid) {
     const d = await get(`${NWPS}/gauges/${encodeURIComponent(lid)}/stageflow`, null, 60);
     const now = Date.now();
@@ -157,7 +158,7 @@ async function stageflow(lid) {
     }
     return {
         observed: rows("observed", now - 3 * DAY * 1000, now + HOUR * 1000),
-        forecast: rows("forecast", now - 6 * HOUR * 1000, now + 5 * DAY * 1000),
+        forecast: rows("forecast", now - 6 * HOUR * 1000, now + 10 * DAY * 1000),
     };
 }
 
@@ -220,7 +221,7 @@ async function river(lid) {
         category: cat[0], categoryLabel: cat[1], flood,
         forecastPeak: peak ? { time: peak[0], stage: peak[1], flow: peak[2] } : null,
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
-        forecast: thin(fc.filter(p => p[0] <= (t || 0) + 3 * DAY * 1000), 80),  // chart: next 3 days
+        forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
     };
 }
 

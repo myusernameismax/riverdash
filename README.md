@@ -145,7 +145,7 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 
 | Data | Source |
 |---|---|
-| River height, flow, forecast, flood stages | NOAA National Water Prediction Service |
+| River height, flow, forecast (the whole one, about 7 days, including what NOAA's site calls the trend), flood stages | NOAA National Water Prediction Service |
 | Tides (predictions, live level where there's a sensor) | NOAA CO-OPS Tides & Currents |
 | Flow when NOAA has none | USGS Water Data |
 | Waves, wind, weather | Open-Meteo |
