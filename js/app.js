@@ -29,7 +29,8 @@ const S = {
     pinnedRaw: load("rt:pinned", 0),
     selected: 0,             // place shown
     results: {},             // place key -> data from data.js
-    updated: 0,
+    updated: 0,              // when the newest shown data really arrived
+    offline: false,          // the last refresh couldn't reach anything
     error: "",
     loading: false,
     chartMode: "",           // "stage" | "flow" | "tide" | "surf", "" = automatic
@@ -63,7 +64,7 @@ S.selected = pinned();
 
 // ── helpers ─────────────────────────────────────────────────────────
 const keyOf = p => ((p && p.river) || "") + "|" + ((p && p.tide) || "");
-const dataFor = i => i >= 0 && i < S.places.length ? (S.results[keyOf(S.places[i])] || null) : null;
+const dataFor = i => i >= 0 && i < S.places.length ? project(S.results[keyOf(S.places[i])] || null) : null;
 const placeName = i => (S.places[i] || {}).name || "?";
 const has = v => v !== null && v !== undefined;
 const ft = v => has(v) ? v.toFixed(1) + " ft" : "–";
@@ -85,6 +86,74 @@ const categoryColor = c => c === "action" ? LOOK.actionColor : c === "minor" ? L
 const flooding = r => !!r && ["action", "minor", "moderate", "major"].includes(r.category);
 const shortName = n => n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0].replace(/ River$/, "").trim();
 const dayLabel = ms => fmtDay(ms) + " " + fmtMonthDay(ms);
+
+// ── as of now ───────────────────────────────────────────────────────
+// Saved readings can be hours old (app closed a while, or offline). What they
+// predict (river forecast, tide tables, wave and weather forecasts) carries them
+// forward to now, so the app opens on current numbers while it downloads. Measured
+// data stays solid on the charts; everything after the last measurement is dashed.
+const MEASURED_FOR = 2 * 3600000;   // gauges post about hourly; an older reading is replaced by the forecast
+const HOUR_MS = 3600000;
+// Value at time t on a line of [ms, ...] points (column col); null outside it.
+function interp(pts, t, col) {
+    let a = null;
+    for (const p of pts) {
+        if (p[col] === null || p[col] === undefined) continue;
+        if (p[0] < t) { a = p; continue; }
+        if (p[0] === t) return p[col];
+        return a ? a[col] + (p[col] - a[col]) * (t - a[0]) / (p[0] - a[0]) : null;
+    }
+    return null;
+}
+const FLOOD = [["major", "Major flooding"], ["moderate", "Moderate flooding"], ["minor", "Minor flooding"], ["action", "Action stage"]];
+function projectRiver(r, now) {
+    if (!r || !r.time || now - r.time < MEASURED_FOR) return r;
+    const line = [[r.time, r.stage, r.flowNote === "NOAA" ? r.flow : null]].concat(r.forecast);
+    const stage = interp(line, now, 1);
+    if (stage === null) return { ...r, stale: true };          // past the forecast: last measurement, marked old
+    const flow = interp(line, now, 2), known = r.series.concat(r.forecast);
+    const was = col => interp(known, now - 3 * HOUR_MS, col);
+    const ws = was(1), wf = was(2);
+    const cat = FLOOD.find(([k]) => r.flood[k] && stage >= r.flood[k]) || ["normal", "Normal"];
+    return { ...r, predicted: true, obsTime: r.time,
+             stage: Math.round(stage * 100) / 100, stageTrend: ws === null ? null : Math.round((stage - ws) * 100) / 100,
+             flow: flow === null ? r.flow : Math.round(flow), flowPredicted: flow !== null,
+             flowTrend: flow === null || wf === null ? (flow === null ? r.flowTrend : null) : Math.round(flow - wf),
+             category: cat[0], categoryLabel: cat[1] };
+}
+function projectTide(t, now) {
+    if (!t) return t;
+    const live = t.live && now - t.time < HOUR_MS;
+    // the 15-minute predictions, then the whole-week curve where they run out
+    const wk = t.weekCurve || [], c = t.curve || [];
+    const first = c.length ? c[0][0] : Infinity, last = c.length ? c[c.length - 1][0] : -Infinity;
+    const all = wk.filter(p => p[0] < first).concat(c, wk.filter(p => p[0] > last));
+    const h = interp(all, now, 1), later = interp(all, now + 15 * 60000, 1);
+    const ev = t.week && t.week.length ? t.week : t.events || [];
+    const past = ev.filter(e => e.time <= now);
+    return { ...t, live,
+             height: live ? t.height : h === null ? null : Math.round(h * 100) / 100,
+             time: live ? t.time : now,
+             rising: h === null || later === null ? null : later > h,
+             next: ev.filter(e => e.time > now).slice(0, 4), previous: past.length ? past[past.length - 1] : null,
+             curve: all.filter(p => now - 12 * HOUR_MS <= p[0] && p[0] <= now + 36 * HOUR_MS),
+             events: ev.filter(e => now - 12 * HOUR_MS <= e.time && e.time <= now + 36 * HOUR_MS) };
+}
+function projectWeather(w, now) {
+    if (!w || !w.now || now - (w.now.time || now) < 90 * 60000) return w;
+    const h = (w.hours || []).reduce((a, x) => !a || Math.abs(x[0] - now) < Math.abs(a[0] - now) ? x : a, null);
+    if (!h || Math.abs(h[0] - now) > HOUR_MS) return { ...w, now: null };
+    return { ...w, now: { ...w.now, time: h[0], temp: h[1], code: h[2], day: h[7], wind: h[5], gust: h[6], feels: null, predicted: true } };
+}
+const projected = new WeakMap();
+function project(d) {
+    if (!d) return d;
+    const now = Date.now(), minute = Math.floor(now / 60000), m = projected.get(d);
+    if (m && m.minute === minute) return m.out;
+    const out = { ...d, river: projectRiver(d.river, now), tide: projectTide(d.tide, now), weather: projectWeather(d.weather, now) };
+    projected.set(d, { minute, out });
+    return out;
+}
 
 // ── per-place settings (saved with the place) ───────────────────────
 // place.hide:  charts/tabs not shown, e.g. ["surf"]
@@ -180,7 +249,8 @@ function graph(d, mode, p) {
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
         return { series: r.series.map(x => [x[0], x[c]]), forecast: r.forecast.map(x => [x[0], x[c]]),
-                 color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, nowValue: NaN, markers: [],
+                 color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, markers: [],
+                 nowValue: !r.predicted ? NaN : c === 2 ? (r.flowPredicted ? r.flow : NaN) : r.stage,
                  ideal: idealOf(p, mode),
                  unit: c === 2 ? " cfs" : " ft", homeT0: NaN, homeT1: NaN,
                  threshold: c === 1 && r.flood.minor ? r.flood.minor : NaN,
@@ -587,12 +657,22 @@ async function refresh() {
     render();
     let r;
     try { r = await fetchPlaces(S.places); } catch (e) { r = { error: "Couldn't get data: " + e.message }; }
-    if (seq === fetchSeq) { S.loading = false; S.error = r.error || ""; }
+    if (seq === fetchSeq) { S.loading = false; S.error = r.error || ""; S.offline = !!r.offline; }
     if (r.places) {                                   // merge, so nothing blinks out
         for (const p of r.places) S.results[p.key] = p;
-        S.updated = r.time;
+        S.updated = Math.max(S.updated || 0, r.time);
+        if (!r.offline) saveSnapshot();
     }
     render();
+}
+// The last readings, kept where they load instantly at startup (before anything else).
+function saveSnapshot() {
+    try {
+        const keys = new Set(S.places.map(keyOf)), results = {};
+        for (const k of keys) if (S.results[k]) results[k] = S.results[k];
+        const json = JSON.stringify({ t: S.updated, results });
+        if (json.length < 2e6) localStorage.setItem("rt:snap", json); else localStorage.removeItem("rt:snap");
+    } catch (e) { /* full or private: the slower saved copies still work */ }
 }
 let searchTimer = 0;
 async function runSearch(text) {
@@ -652,20 +732,22 @@ function renderHeader(cur) {
         ${wx}
         <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon(isPin ? "star" : "starOutline", 24)}</button>
     </div>
-    ${S.nowOpen && n ? `<div class="hnow">Feels like ${n.feels}° · Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
+    ${S.nowOpen && n ? `<div class="hnow">${has(n.feels) ? `Feels like ${n.feels}° · ` : ""}Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
 }
 
+// past the last measurement: say the number is from the forecast, or how old it is
+const riverDetail = (r, normal) => r.predicted ? "Forecast · measured " + ago(r.obsTime) : r.stale ? "Measured " + ago(r.time) : normal;
 function renderTiles(cur) {
     const { d, r, t, mode, place: p } = cur;
     if (!d) return "";
     const out = [];
     if (r && !hidden(p, "stage")) out.push(tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
         shape: shape(p, "stage", r.stage),
-        num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: change(r.stageTrend, " ft", 2) }));
+        num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) }));
     if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
         shape: shape(p, "flow", r.flow),
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: r.flowNote === "NOAA" ? change(r.flowTrend, " cfs", 0) : r.flowNote + ", " + ago(r.flowTime) }));
+        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) }));
     if (t && !hidden(p, "tide")) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
         shape: shape(p, "tide", t.height),
         num: has(t.height) ? t.height.toFixed(1) : "–", unit: " ft " + (t.rising === null ? "" : t.rising ? "↑" : "↓"),
@@ -885,7 +967,7 @@ function renderBody(cur) {
     }
     const place = cur.place;
     if (place) {
-        const errs = [S.error].concat(cur.d ? cur.d.errors : []).filter(s => s);
+        const errs = [S.error].concat(cur.d ? cur.d.errors : []).filter(s => s && !(S.offline && /can't connect|timed out/.test(s)));
         let sel = "";
         if (errs.length) sel += `<div class="errors">${errs.map(esc).join("<br>")}</div>`;
         if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest from NOAA…</div>`;
@@ -911,7 +993,8 @@ function renderBody(cur) {
 
 function renderFooter() {
     morphInto($("#ftr"), `
-        <div class="fstat">${S.loading ? "Updating…" : S.updated ? "Updated " + clock(S.updated) : ""}  ·  NOAA</div>
+        <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
+            : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
         <button class="fbtn" data-act="add">${icon("plus", 16)}Add</button>
         <button class="fbtn round${S.loading ? " spin" : ""}" data-act="refresh"${S.loading ? " disabled" : ""}>${icon("refresh", 18)}</button>`);
@@ -1392,8 +1475,14 @@ if (navigator.standalone === true) document.documentElement.classList.add("ios-a
 wire();
 render();
 // Show the last saved readings straight away (no waiting on a weak signal), then update.
+// Instant: the snapshot from the last refresh, carried forward to now (see "as of now").
+try {
+    const snap = JSON.parse(localStorage.getItem("rt:snap") || "null");
+    if (snap && snap.results) { Object.assign(S.results, snap.results); S.updated = snap.t || 0; render(); }
+} catch (e) { /* none yet */ }
 savedPlaces(S.places).then(r => {
     for (const p of r.places) if (!S.results[p.key] && (p.river || p.tide)) S.results[p.key] = p;
+    if (!S.updated) S.updated = r.time;
     render();
 }).catch(() => {}).finally(refresh);
 

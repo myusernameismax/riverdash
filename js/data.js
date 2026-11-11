@@ -33,6 +33,12 @@ const CATEGORIES = {  // NWPS floodCategory -> [key, label]
 
 // ---------------------------------------------------------------- plumbing
 
+// Per fetchPlaces run: downloads that worked / couldn't reach the server (offline check),
+// and the newest data used (what "Updated" shows: the last time anything really arrived).
+const net = { ok: 0, fail: 0, newest: 0 };
+const seen = t => { if (t > net.newest) net.newest = t; };
+const offlineError = e => /can't connect|timed out/.test(e && e.message);   // vs. a real "no such data"
+
 async function get(url, params, timeout = 25) {
     if (params) url += (url.includes("?") ? "&" : "?") + new URLSearchParams(params).toString();
     const ctl = new AbortController();
@@ -41,10 +47,12 @@ async function get(url, params, timeout = 25) {
     try {
         r = await fetch(url, { headers: { Accept: "application/json" }, signal: ctl.signal });
     } catch (e) {
+        net.fail++;
         throw new Error(e.name === "AbortError" ? "timed out" : "can't connect");
     } finally {
         clearTimeout(timer);
     }
+    net.ok++;
     let body = null;
     try { body = await r.json(); } catch (e) { /* not JSON */ }
     if (!r.ok) throw new Error((body && body.message) || `HTTP Error ${r.status}`);
@@ -87,15 +95,16 @@ async function writeCache(name, data) {
 let savedOnly = false;
 async function cached(name, maxAge, fetchFn) {
     const c = await readCache(name);
-    if (savedOnly) { if (c) return c.data; throw new Error("nothing saved yet"); }
-    if (c && Date.now() - c.t < maxAge * 1000) return c.data;
+    if (savedOnly) { if (c) { seen(c.t); return c.data; } throw new Error("nothing saved yet"); }
+    if (c && Date.now() - c.t < maxAge * 1000) { seen(c.t); return c.data; }
     let data;
     try {
         data = await fetchFn();
     } catch (e) {
-        if (c) return c.data;
+        if (c) { seen(c.t); return c.data; }
         throw e;
     }
+    seen(Date.now());
     await writeCache(name, data);
     return data;
 }
@@ -304,7 +313,7 @@ async function tide(sid) {
     };
 
     const curve = await cached(`tide-curve-${sid}.json`, 6 * HOUR, async () => {
-        try { return await predictions("15", 48); } catch (e) { return curveFromHilo(); }
+        try { return await predictions("15", 48); } catch (e) { if (offlineError(e)) throw e; return curveFromHilo(); }
     });
 
     // Live water level, if the station has a sensor. Many (e.g. Portland) are prediction-only;
@@ -322,7 +331,7 @@ async function tide(sid) {
             }
         } catch (e) {
             obs = false;
-            if (!savedOnly) await writeCache(`tide-obs-${sid}.json`, { none: true });
+            if (!savedOnly && !offlineError(e)) await writeCache(`tide-obs-${sid}.json`, { none: true });
         }
     }
 
@@ -427,7 +436,7 @@ async function weather(lat, lon) {
                 "wind_speed_10m,wind_gusts_10m,is_day" }));
     const c = d.current, w = d.daily, h = d.hourly || {};
     return {
-        now: c ? { temp: round(c.temperature_2m), feels: round(c.apparent_temperature),
+        now: c ? { time: c.time ? c.time * 1000 : Date.now(), temp: round(c.temperature_2m), feels: round(c.apparent_temperature),
                    code: round(c.weather_code), day: !!(c.is_day ?? 1),
                    wind: round(c.wind_speed_10m), gust: round(c.wind_gusts_10m), windDir: c.wind_direction_10m } : null,
         days: w.time.map((t, i) => [t * 1000, round(w.weather_code[i]), round(w.temperature_2m_max[i]), round(w.temperature_2m_min[i]),
@@ -473,9 +482,12 @@ export async function savedPlaces(places) {
     try { return await fetchPlaces(places); } finally { savedOnly = false; }
 }
 
+// offline: nothing could be downloaded (the saved copies were used instead).
 export async function fetchPlaces(places) {
+    net.ok = net.fail = net.newest = 0;
     const out = await pool(places, 6, place);
-    return { places: out, time: Date.now() };
+    const offline = navigator.onLine === false || (net.fail > 0 && net.ok === 0);
+    return { places: out, time: net.newest || Date.now(), offline };
 }
 
 // Search index: lower-cased words of "id name state", built once per list.

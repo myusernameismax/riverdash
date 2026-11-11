@@ -129,6 +129,13 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
   latest version" note shows; your places are kept.
 - **Weak or no signal:** the last downloaded readings show the moment the app opens,
   and fresh ones replace them when they arrive.
+- **Opened after a while (or offline):** the saved data is carried forward to *now*
+  using what it predicts: the river forecast, tide tables, wave and weather forecasts.
+  A river reading over 2 h old is replaced by the forecast for now ("Forecast ·
+  measured 8 h ago"); on the chart, only real measurements are solid, the rest is
+  dashed, and the dot sits on the forecast at now. Past the end of a forecast, the
+  last measurement shows with its age ("Measured 5 d ago"). The footer says
+  **Offline · updated …** when nothing could be downloaded.
 - **Don't delete and re-add the home-screen icon to update:** the home-screen app has
   its own storage, and removing the icon can wipe your saved places.
 
