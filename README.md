@@ -80,6 +80,8 @@ Only switching to another place clears it.
   open it). Drag through a week-long forecast and the highlight follows.
 - With a weather day open, the bar picks the hour it's on in the hourly graph, and
   picking an hour there moves the bar to that hour.
+- Opening a day while the bar is on a different day moves the bar to the same time
+  of day on the opened day (Mon 3 PM → Fri 3 PM), so the chart shows that day.
 
 ### Where "Waves" comes from
 

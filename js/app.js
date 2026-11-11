@@ -636,7 +636,18 @@ function goBack() {
 // Nothing left to go back from: a desktop wrapper (Linux panel) closes its popup.
 const embedded = () => !!document.documentElement.dataset.embed;
 function backAtTop() { if (embedded()) console.info("flowtides:close"); }
-function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hourHover = -1; }
+// Picking a day shows that day. A reading bar on another day moves to the same
+// time of day on the picked one (and picks that hour in the day's weather).
+function pickDay(start) {
+    S.focusDay = S.focusDay === start ? -1 : start;
+    S.hourHover = -1;
+    const t = bigChart.hoverT;
+    if (S.focusDay < 0 || isNaN(t) || (t >= start && t < start + DAY_MS)) return;
+    const a = new Date(t), d = new Date(start);
+    d.setHours(a.getHours(), a.getMinutes(), 0, 0);
+    bigChart.hoverT = bigChart.pinT = d.getTime();
+    setTimeout(() => syncWeather(bigChart.hoverT));   // after this render
+}
 
 // Everything you looked at (another place, another chart, a future day) is
 // forgotten when you leave the app for a while, so it reopens on "now" for the ★ place.
