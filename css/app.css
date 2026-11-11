@@ -327,3 +327,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .mv-tag { font-size: 12px; opacity: .6; }
 .mv-tag.new { color: var(--link); opacity: 1; }
 .mv-tag.update { color: #f5a623; opacity: 1; }
+
+/* ── inside a desktop wrapper's popup ──────────────────────────────── */
+/* The Linux panel widget sets data-embed: the popup's own rounded, translucent
+   frame (Plasma theme) is the background, so the app matches other popups. */
+html[data-embed], html[data-embed] body, html[data-embed] #addPage,
+html[data-embed] #movePage, html[data-embed] #ftr { background: transparent; }
