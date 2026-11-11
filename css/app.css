@@ -229,8 +229,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .cz-note { font-size: 11.5px; opacity: .55; line-height: 1.35; }
 
 /* places list */
-.edit-btn { font-size: 13px; padding: 2px 8px; border-radius: 7px; color: var(--link); }
-.edit-btn.on { font-weight: 700; }
+.edit-btn { font-size: 13px; padding: 2px 8px; border-radius: 7px; color: var(--link); font-weight: 700; }
 #placesList { position: relative; }
 .prow { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 4px 0 14px;
         border-radius: var(--radius); transition: background 120ms, height var(--anim) cubic-bezier(.65,0,.35,1), opacity var(--anim); }
