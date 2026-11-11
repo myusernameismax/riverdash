@@ -60,8 +60,8 @@ Tap **Customize** at the bottom of a place:
 
 - **Show**: turn tabs (Height, Flow, Tide, Waves) on or off for this place. A hidden tab
   also hides its section (Next tides, Jetty / surf).
-- **Good range**: a low and/or high bound for height, flow or tide. The chart shades
-  that band and draws the line green inside it and red outside; the tile and the
+- **Good range**: a low and/or high bound for height, flow or tide. The chart draws
+  the line green inside it and red outside (no shading); the tile and the
   places list show *in shape* / *too low* / *too high*. Leave a side blank for no limit.
 - **Jetty / surf rating**: the wave heights for calm and sketchy, and the gust limits,
   for this spot (defaults come from `js/config.js`). **Reset** goes back to them.

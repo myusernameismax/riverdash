@@ -944,7 +944,7 @@ function renderCustomize(cur) {
         <div class="cz-head">Show</div>
         <div class="cz-chips">${chips}</div>
         ${ranges ? `<div class="cz-head">Good range</div>${ranges}
-        <div class="cz-note">The chart turns green inside the range and red outside. Leave a side blank for no limit.</div>` : ""}
+        <div class="cz-note">The line turns green inside the range and red outside. Leave a side blank for no limit.</div>` : ""}
         ${jetty}
         <div class="cz-head">Stations</div>
         ${station("river", "River", cur.r && cur.r.name)}

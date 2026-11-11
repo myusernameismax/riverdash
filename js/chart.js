@@ -239,8 +239,6 @@ export class Chart {
         // Ideal band: its edges are pulled into view when they're close to the data.
         const ib = g.ideal, ok = x => x !== undefined && x !== null && !isNaN(x);
         const band = ib && (ok(ib.lo) || ok(ib.hi)) ? ib : null;
-        if (band && !minimal) for (const b of [band.lo, band.hi])
-            if (ok(b) && b <= v1 + span0 * 1.5 && b >= v0 - span0 * 1.5) { v1 = Math.max(v1, b); v0 = Math.min(v0, b); }
         const pad = Math.max((v1 - v0) * 0.12, 0.1);
         v0 -= pad; v1 += pad;
 
@@ -284,17 +282,8 @@ export class Chart {
             ctx.fillText(g.thresholdLabel || "", left + 3, Y(thr) - 1);
         }
 
-        // ideal band (y of its top and bottom edge; an open side runs off the chart)
+        // good range: only the line's color shows it (y of its top and bottom edge; an open side runs off the chart)
         const bandTop = band && ok(band.hi) ? Y(band.hi) : -1e4, bandBot = band && ok(band.lo) ? Y(band.lo) : 1e4;
-        if (band && !minimal) {
-            const y0 = Math.max(top, bandTop), y1 = Math.min(bottom, bandBot);
-            if (y1 > y0) { ctx.globalAlpha = 0.12; ctx.fillStyle = band.good; ctx.fillRect(left, y0, right - left, y1 - y0); }
-            ctx.globalAlpha = 0.55; ctx.strokeStyle = band.good; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
-            for (const y of [bandTop, bandBot]) if (y >= top && y <= bottom) {
-                ctx.beginPath(); ctx.moveTo(left, Math.round(y) + 0.5); ctx.lineTo(right, Math.round(y) + 0.5); ctx.stroke();
-            }
-            ctx.setLineDash([]);
-        }
 
         // area + line
         const path = pts => { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); };
