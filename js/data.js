@@ -162,6 +162,51 @@ async function stageflow(lid) {
     };
 }
 
+// Water temperature from the USGS gauge (00010), last 3 days as [ms, °F]. NOAA has no
+// temperature forecast, so this is measured data only. null if the gauge has no sensor.
+const USGS_CONT = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous/items";
+async function usgsTemp(site) {
+    const d = await cached(`usgs-temp-${site}.json`, 30 * MIN, () => get(USGS_CONT, {
+        f: "json", monitoring_location_id: `USGS-${site}`, parameter_code: "00010", time: "P3D",
+        skipGeometry: "true", properties: "time,value", limit: 2000 }, 40));
+    const pts = (d.features || []).map(f => [ms(f.properties.time), parseFloat(f.properties.value)])
+        .filter(p => isFinite(p[0]) && isFinite(p[1])).sort((a, b) => a[0] - b[0])
+        .map(p => [p[0], round(p[1] * 9 / 5 + 32, 1)]);
+    if (!pts.length || Date.now() - pts[pts.length - 1][0] > DAY * 1000) return null;
+    const [t, v] = pts[pts.length - 1];
+    const before = valueNear(pts, t - 3 * HOUR * 1000, 1);
+    return { value: v, time: t, trend: before === null ? null : round(v - before, 1), series: thin(pts) };
+}
+
+// Normal flow for each day of the year: the median of that date's daily means over
+// every year the gauge has (USGS statistics). {"11-11": cfs, ...}; refreshed monthly.
+async function usgsNormals(site) {
+    return cached(`usgs-normal-${site}.json`, 30 * DAY, async () => {
+        const url = "https://waterservices.usgs.gov/nwis/stat/?format=rdb&statReportType=daily&statTypeCd=median&parameterCd=00060&sites=" + encodeURIComponent(site);
+        const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
+        let text;
+        try {
+            const r = await fetch(url, { signal: ctl.signal });
+            if (!r.ok) throw new Error(`HTTP Error ${r.status}`);
+            text = await r.text();
+        } catch (e) {
+            net.fail++;
+            throw new Error(e.name === "AbortError" ? "timed out" : e.message.startsWith("HTTP") ? e.message : "can't connect");
+        } finally { clearTimeout(timer); }
+        net.ok++;
+        const out = {};
+        let head = null;
+        for (const line of text.split("\n")) {
+            if (!line || line.startsWith("#")) continue;
+            const c = line.split("\t");
+            if (!head) { head = c; continue; }
+            const m = +c[head.indexOf("month_nu")], dd = +c[head.indexOf("day_nu")], v = parseFloat(c[head.indexOf("p50_va")]);
+            if (m && dd && isFinite(v)) out[pad2(m) + "-" + pad2(dd)] = v;
+        }
+        return out;
+    });
+}
+
 // Latest USGS discharge: real-time (00060) if recent, else tidally filtered daily (72137).
 async function usgsFlow(site) {
     const d = await cached(`usgs-${site}.json`, 30 * MIN, () => get(USGS_LATEST, {
@@ -199,6 +244,14 @@ async function river(lid) {
             if (u) [flow, flowTime, flowNote] = u;
         } catch (e) { /* no flow then */ }
     }
+    // extras from the USGS gauge; a failure just leaves them out
+    let temp = null, normals = null;
+    if (g.usgsId) {
+        [temp, normals] = await Promise.all([
+            usgsTemp(g.usgsId).catch(() => null),
+            flow !== null ? usgsNormals(g.usgsId).catch(() => null) : null,
+        ]);
+    }
 
     const trend = (col, nowVal) => {
         if (nowVal === null || !t) return null;
@@ -222,6 +275,8 @@ async function river(lid) {
         forecastPeak: peak ? { time: peak[0], stage: peak[1], flow: peak[2] } : null,
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
         forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
+        temp,                      // {value °F, time, trend (3 h), series} or null
+        normals,                   // {"MM-DD": median cfs} or null
     };
 }
 

@@ -36,6 +36,17 @@ Only the inputs change from the desktop widget:
 | Right-click → Configure… | Per place: tap **Customize** under the place (below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. |
 
+## Water temperature and normal flow
+
+- **Water** tile (°F, change over 3 h) and chart tab, from the USGS gauge behind the
+  NOAA one, where it has a temperature sensor (all four Portland-area test gauges do).
+  Measured only: nobody publishes a water temperature forecast, so the chart has no
+  dashed part. Older than 2 h: "Measured … ago".
+- The **Flow** tile's second line compares the flow with the normal for today's date:
+  "1,040 cfs below normal" (normal = the median of that date over every year the
+  gauge has, e.g. 1911-2026 for the Sandy). Within 5%: "About normal".
+- Both can be turned off per place under Customize → Show (Water temp).
+
 ## Moving places between devices
 
 Tap the **share** button at the bottom (next to + Add). It shows a QR code and a
@@ -154,6 +165,8 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 | River height, flow, forecast (the whole one, about 7 days, including what NOAA's site calls the trend), flood stages | NOAA National Water Prediction Service |
 | Tides (predictions, live level where there's a sensor) | NOAA CO-OPS Tides & Currents |
 | Flow when NOAA has none | USGS Water Data |
+| Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
+| Normal flow for the date (median of that date over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |
 
 The jetty rating is a rough model forecast, not a buoy reading. Look at the

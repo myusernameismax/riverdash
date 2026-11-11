@@ -160,7 +160,7 @@ function project(d) {
 // place.hide:  charts/tabs not shown, e.g. ["surf"]
 // place.ideal: {stage: [lo, hi], flow: [lo, hi], tide: [lo, hi]}; null = no bound on that side
 // place.jetty: {calm, sketchy, cautionGust, sketchyGust}; missing = the config.js default
-const MODES = { stage: "Height", flow: "Flow", tide: "Tide", surf: "Waves" };
+const MODES = { stage: "Height", flow: "Flow", temp: "Water temp", tide: "Tide", surf: "Waves" };
 const hidden = (p, m) => !!p && Array.isArray(p.hide) && p.hide.includes(m);
 const num = v => typeof v === "number" && isFinite(v);
 function jettyLim(p) {
@@ -216,13 +216,14 @@ function haveModes(d) {
     const r = d ? d.river : null, t = d ? d.tide : null;
     return Object.keys(MODES).filter(m => (m === "tide" && !!t) || (m === "stage" && !!r)
         || (m === "surf" && !!d && !!d.surf && d.surf.hours.length > 1)
-        || (m === "flow" && !!r && r.series.some(p => p[2] !== null)));
+        || (m === "flow" && !!r && r.series.some(p => p[2] !== null))
+        || (m === "temp" && !!r && !!r.temp && r.temp.series.length > 1));
 }
 // Which graph to draw (skipping the place's hidden ones).
 function bestMode(d, wanted, p) {
     const ok = haveModes(d).filter(m => !hidden(p, m));
     if (wanted && ok.includes(wanted)) return wanted;
-    return ["flow", "stage", "tide", "surf"].find(m => ok.includes(m)) || "";
+    return ["flow", "stage", "tide", "surf", "temp"].find(m => ok.includes(m)) || "";
 }
 const tideMarkers = evs => evs.map(e => ({ time: e.time, value: e.height, above: e.type === "H", label: e.type + " " + clockShort(e.time) }));
 // Big chart: like graph(), but when a future day is picked, it opens on that day
@@ -257,6 +258,9 @@ function graph(d, mode, p) {
                  threshold: L.calm, thresholdLabel: "calm limit " + L.calm + " ft",
                  homeT0: now, homeT1: w1 };
     }
+    if (r && mode === "temp" && r.temp)   // measured only: NOAA doesn't forecast water temperature
+        return { series: r.temp.series, forecast: [], color: LOOK.tempColor, decimals: 1, unit: " °F", nowValue: NaN,
+                 markers: [], threshold: NaN, homeT0: now - 2 * DAY_MS, homeT1: w1 };
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
         return { series: r.series.map(x => [x[0], x[c]]), forecast: r.forecast.map(x => [x[0], x[c]]),
@@ -742,11 +746,19 @@ function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, b
     return `<div class="sec ${cls}"${id ? ` id="${id}"` : ""}>${head}<div class="sec-box" style="padding:${pad}px;gap:${gap}px">${body}</div></div>`;
 }
 
-function tile({ title, num, unit, detail, mode, active, accent, shape: k = null }) {
+// Flow against the normal for today's date (median of all years at the USGS gauge).
+function vsNormal(r) {
+    const d = new Date(), n = r && r.normals && r.normals[String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")];
+    if (!num(n) || !has(r.flow)) return "";
+    const diff = r.flow - n, near = Math.abs(diff) < Math.max(10, n * 0.05);
+    return near ? "About normal" : commas(Math.abs(diff)) + " cfs " + (diff > 0 ? "above" : "below") + " normal";
+}
+function tile({ title, num, unit, detail, detail2, mode, active, accent, shape: k = null }) {
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
         <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
         <div class="t-val"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
         ${detail ? `<div class="t-det">${esc(detail)}</div>` : ""}
+        ${detail2 ? `<div class="t-det">${esc(detail2)}</div>` : ""}
     </button>`;
 }
 
@@ -784,7 +796,11 @@ function renderTiles(cur) {
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) }));
     if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) }));
+        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime),
+        detail2: vsNormal(r) }));
+    if (r && r.temp && !hidden(p, "temp")) out.push(tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
+        num: Math.round(r.temp.value).toString(), unit: " °F " + arrow(r.temp.trend, 0.3),
+        detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) }));
     if (t && !hidden(p, "tide")) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
         num: has(t.height) ? t.height.toFixed(1) : "–", unit: " ft " + (t.rising === null ? "" : t.rising ? "↑" : "↓"),
         detail: (t.rising ? "Rising" : "Falling") + (t.live ? "" : " (predicted)") }));
@@ -801,9 +817,10 @@ function renderChart(cur) {
     cur.g = g;
     if (!d || g.series.length <= 1) return "";
     const b = g.ideal, rng = !b ? "" : " · good " + (isNaN(b.lo) ? "below " + b.hi : isNaN(b.hi) ? "above " + b.lo : b.lo + "–" + b.hi);
-    const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs" : "Height · ft") + rng;
+    const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs"
+        : mode === "temp" ? "Water temperature · °F · USGS, measured" : "Height · ft") + rng;
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
-    const p = r ? r.forecastPeak : null;
+    const p = r && mode !== "temp" ? r.forecastPeak : null;
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
         <div class="chart-label">${esc(what + day)}</div>
@@ -934,7 +951,7 @@ function renderCustomize(cur) {
     const have = haveModes(d);
     const chips = have.map(m => {
         const on = !hidden(p, m);
-        return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${on ? "✓ " : ""}${MODES[m]}</button>`;
+        return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${on ? "✓ " : ""}${MODES[m]}</button>`;
     }).join("");
     const unit = { stage: "ft", flow: "cfs", tide: "ft" };
     const ranges = have.filter(m => unit[m]).map(m => {

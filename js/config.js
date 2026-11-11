@@ -8,6 +8,7 @@ export const LOOK = {
     // ── Accent colors (one per kind of reading) ──────────────────────
     stageColor: "#5cb8ff",   // river height
     flowColor:  "#4fd1b0",   // river flow
+    tempColor:  "#e8a0bf",   // water temperature (USGS gauges that measure it)
     tideColor:  "#b48cff",   // tide
     surfColor:  "#f0a35e",   // swell (coastal tide stations)
 
