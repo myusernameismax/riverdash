@@ -1010,8 +1010,8 @@ function renderBody(cur) {
         if (flooding(cur.r)) sel += `<div class="flood" style="--accent:${categoryColor(cur.r.category)}">⚠ ${esc(cur.r.categoryLabel)}</div>`;
         sel += renderTiles(cur);
         sel += renderChart(cur);
-        sel += renderTides(cur);
         sel += renderWeather(cur);
+        sel += renderTides(cur);
         sel += renderSurf(cur);
         sel += renderCustomize(cur);
         if (cur.d) {
