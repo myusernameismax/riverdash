@@ -241,20 +241,21 @@ function bigGraph(d, mode, p) {
     if (g.dayCovered) { g.homeT0 = a; g.homeT1 = b; }
     return g;
 }
-// The week view's charts show the last 2 days and the same week ahead as the
-// weather (through the 7th day), as far as the data goes; picking a day zooms to it.
+// The week view's charts show the same week ahead as the weather (through the 7th
+// day), as far as the data goes; rivers also the last 2 days, tides and waves start
+// at now (their past doesn't matter). Picking a day zooms to it.
 function graph(d, mode, p) {
-    const r = d ? d.river : null, t = d ? d.tide : null, w0 = Date.now() - 2 * DAY_MS, w1 = midnight(Date.now()) + 7 * DAY_MS;
+    const r = d ? d.river : null, t = d ? d.tide : null, now = Date.now(), w1 = midnight(now) + 7 * DAY_MS;
     if (mode === "tide" && t)
         return { series: t.full || t.curve, forecast: [], color: LOOK.tideColor, decimals: 1, threshold: NaN, unit: " ft", ideal: idealOf(p, "tide"),
-                 homeT0: w0, homeT1: w1,
+                 homeT0: now, homeT1: w1,
                  nowValue: has(t.height) ? t.height : NaN, markers: tideMarkers(t.week || t.events) };
     if (mode === "surf" && d && d.surf) {
-        const now = Date.now(), pts = d.surf.hours.map(h => [h[0], h[1]]), L = jettyLim(p);
+        const pts = d.surf.hours.map(h => [h[0], h[1]]), L = jettyLim(p);
         return { series: pts.filter(x => x[0] <= now), forecast: pts.filter(x => x[0] > now),
                  color: LOOK.surfColor, decimals: 1, unit: " ft", nowValue: NaN, markers: [],
                  threshold: L.calm, thresholdLabel: "calm limit " + L.calm + " ft",
-                 homeT0: w0, homeT1: w1 };
+                 homeT0: now, homeT1: w1 };
     }
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
@@ -262,7 +263,7 @@ function graph(d, mode, p) {
                  color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, markers: [],
                  nowValue: !r.predicted ? NaN : c === 2 ? (r.flowPredicted ? r.flow : NaN) : r.stage,
                  ideal: idealOf(p, mode),
-                 unit: c === 2 ? " cfs" : " ft", homeT0: w0, homeT1: w1,
+                 unit: c === 2 ? " cfs" : " ft", homeT0: now - 2 * DAY_MS, homeT1: w1,
                  threshold: c === 1 && r.flood.minor ? r.flood.minor : NaN,
                  thresholdLabel: "flood stage " + r.flood.minor + " ft" };
     }
