@@ -8,6 +8,8 @@ import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
 import { morphInto } from "./morph.js";
+import { qrSvg } from "./qr.js";
+import { packSetup, unpackSetup, codeFrom, shareUrl } from "./share.js";
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -45,6 +47,11 @@ const S = {
     editing: false,
     renaming: false,
     customizing: false,      // the "Customize" panel for the shown place
+    // share / import page
+    moving: "",              // "share" | "import" | ""
+    shareLink: "",
+    incoming: null,          // {places, pinned} from a link, waiting for Add / Replace
+    importError: "",
     nowOpen: false,          // feels-like / wind line under the header
     hourHover: -1,           // picked hour in the day view
     undoData: null,
@@ -430,6 +437,110 @@ function addResult(item) {
     else toast("Added " + list[i].name, "", null);
 }
 
+// ── share / import ──────────────────────────────────────────────────
+// Share: a link (and its QR code) holding the places and their settings.
+// Import: open such a link, scan its QR code, or paste it. Data downloads fresh.
+const sameStation = (a, b) => (a.river && a.river === b.river) || (a.tide && a.tide === b.tide);
+function openShare() {
+    S.moving = "share"; S.editing = false; S.shareLink = "";
+    render();
+    packSetup(S.places, pinned()).then(code => { S.shareLink = shareUrl(code); render(); });
+}
+function openImport(text) {
+    S.moving = "import"; S.editing = false; S.importError = "";
+    if (!text) { S.incoming = null; render(); return; }
+    const code = codeFrom(text);
+    if (!code) { S.incoming = null; S.importError = "Not a Flow Tides link"; render(); return; }
+    unpackSetup(code).then(r => { S.incoming = r; S.importError = ""; })
+        .catch(e => { S.incoming = null; S.importError = e.message; }).finally(render);
+}
+function closeMove() {
+    S.moving = ""; S.incoming = null; S.importError = "";
+    const f = $("#importText");
+    if (f) { f.value = ""; f.blur(); }
+}
+function mergePlaces(mine, inc) {
+    const list = mine.map(p => ({ ...p }));
+    for (const p of inc) {
+        const i = list.findIndex(q => sameStation(q, p));
+        if (i >= 0) list[i] = { ...list[i], ...p }; else list.push({ ...p });
+    }
+    return list;
+}
+function applyImport(replace) {
+    const inc = S.incoming;
+    if (!inc) return;
+    const before = { places: S.places.map(p => ({ ...p })), pinned: S.pinnedRaw };
+    const list = replace || !S.places.length ? inc.places.map(p => ({ ...p })) : mergePlaces(S.places, inc.places);
+    if (replace || !S.places.length) setPinned(inc.pinned);
+    closeMove();
+    savePlaces(list);
+    S.selected = -1; select(pinned());
+    const n = inc.places.length;
+    toast((replace ? "Replaced with " : "Imported ") + n + (n === 1 ? " place" : " places"), "Undo", () => {
+        setPinned(before.pinned);
+        savePlaces(before.places);
+        S.selected = -1; select(pinned());
+    });
+}
+async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fallback below */ }
+    const f = document.createElement("textarea");
+    f.value = text; f.setAttribute("readonly", ""); f.style.position = "fixed"; f.style.opacity = "0";
+    document.body.appendChild(f); f.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { /* no */ }
+    f.remove();
+    return ok;
+}
+// A link opened in Safari on an iPhone lands in Safari, not in the home-screen app
+// (they keep separate storage), so it offers to copy the link for the app instead.
+const inSafariTab = () => navigator.standalone === false;
+
+function renderMove() {
+    $("#moveTitle").textContent = S.moving === "share" ? "Share places" : "Import places";
+    let html = "";
+    if (S.moving === "share") {
+        const n = S.places.length;
+        html = `<div class="mv-card">${S.shareLink ? qrSvg(S.shareLink, 232) : `<span class="spinner big"></span>`}</div>
+            <div class="mv-sub">${n} ${n === 1 ? "place" : "places"}  ·  ★ ${esc(placeName(pinned()))}</div>
+            <div class="mv-btns">
+                <button class="ph-btn" data-act="copyLink"${S.shareLink ? "" : " disabled"}>${icon("copy", 16)}Copy link</button>
+                ${navigator.share ? `<button class="ph-btn" data-act="shareSheet"${S.shareLink ? "" : " disabled"}>${icon("share", 16)}Share…</button>` : ""}
+            </div>
+            <div class="mv-btns"><button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import</button></div>`;
+    } else if (S.moving === "import") {
+        const inc = S.incoming;
+        if (!inc) {
+            html = `<div class="search-wrap mv-paste">${icon("receive", 17)}
+                    <input id="importText" type="url" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste a Flow Tides link"></div>
+                ${S.importError ? `<div class="mv-err">${esc(S.importError)}</div>` : ""}
+                <div class="mv-btns">${navigator.clipboard && navigator.clipboard.readText ? `<button class="ph-btn" data-act="paste">${icon("copy", 16)}Paste</button>` : ""}</div>`;
+        } else {
+            const rows = inc.places.map((p, i) => {
+                const have = S.places.find(q => sameStation(q, p));
+                const tag = !have ? "new" : JSON.stringify(cleanForCompare(have)) === JSON.stringify(cleanForCompare({ ...have, ...p })) ? "same" : "update";
+                return `<div class="mv-row"><span class="mv-name">${i === inc.pinned ? "★ " : ""}${esc(p.name)}</span>
+                    <span class="mv-tag ${tag}">${S.places.length ? tag : ""}</span></div>`;
+            }).join("");
+            const n = inc.places.length;
+            html = `${section({ title: n + (n === 1 ? " place" : " places"), pad: 0, gap: 0, body: rows })}
+                <div class="mv-btns">
+                ${inSafariTab() ? `<button class="ph-btn primary" data-act="copyForApp">${icon("copy", 16)}Copy for the home-screen app</button>` : ""}
+                ${S.places.length
+                    ? `<button class="ph-btn${inSafariTab() ? "" : " primary"}" data-act="importMerge">Add to mine</button>
+                       <button class="ph-btn" data-act="importReplace">Replace mine</button>`
+                    : `<button class="ph-btn${inSafariTab() ? "" : " primary"}" data-act="importMerge">Add ${n === 1 ? "it" : "them"}</button>`}
+                </div>`;
+        }
+    }
+    const body = $("#moveBody");
+    const keep = document.activeElement && document.activeElement.id === "importText" ? document.activeElement.value : null;
+    morphInto(body, html);
+    if (keep !== null && $("#importText")) { $("#importText").value = keep; }
+}
+const cleanForCompare = p => ({ name: p.name, river: p.river || "", tide: p.tide || "", hide: p.hide || [], ideal: p.ideal || {}, jetty: p.jetty || {} });
+
 let toastTimer = 0;
 function toast(text, actionText, action) {
     S.toast = { shown: true, text, actionText, action };
@@ -441,6 +552,7 @@ function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 // Back gesture / Esc: leave the add page, edit mode or a picked day. false = nothing to go back from
 function goBack() {
     if (S.adding) closeAdd();
+    else if (S.moving) closeMove();
     else if (S.renaming) S.renaming = false;
     else if (S.customizing) S.customizing = false;
     else if (S.editing) S.editing = false;
@@ -453,6 +565,7 @@ function pickDay(start) { S.focusDay = S.focusDay === start ? -1 : start; S.hour
 // Everything you looked at (another place, another chart, a future day) is
 // forgotten when you leave the app for a while, so it reopens on "now" for the ★ place.
 function resetView() {
+    if (S.moving === "share") S.moving = "";
     S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
     bigChart.hoverT = bigChart.pinT = NaN;
@@ -761,7 +874,8 @@ function renderBody(cur) {
     if (!S.places.length) {
         html += `<div class="placeholder">${wxIcon(63, true, 56)}<div class="ph-text">No places yet</div>
             <div class="ph-expl">Add a river gauge or a tide station.</div>
-            <button class="ph-btn" data-act="add">${icon("plus", 16)}Add a place</button></div>`;
+            <button class="ph-btn" data-act="add">${icon("plus", 16)}Add a place</button>
+            <button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import</button></div>`;
     }
     const place = cur.place;
     if (place) {
@@ -792,6 +906,7 @@ function renderBody(cur) {
 function renderFooter() {
     morphInto($("#ftr"), `
         <div class="fstat">${S.loading ? "Updating…" : S.updated ? "Updated " + clock(S.updated) : ""}  ·  NOAA</div>
+        ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
         <button class="fbtn" data-act="add">${icon("plus", 16)}Add</button>
         <button class="fbtn round${S.loading ? " spin" : ""}" data-act="refresh"${S.loading ? " disabled" : ""}>${icon("refresh", 18)}</button>`);
 }
@@ -850,10 +965,12 @@ function render() {
     const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
     document.body.classList.toggle("adding", S.adding);
     document.body.classList.toggle("editing", S.editing);
+    document.body.classList.toggle("moving", !!S.moving);
     renderHeader(cur);
     renderBody(cur);
     renderFooter();
     renderAdd();
+    renderMove();
     renderToast();
     flash.selected = flash.week = flash.day = false;
     paint(cur);
@@ -1069,6 +1186,21 @@ const ACTIONS = {
     resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
     select: el => select(+el.dataset.i),
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
+    share: () => { openShare(); return "skip"; },
+    importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus(); }, ANIM + 20); return "skip"; },
+    copyLink: () => { copyText(S.shareLink).then(ok => { toast(ok ? "Link copied" : "Couldn't copy", "", null); render(); }); return "skip"; },
+    shareSheet: () => { navigator.share({ title: "Flow Tides places", url: S.shareLink }).catch(() => {}); return "skip"; },
+    paste: () => {
+        navigator.clipboard.readText().then(t => openImport(t)).catch(() => { S.importError = "Couldn't paste"; render(); });
+        return "skip";
+    },
+    copyForApp: () => {
+        packSetup(S.incoming.places, S.incoming.pinned).then(c => copyText(shareUrl(c)))
+            .then(ok => { toast(ok ? "Copied. In the app: Share → Import → Paste" : "Couldn't copy", "", null); render(); });
+        return "skip";
+    },
+    importMerge: () => applyImport(false),
+    importReplace: () => applyImport(true),
     edit: () => {
         S.editing = !S.editing;
         if (S.editing) setTimeout(showList, ANIM + 20);
@@ -1162,6 +1294,15 @@ function wire() {
         if (e.key === "Escape") { closeAdd(); render(); }
     });
     $("#addBack").addEventListener("click", () => { closeAdd(); render(); });
+    $("#moveBack").addEventListener("click", () => { closeMove(); render(); });
+    $("#moveBody").addEventListener("input", e => {
+        if (e.target.id === "importText" && codeFrom(e.target.value)) openImport(e.target.value);
+    });
+    $("#moveBody").addEventListener("keydown", e => {
+        if (e.target.id === "importText" && e.key === "Enter") { e.preventDefault(); openImport(e.target.value); }
+    });
+    // a share link opened (or scanned) while the app is already open
+    window.addEventListener("hashchange", takeImportHash);
 
     // toast: holding a finger on it keeps it up
     const t = $("#toast");
@@ -1249,6 +1390,37 @@ setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hid
 try {
     if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
 } catch (e) { /* fine */ }
+
+// Opened from a share link: show what's in it, then drop it from the address bar.
+function takeImportHash() {
+    const code = codeFrom(location.hash);
+    if (!code) return;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ }
+    openImport("#import=" + code);
+}
+takeImportHash();
+
+// For the desktop taskbar wrappers (Linux panel widget, Windows tray app):
+// a short reading of the ★ place for the taskbar, and a refresh they can trigger
+// while the popup is closed (a hidden page doesn't refresh itself).
+window.flowTides = {
+    version: 1,
+    summary() {
+        const i = pinned(), p = S.places[i], d = dataFor(i);
+        if (!p) return { name: "", parts: [], spark: null, flood: "" };
+        const color = c => c && !String(c).startsWith("var(") ? c : "";
+        const g = d ? spark(i) : null, thin = a => a.filter((x, k) => k % Math.ceil(a.length / 80 || 1) === 0 || k === a.length - 1);
+        return {
+            name: p.name,
+            parts: parts(d, p).map(x => ({ text: x.text, color: color(x.color) })),
+            flood: d && flooding(d.river) ? categoryColor(d.river.category) : "",
+            spark: g && g.series.length > 1 ? { series: thin(g.series), forecast: thin(g.forecast || []), color: g.color } : null,
+            updated: S.updated,
+        };
+    },
+    refresh: () => refresh(),
+    openImport: text => { openImport(text); },
+};
 
 // for testing from a computer (tools/shot.py)
 window.__rt = { S, render, refresh, ACTIONS, select, pickDay, goBack, bigChart };

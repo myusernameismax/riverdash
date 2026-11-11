@@ -74,6 +74,9 @@ const UI = {
     search: `<circle cx="14" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M20 20l7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
     empty: `<circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 23.5l15-15" stroke="currentColor" stroke-width="2"/>`,
     rain: `<path d="M16 4c4 6 8 10.5 8 15a8 8 0 0 1-16 0c0-4.5 4-9 8-15z" fill="currentColor"/>`,
+    share: `<path d="M16 4v15M10 9.5L16 4l6 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 14H8v13h16V14h-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    receive: `<path d="M16 4v14M10 12.5L16 18l6-5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 19v7h20v-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    copy: `<rect x="10" y="10" width="15" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M7 21V7.5A2.5 2.5 0 0 1 9.5 5H20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`,
 };
 export function icon(name, size = 20, cls = "") {
     return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">${UI[name]}</svg>`;

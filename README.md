@@ -35,6 +35,24 @@ Only the inputs change from the desktop widget:
 | Right-click → Configure… | Per place: tap **Customize** under the place (below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. |
 
+## Moving places between devices
+
+Tap the **share** button at the bottom (next to + Add). It shows a QR code and a
+link that hold your places and their settings (name, ★, shown tabs, good ranges,
+jetty limits). The readings themselves aren't in it; they download fresh.
+
+- **Scan the QR code** with the other device's camera, or send yourself the link.
+  Opening it shows the places with **Add to mine** (new ones added, ones you
+  already have take the link's settings) or **Replace mine**. Both can be undone
+  from the note that pops up.
+- **Pasting:** Share → Import → Paste, or paste into the field.
+- **iPhone:** a scanned or tapped link opens in Safari, which keeps its own
+  storage, separate from the home-screen app. Tap **Copy for the home-screen app**
+  there, then in the app: Share → Import → Paste.
+- **Privacy:** everything is in the part after `#`, which browsers never send to
+  a server, and the app removes it from the address bar right away. Whoever has
+  the link can see your place names and stations, nothing else.
+
 ## Customize a place
 
 Tap **Customize** at the bottom of a place:
@@ -81,6 +99,8 @@ sea grid cell to the tide station, not a buoy reading.
 | `js/chart.js` | Big chart and mini graphs, port of `Chart.qml` |
 | `js/data.js` | Downloads and crunches the data, port of `rivers.py` |
 | `js/icons.js` | Weather and button icons |
+| `js/share.js` | Share links: packs/unpacks places into the link, checks imported ones |
+| `js/qr.js` | QR code maker (written for this app, no outside code) |
 | `data/gauges.json`, `data/tides.json` | Station lists for search, shipped so search is instant |
 | `sw.js` | Lets the app open with no signal (shows the last data) |
 | `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new ones itself when they're old) |
@@ -127,3 +147,12 @@ water yourself before going out on rocks or a jetty.
 
 No accounts, no server, no tracking. The page only loads its own files and
 talks only to the data services above (enforced by its Content-Security-Policy).
+
+## Desktop wrappers
+
+The Linux panel widget (and a planned Windows tray app) show this same hosted app
+in a popup, so features only get written here. They use `window.flowTides`:
+`summary()` (the ★ place's name, short readings and a mini graph for the taskbar),
+`refresh()` (a hidden page doesn't refresh itself) and `openImport(link)`.
+Keep those working when changing `app.js`.
+

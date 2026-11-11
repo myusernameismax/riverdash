@@ -5,9 +5,9 @@
 // the changed files downloaded; they're swapped in all together (never half old,
 // half new) and the page then reloads into the new version.
 // NOAA / Open-Meteo data is cached separately by js/data.js.
-const SHELL = "rivertides-shell-v3";
+const SHELL = "rivertides-shell-v4";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/config.js", "js/data.js", "js/chart.js",
-               "js/icons.js", "js/fmt.js", "js/morph.js", "manifest.webmanifest", "icons/apple-touch-icon.png",
+               "js/icons.js", "js/fmt.js", "js/morph.js", "js/qr.js", "js/share.js", "manifest.webmanifest", "icons/apple-touch-icon.png",
                "icons/icon-192.png", "data/gauges.json", "data/tides.json"];
 
 self.addEventListener("install", e => {
