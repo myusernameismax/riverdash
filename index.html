@@ -20,14 +20,15 @@
 <!-- iPhone 13 mini launch screen (same picture as #splash, so it hands over without a jump) -->
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" href="icons/launch-1125x2436-light.png">
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" href="icons/launch-1125x2436-dark.png">
+<!-- logo + name + status centered as one group (the logo alone sits 31 px above the middle) -->
 <!-- shown before app.css and the scripts arrive; js/app.js fades it out once there's something to show -->
 <style>
 #splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #f2f3f5; color: #1d2125;
           font: 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: opacity 250ms; }
 @media (prefers-color-scheme: dark) { #splash { background: #16181b; color: #eef0f2; } }
-#splash img { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 22px; }
-#splash .sp-name { position: absolute; left: 0; right: 0; top: calc(50% + 62px); text-align: center; font-size: 20px; font-weight: 700; }
-#splash .sp-text { position: absolute; left: 0; right: 0; top: calc(50% + 94px); text-align: center; font-size: 13px; opacity: .6; }
+#splash img { position: absolute; left: 50%; top: calc(50% - 79px); width: 96px; height: 96px; margin-left: -48px; border-radius: 22px; }
+#splash .sp-name { position: absolute; left: 0; right: 0; top: calc(50% + 31px); text-align: center; font-size: 20px; font-weight: 700; }
+#splash .sp-text { position: absolute; left: 0; right: 0; top: calc(50% + 63px); text-align: center; font-size: 13px; opacity: .6; }
 #splash.gone { opacity: 0; pointer-events: none; }
 html[data-embed] #splash { display: none; }
 </style>
