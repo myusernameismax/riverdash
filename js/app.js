@@ -44,9 +44,8 @@ const S = {
     searchError: "",
     searchSeq: 0,
     slowSearch: false,
-    // edit mode, rename, toast
+    // edit mode, toast
     editing: false,
-    renaming: false,
     customizing: false,      // the "Customize" panel for the shown place
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     swiped: -1,              // place row swiped open to show Delete
@@ -408,7 +407,7 @@ function savePlaces(list) {
 function select(i, keepScroll = false) {
     if (i === S.selected) return;
     S.selected = i;
-    S.chartMode = ""; S.focusDay = -1; S.renaming = false; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
+    S.chartMode = ""; S.focusDay = -1; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
     flash.selected = true;
     if (!keepScroll) $("#scroll").scrollTop = 0;
     setTimeout(freshenShown);
@@ -711,7 +710,6 @@ function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 function goBack() {
     if (S.adding) closeAdd();
     else if (S.moving) closeMove();
-    else if (S.renaming) S.renaming = false;
     else if (S.customizing) S.customizing = false;
     else if (S.editing) S.editing = false;
     else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
@@ -739,7 +737,7 @@ function pickDay(start) {
 // forgotten when you leave the app for a while, so it reopens on "now" for the ★ place.
 function resetView() {
     if (S.moving === "share") S.moving = "";
-    S.adding = false; S.editing = false; S.renaming = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
+    S.adding = false; S.editing = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
     bigChart.hoverT = bigChart.pinT = NaN;
     $("#q").blur();
@@ -870,7 +868,6 @@ function tile({ title, num, unit, detail, mode, active, accent, shape: k = null,
 
 function renderHeader(cur) {
     const hdr = $("#hdr");
-    if (S.renaming && $("#nameEdit")) return;          // keep the text field (and keyboard) as is
     const place = S.places[S.selected];
     if (!place) { morphInto(hdr, ""); return; }
     const d = cur.d, r = cur.r, t = cur.t;
@@ -884,13 +881,12 @@ function renderHeader(cur) {
         : "";
     const isPin = S.selected === pinned(), k = placeShape(place, d);
     morphInto(hdr, `<div class="hrow">
+        ${d ? `<button class="hcz${S.customizing ? " on" : ""}" data-act="customize" aria-label="Customize">${icon("sliders", 20)}</button>` : ""}
         <div class="hname">
-            ${S.renaming ? `<input id="nameEdit" class="name-edit" enterkeyhint="done" autocomplete="off" autocorrect="off">`
-                         : `<div class="htitle"><h1 data-act="rename">${esc(place.name)}</h1>${k === null ? "" : `<span class="hshape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>`}
+            <div class="htitle"><h1>${esc(place.name)}</h1>${k === null ? "" : `<span class="hshape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
             ${sub ? `<div class="hsub">${esc(sub)}</div>` : ""}
         </div>
         ${wx}
-        ${d ? `<button class="hcz${S.customizing ? " on" : ""}" data-act="customize" aria-label="Customize">${icon("sliders", 20)}</button>` : ""}
         <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon("star", 24)}</button>
     </div>
     ${S.nowOpen && n ? `<div class="hnow">${has(n.feels) ? `Feels like ${n.feels}° · ` : ""}Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
@@ -1606,14 +1602,6 @@ const ACTIONS = {
         setTimeout(() => { remove(i); render(); }, Math.max(1, ANIM));
         return "skip";
     },
-    rename: () => {
-        S.renaming = true;
-        render();
-        const f = $("#nameEdit");
-        f.value = S.places[S.selected].name;
-        f.focus(); f.select();
-        return "skip";
-    },
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openAdd(-1, ""); return "skip"; },
     attach: el => { openAdd(S.selected, el.dataset.kind); return "skip"; },
@@ -1815,20 +1803,6 @@ function wire() {
         if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name")) { e.preventDefault(); e.target.blur(); }
     });
 
-    // rename field
-    $("#hdr").addEventListener("keydown", e => {
-        if (e.target.id !== "nameEdit") return;
-        if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
-        if (e.key === "Escape") { e.target.dataset.cancel = "1"; e.target.blur(); }
-    });
-    $("#hdr").addEventListener("focusout", e => {
-        if (e.target.id !== "nameEdit" || !S.renaming) return;
-        if (!e.target.dataset.cancel) rename(S.selected, e.target.value);
-        S.renaming = false;
-        $("#hdr").innerHTML = "";
-        render();
-    });
-
     // search
     const q = $("#q");
     q.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => runSearch(q.value), 250); });
@@ -1872,7 +1846,7 @@ function wire() {
         edge = null;
     }, { passive: true });
     document.addEventListener("keydown", e => {
-        if (e.key !== "Escape" || document.activeElement === q || (document.activeElement && document.activeElement.id === "nameEdit")) return;
+        if (e.key !== "Escape" || document.activeElement === q) return;
         if (goBack()) render(); else backAtTop();
     });
 

@@ -34,7 +34,7 @@ Only the inputs change from the desktop widget:
 | (Back, one step at a time) | Closes what's on top (add page, share, Customize, Edit), then a picked day goes back to the week, then another place goes back to the ★ place. On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
-| Right-click → Configure… | Per place: the **sliders** button next to the ★ (Customize, below). Colors and timing are in `js/config.js`. |
+| Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button). |
 
 ## Water temperature and normal flow
@@ -94,7 +94,7 @@ jetty limits). The readings themselves aren't in it; they download fresh.
 
 ## Customize a place
 
-Tap the **sliders** button next to the ★ at the top:
+Tap the **sliders** button left of the place's name at the top:
 
 - Adding tides to a river place starts with **Waves** (and the jetty / surf rating)
   off; turn it on under Show. A tide station on its own shows them.
@@ -125,7 +125,7 @@ Tap the **sliders** button next to the ★ at the top:
   remove one of the two (with Undo).
   To remove the last one, remove the place under Edit.
 
-- **Name**: rename the place (tapping the name at the top works too).
+- **Name**: rename the place (only here; the name at the top isn't editable).
 
 ### Weather day view
 

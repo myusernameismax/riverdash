@@ -72,8 +72,6 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hshape { flex: none; font-size: 14px; font-weight: 700; }
 .hname h1 { min-width: 0; margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.name-edit { width: 100%; font-size: 22px; font-weight: 700; padding: 1px 8px; margin-left: -8px; border-radius: 9px;
-             border: 0; background: color-mix(in srgb, #5cb8ff 18%, transparent); outline: none; }
 .hsub { font-size: var(--small); opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .hwx { display: flex; align-items: center; gap: 6px; flex: none; padding-top: 1px; }
 .hwx-t { display: flex; flex-direction: column; line-height: 1.05; }
@@ -82,7 +80,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hstar, .pstar { color: var(--text); opacity: .3; flex: none; display: grid; place-items: center; }
 .hstar { width: 40px; height: 40px; margin: -6px -10px 0 -4px; }
 .hstar.on, .pstar.on { color: #f5c542; opacity: 1; }
-.hcz { flex: none; width: 36px; height: 36px; margin: -4px 0 0 2px; display: grid; place-items: center; border-radius: 10px; opacity: .45; }
+.hcz { flex: none; width: 36px; height: 36px; margin: -3px -6px 0 -8px; display: grid; place-items: center; border-radius: 10px; opacity: .45; }
 .hcz.on { opacity: 1; color: var(--link); background: color-mix(in srgb, var(--link) 16%, transparent); }
 .hcz:active { background: var(--hover); }
 .hnow { font-size: var(--small); opacity: .7; margin-top: 6px; padding-left: 2px; animation: fade var(--anim) ease-out; }
