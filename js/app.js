@@ -653,10 +653,11 @@ function renderMove() {
 const cleanForCompare = p => ({ name: p.name, river: p.river || "", tide: p.tide || "", hide: p.hide || [], ideal: p.ideal || {}, jetty: p.jetty || {} });
 
 let toastTimer = 0;
+const toastMs = () => S.toast.actionText === "Undo" ? LOOK.undoToastMs : LOOK.toastMs;
 function toast(text, actionText, action) {
     S.toast = { shown: true, text, actionText, action };
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(hideToast, LOOK.toastMs);
+    toastTimer = setTimeout(hideToast, toastMs());
 }
 function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 
@@ -1610,7 +1611,7 @@ function wire() {
     // toast: holding a finger on it keeps it up
     const t = $("#toast");
     t.addEventListener("pointerdown", () => clearTimeout(toastTimer));
-    t.addEventListener("pointerup", () => { clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, LOOK.toastMs); });
+    t.addEventListener("pointerup", () => { clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, toastMs()); });
     $("#toastAct").addEventListener("click", () => {
         const a = S.toast.action;
         S.toast.shown = false;
