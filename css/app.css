@@ -130,6 +130,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 
 /* chart */
 .big-chart { display: block; width: 100%; touch-action: pan-y; }
+.contact { align-self: center; font-size: var(--small); color: inherit; opacity: .45; text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+.contact:active { background: var(--hover); }
+html[data-embed] .contact { display: none; }
 .chart-label { text-align: center; font-size: var(--small); opacity: .55; }
 .chart-peak { text-align: center; font-size: var(--small); opacity: .8; }
 

@@ -237,6 +237,12 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 The jetty rating is a rough model forecast, not a buoy reading. Look at the
 water yourself before going out on rocks or a jetty.
 
+## Contact
+
+A small "Contact" link under the places list opens an email to
+flowtidessupport@gmail.com (subject "Flow Tides"), which forwards to Max. It's
+hidden in the desktop widget.
+
 ## Security
 
 No accounts, no server, no tracking. The page only loads its own files and

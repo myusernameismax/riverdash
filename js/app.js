@@ -1218,6 +1218,7 @@ function renderBody(cur) {
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
+    html += `<a class="contact" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Contact</a>`;
     morphInto($("#body"), html);
 }
 
