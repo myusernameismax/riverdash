@@ -76,6 +76,10 @@ jetty limits). The readings themselves aren't in it; they download fresh.
   Opening it shows the places with **Add to mine** (new ones added, ones you
   already have take the link's settings) or **Replace mine**. Both can be undone
   from the note that pops up.
+- **Someone new (no places yet)** skips that screen: the link's places load right
+  away and the app opens on its ★ place, with the logo up until its data arrives.
+  Good for demo links. On iPhone this happens in Safari; the home-screen app, if
+  they install it afterwards, starts empty.
 - **Pasting:** Share → Import → Paste, or paste into the field.
 - **iPhone:** a scanned or tapped link opens in Safari, which keeps its own
   storage, separate from the home-screen app. Tap **Copy for the home-screen app**

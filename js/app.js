@@ -561,13 +561,21 @@ function openShare() {
     render();
     packSetup(S.places, pinned()).then(code => { S.shareLink = shareUrl(code); render(); });
 }
+// With no places yet (someone new opening a shared or demo link), the link's
+// places load straight away and the app opens on its ★ place: no import screen.
 function openImport(text) {
-    S.moving = "import"; S.editing = false; S.importError = "";
+    const fresh = !!text && !S.places.length;
+    S.editing = false; S.importError = "";
+    if (!fresh) S.moving = "import";
     if (!text) { S.incoming = null; render(); return; }
     const code = codeFrom(text);
-    if (!code) { S.incoming = null; S.importError = "Not a Flow Tides link"; render(); return; }
-    unpackSetup(code).then(r => { S.incoming = r; S.importError = ""; })
-        .catch(e => { S.incoming = null; S.importError = e.message; }).finally(render);
+    if (!code) { S.moving = "import"; S.incoming = null; S.importError = "Not a Flow Tides link"; render(); return; }
+    unpackSetup(code).then(r => {
+        S.incoming = r; S.importError = "";
+        if (fresh && !S.places.length) applyImport(false, true);
+        else S.moving = "import";
+    }).catch(e => { S.moving = "import"; S.incoming = null; S.importError = e.message; })
+      .finally(() => { waitingForLink = false; render(); });
 }
 function closeMove() {
     S.moving = ""; S.incoming = null; S.importError = "";
@@ -582,7 +590,7 @@ function mergePlaces(mine, inc) {
     }
     return list;
 }
-function applyImport(replace) {
+function applyImport(replace, quiet = false) {
     const inc = S.incoming;
     if (!inc) return;
     const before = { places: S.places.map(p => ({ ...p })), pinned: S.pinnedRaw };
@@ -592,6 +600,7 @@ function applyImport(replace) {
     savePlaces(list);
     S.selected = -1; select(pinned());
     const n = inc.places.length;
+    if (quiet) return;
     toast((replace ? "Replaced with " : "Imported ") + n + (n === 1 ? " place" : " places"), "Undo", () => {
         setPinned(before.pinned);
         savePlaces(before.places);
@@ -749,7 +758,7 @@ async function refresh() {
     if (!S.offline) saveSnapshot();
     rememberRivers();
     render();
-    if (seq === fetchSeq) hideSplash();               // done, even if it failed: show what there is
+    if (seq === fetchSeq && !waitingForLink) hideSplash();   // done, even if it failed: show what there is
 }
 // Opening a place: if its details weren't downloaded in the last 15 minutes, get them now.
 function freshenShown() {
@@ -1283,11 +1292,12 @@ function render() {
     renderToast();
     flash.selected = flash.week = flash.day = false;
     paint(cur);
-    if (!S.places.length || d) hideSplash();
+    if ((!S.places.length && !waitingForLink) || d) hideSplash();
 }
 
 // ── splash (index.html): the logo until the shown place has something to show ──
 let splashSlow = 0;
+let waitingForLink = !S.places.length && !!codeFrom(location.hash);   // a new user's link: keep the logo up until its data
 function splashText(text) { const el = $("#splashText"); if (el) el.textContent = text; }
 function hideSplash() {
     const el = $("#splash");
