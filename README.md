@@ -247,9 +247,10 @@ water yourself before going out on rocks or a jetty.
 
 **Contact** in the bottom bar opens an email to flowtidessupport@gmail.com (subject
 "Flow Tides"), which forwards to Max. It's hidden in the desktop widget. Adding a
-place is **+ Add** next to Edit in the Places list.
+place is **+ Add** before Edit in the Places list.
 
-Scroll to the end of the page, then push down once more: a small note slides in.
+Scroll to the end of the page, then keep pushing: the page lifts like a rubber band
+over a small note, and springs back when you let go.
 
 ## Security
 

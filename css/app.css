@@ -140,10 +140,6 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 
 /* chart */
 .big-chart { display: block; width: 100%; touch-action: pan-y; }
-.egg { align-self: center; font-size: var(--small); text-align: center; padding: 0 10px;
-           line-height: 16px; height: 0; margin-top: -20px; opacity: 0; overflow: hidden;      /* -20px cancels #body's gap */
-           transition: height .25s ease-out, margin-top .25s ease-out, opacity .25s ease-out; }
-.egg.open { height: 16px; margin-top: -14px; opacity: .55; }
 .tile.wait { display: flex; flex-direction: column; }
 .tile.wait .spinner { width: 16px; height: 16px; border-width: 2px; margin: 8px 0 0 2px; }
 .chart-label { text-align: center; font-size: var(--small); opacity: .55; }
@@ -295,9 +291,13 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .ph-btn { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 14px; border-radius: 10px; background: var(--tint); font-weight: 600; }
 
 /* ── footer (stays put) ────────────────────────────────────────────── */
-#ftr { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px calc(var(--gutter) - 4px) calc(var(--bot) + 4px) calc(var(--gutter) + 2px);
+#ftr { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 4px calc(var(--gutter) - 4px) calc(var(--bot) + 4px) calc(var(--gutter) + 2px);
        border-top: 1px solid var(--hair); background: var(--bg); }
 .fstat { flex: 1; font-size: var(--small); opacity: .6; white-space: pre; }
+/* the easter egg: in the gap the page leaves when pushed up past its end */
+.egg { position: absolute; left: 0; right: 0; bottom: 100%; height: var(--egg-px, 0px); display: flex; align-items: center;
+       justify-content: center; overflow: hidden; font-size: var(--small); opacity: calc(var(--egg, 0) * .6); pointer-events: none; }
+#details.egg-anim .egg { transition: height .3s ease-out, opacity .3s ease-out; }
 .fbtn { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 10px; border-radius: 10px; font-weight: 600; font-size: 14px; }
 .fbtn:active { background: var(--hover); }
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }

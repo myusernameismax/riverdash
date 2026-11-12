@@ -843,7 +843,6 @@ async function runSearch(text) {
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
                             onHover: t => syncWeather(t) });
-let eggOpen = false; // the note under the list: shown by pushing past the end
 let dragging = null;     // reorder in progress (render waits)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
@@ -1215,7 +1214,7 @@ function renderPlaces() {
             if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
         return section({ id: "placesSec", title: "Places", pad: 0, gap: 0,
-            trailing: `<button class="edit-btn" data-act="edit">Edit</button><button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button>`,
+            trailing: `<button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button><button class="edit-btn" data-act="edit">Edit</button>`,
             body: `<div id="placesList">${rows}</div>` });
     }
     // Edit mode: one flat list. Places with the same name (e.g. three "McKenzie")
@@ -1263,7 +1262,6 @@ function renderBody(cur) {
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
-    html += `<div class="egg${eggOpen ? " open" : ""}">Stop looking at your phone and go fishing</div>`;
     morphInto($("#body"), html);
 }
 
@@ -1272,7 +1270,8 @@ function renderFooter() {
         <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
-        <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 17)}Contact</a>`);
+        <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 17)}Contact</a>
+        <div class="egg">Stop looking at your phone and go fishing</div>`);
 }
 
 function renderAdd() {
@@ -1658,30 +1657,7 @@ function wire() {
     const appEl = $("#app");
     appEl.addEventListener("scroll", () => { if (appEl.scrollLeft || appEl.scrollTop) appEl.scrollLeft = appEl.scrollTop = 0; });
 
-    // Easter egg: scroll to the end as usual, then push down once more (a new swipe
-    // or wheel turn) and a note slides in. Scrolling back up hides it.
     const scr = $("#scroll");
-    const atEnd = () => scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 2;
-    const showEgg = on => {
-        if (eggOpen === on) return;
-        eggOpen = on;
-        const c = $("#body .egg");
-        if (c) c.classList.toggle("open", on);
-        if (on) setTimeout(() => scr.scrollTo({ top: scr.scrollHeight, behavior: "smooth" }), 260);
-    };
-    let pull = null, lastWheel = 0;
-    scr.addEventListener("touchstart", e => { pull = atEnd() ? e.touches[0].clientY : null; }, { passive: true });
-    scr.addEventListener("touchmove", e => {
-        if (pull !== null && pull - e.touches[0].clientY > 50) { pull = null; showEgg(true); }
-    }, { passive: true });
-    scr.addEventListener("wheel", e => {
-        const fresh = e.timeStamp - lastWheel > 300;
-        lastWheel = e.timeStamp;
-        if (fresh && e.deltaY > 0 && atEnd()) showEgg(true);
-    }, { passive: true });
-    scr.addEventListener("scroll", () => {
-        if (eggOpen && scr.scrollHeight - scr.clientHeight - scr.scrollTop > 120) showEgg(false);
-    }, { passive: true });
 
     $("#app").addEventListener("pointerdown", e => {
         const h = e.target.closest(".handle");
@@ -1787,6 +1763,47 @@ function wire() {
             }, msg ? 1100 : Math.max(0, 500 - (Date.now() - t0)));
         });
     });
+
+    // Easter egg: at the end of the page, push up once more and the page lifts like
+    // a rubber band, showing a note underneath; let go and it springs back.
+    // A wheel turn past the end does the same for a moment.
+    const det = $("#details");
+    const atEnd = () => scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 2;
+    const setEgg = (px, anim) => {
+        setPull(-px, anim);
+        det.classList.toggle("egg-anim", !!anim);
+        det.style.setProperty("--egg-px", px + "px");
+        det.style.setProperty("--egg", Math.min(1, px / 40));
+    };
+    let eg = null, eggTimer = 0;
+    scr.addEventListener("touchstart", e => {
+        eg = !ptrBusy && !dragging && e.touches.length === 1 && atEnd() ? { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false } : null;
+    }, { passive: true });
+    scr.addEventListener("touchmove", e => {
+        if (!eg) return;
+        const up = eg.y - e.touches[0].clientY, dx = e.touches[0].clientX - eg.x;
+        if (!eg.on) {
+            if (Math.max(Math.abs(dx), Math.abs(up)) < 6) return;
+            if (up <= Math.abs(dx) || !atEnd()) { eg = null; return; }
+            eg.on = true; eg.y -= up;
+        }
+        e.preventDefault();
+        clearTimeout(eggTimer);
+        setEgg(Math.max(0, rubber(eg.y - e.touches[0].clientY, scr.clientHeight)));
+    }, { passive: false });
+    scr.addEventListener("touchend", () => {
+        if (eg && eg.on) setEgg(0, true);
+        eg = null;
+    });
+    let lastWheel = 0;
+    scr.addEventListener("wheel", e => {
+        const fresh = e.timeStamp - lastWheel > 300;
+        lastWheel = e.timeStamp;
+        if (!fresh || e.deltaY <= 0 || !atEnd() || ptrBusy) return;
+        setEgg(40, true);
+        clearTimeout(eggTimer);
+        eggTimer = setTimeout(() => setEgg(0, true), 1500);
+    }, { passive: true });
 
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
