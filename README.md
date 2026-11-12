@@ -136,6 +136,7 @@ sea grid cell to the tide station, not a buoy reading.
 |---|---|
 | `index.html` | Page skeleton, home-screen settings |
 | `css/app.css` | Layout, light/dark colors |
+| `STYLE.md` | Style rules: no borders, tints for selection, wording, color meanings |
 | `js/config.js` | Accent colors, jetty limits, timing (the phone's `Style.qml`) |
 | `js/app.js` | Everything on screen, port of `main.qml` |
 | `js/chart.js` | Big chart and mini graphs, port of `Chart.qml` |

@@ -73,7 +73,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hname h1 { min-width: 0; margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name-edit { width: 100%; font-size: 22px; font-weight: 700; padding: 1px 8px; margin-left: -8px; border-radius: 9px;
-             border: 1px solid color-mix(in srgb, #5cb8ff 60%, transparent); background: var(--tint); outline: none; }
+             border: 0; background: color-mix(in srgb, #5cb8ff 18%, transparent); outline: none; }
 .hsub { font-size: var(--small); opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .hwx { display: flex; align-items: center; gap: 6px; flex: none; padding-top: 1px; }
 .hwx-t { display: flex; flex-direction: column; line-height: 1.05; }
@@ -209,20 +209,19 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
            letter-spacing: .4px; opacity: .6; text-transform: uppercase; margin-top: 6px; }
 .cz-head:first-child { margin-top: 0; }
 .cz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Customize: no outlines anywhere; tints show what's on and which field is active */
 .cz-chip { padding: 5px 11px; border-radius: 14px; font-size: 13px; font-weight: 600; opacity: .55;
-           border: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
-.cz-chip.on { opacity: 1; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-              background: color-mix(in srgb, var(--accent) 14%, transparent); }
+           background: color-mix(in srgb, var(--text) 8%, transparent); }
+.cz-chip.on { opacity: 1; color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, transparent); }
 .cz-row { display: flex; align-items: center; gap: 6px; min-height: 34px; font-size: 13px; }
 .cz-label { width: 58px; flex: none; font-weight: 700; }
 .cz-to { opacity: .6; font-size: var(--small); white-space: nowrap; }
 .cz-num { display: flex; align-items: center; gap: 3px; }
-.cz-in { width: 62px; height: 30px; padding: 0 7px; border-radius: 8px; border: 1px solid var(--hair);
-         background: color-mix(in srgb, var(--text) 6%, transparent); outline: none; font-size: 16px; text-align: right; }
-.cz-in:focus { border-color: color-mix(in srgb, #5cb8ff 70%, transparent); }
-.cz-name { height: 34px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--hair); outline: none; font-size: 16px; font-weight: 600;
-           background: color-mix(in srgb, var(--text) 6%, transparent); }
-.cz-name:focus { border-color: color-mix(in srgb, #5cb8ff 70%, transparent); }
+.cz-in { width: 62px; height: 30px; padding: 0 7px; border-radius: 8px; border: 0;
+         background: color-mix(in srgb, var(--text) 8%, transparent); outline: none; font-size: 16px; text-align: right; }
+.cz-name { height: 34px; padding: 0 9px; border-radius: 8px; border: 0; outline: none; font-size: 16px; font-weight: 600;
+           background: color-mix(in srgb, var(--text) 8%, transparent); }
+.cz-in:focus, .cz-name:focus { background: color-mix(in srgb, #5cb8ff 18%, transparent); }
 .cz-u { font-size: var(--small); opacity: .6; }
 .cz-stn { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .8; }
 .cz-rm { flex: none; color: var(--negative); font-size: 13px; font-weight: 600; padding: 4px 8px; border-radius: 7px; }
