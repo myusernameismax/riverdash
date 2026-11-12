@@ -35,7 +35,7 @@ Only the inputs change from the desktop widget:
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: tap **Customize** under the place (below). Colors and timing are in `js/config.js`. |
-| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. |
+| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button). |
 
 ## Water temperature and normal flow
 
@@ -239,7 +239,8 @@ water yourself before going out on rocks or a jetty.
 
 ## Contact
 
-A small "Contact" link under the places list opens an email to
+A small "Contact" link under the places list (scroll to the end, then push down
+once more to show it) opens an email to
 flowtidessupport@gmail.com (subject "Flow Tides"), which forwards to Max. It's
 hidden in the desktop widget.
 

@@ -809,6 +809,7 @@ async function runSearch(text) {
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
                             onHover: t => syncWeather(t) });
+let contactOpen = false; // "Contact" under the list: shown by pushing past the end
 let dragging = null;     // reorder in progress (render waits)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
@@ -1218,7 +1219,7 @@ function renderBody(cur) {
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
-    html += `<a class="contact" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Contact</a>`;
+    html += `<a class="contact${contactOpen ? " open" : ""}" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Contact</a>`;
     morphInto($("#body"), html);
 }
 
@@ -1227,8 +1228,7 @@ function renderFooter() {
         <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
-        <button class="fbtn" data-act="add">${icon("plus", 16)}Add</button>
-        <button class="fbtn round${S.loading ? " spin" : ""}" data-act="refresh"${S.loading ? " disabled" : ""}>${icon("refresh", 18)}</button>`);
+        <button class="fbtn" data-act="add">${icon("plus", 16)}Add</button>`);
 }
 
 function renderAdd() {
@@ -1614,6 +1614,31 @@ function wire() {
     const appEl = $("#app");
     appEl.addEventListener("scroll", () => { if (appEl.scrollLeft || appEl.scrollTop) appEl.scrollLeft = appEl.scrollTop = 0; });
 
+    // "Contact" stays out of the way: scroll to the end as usual, then push down
+    // once more (a new swipe or wheel turn) and it slides in. Scrolling back up hides it.
+    const scr = $("#scroll");
+    const atEnd = () => scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 2;
+    const showContact = on => {
+        if (contactOpen === on) return;
+        contactOpen = on;
+        const c = $("#body .contact");
+        if (c) c.classList.toggle("open", on);
+        if (on) setTimeout(() => scr.scrollTo({ top: scr.scrollHeight, behavior: "smooth" }), 260);
+    };
+    let pull = null, lastWheel = 0;
+    scr.addEventListener("touchstart", e => { pull = atEnd() ? e.touches[0].clientY : null; }, { passive: true });
+    scr.addEventListener("touchmove", e => {
+        if (pull !== null && pull - e.touches[0].clientY > 50) { pull = null; showContact(true); }
+    }, { passive: true });
+    scr.addEventListener("wheel", e => {
+        const fresh = e.timeStamp - lastWheel > 300;
+        lastWheel = e.timeStamp;
+        if (fresh && e.deltaY > 0 && atEnd()) showContact(true);
+    }, { passive: true });
+    scr.addEventListener("scroll", () => {
+        if (contactOpen && scr.scrollHeight - scr.clientHeight - scr.scrollTop > 120) showContact(false);
+    }, { passive: true });
+
     $("#app").addEventListener("pointerdown", e => {
         const h = e.target.closest(".handle");
         if (h) startDrag(e, h);
@@ -1663,6 +1688,53 @@ function wire() {
         else setSx(row, sx < -DEL_W * 0.6 ? -DEL_W : 0);
     });
     $("#app").addEventListener("click", e => { if (swallowClick && !e.target.closest(".pdel")) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+    // Pull down from the top to refresh. The page follows the finger with
+    // resistance; let go past PTR_GO and it holds there with a spinning arrow
+    // until the refresh is done.
+    const PTR_GO = 64, PTR_HOLD = 44, ptr = $("#ptr");
+    ptr.innerHTML = icon("refresh", 20);
+    let pd = null, ptrBusy = false, ptrOff = 0;
+    const setPull = (px, anim) => {
+        clearTimeout(ptrOff);
+        scr.classList.toggle("ptr-anim", !!anim);
+        if (px) scr.classList.add("ptr-on");
+        else ptrOff = setTimeout(() => scr.classList.remove("ptr-on", "ptr-anim"), anim ? 320 : 0);
+        scr.style.setProperty("--pull", px + "px");
+        scr.style.setProperty("--pp", Math.min(1, px / PTR_GO));
+    };
+    scr.addEventListener("touchstart", e => {
+        pd = !ptrBusy && !dragging && e.touches.length === 1 && scr.scrollTop <= 0 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, px: 0, on: false } : null;
+    }, { passive: true });
+    scr.addEventListener("touchmove", e => {
+        if (!pd) return;
+        const dy = e.touches[0].clientY - pd.y, dx = e.touches[0].clientX - pd.x;
+        if (!pd.on) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+            // a normal scroll up the page, or a sideways swipe / chart scrub
+            if (dy <= Math.abs(dx) || scr.scrollTop > 0) { pd = null; return; }
+            pd.on = true; pd.y += dy;
+        }
+        e.preventDefault();
+        pd.px = Math.max(0, rubber(e.touches[0].clientY - pd.y, scr.clientHeight));
+        setPull(pd.px);
+        scr.classList.toggle("ptr-ready", pd.px >= PTR_GO);
+    }, { passive: false });
+    scr.addEventListener("touchend", () => {
+        if (!pd || !pd.on) { pd = null; return; }
+        const go = pd.px >= PTR_GO;
+        pd = null;
+        scr.classList.remove("ptr-ready");
+        if (!go) { setPull(0, true); return; }
+        ptrBusy = true;
+        setPull(PTR_HOLD, true);
+        scr.classList.add("ptr-spin");
+        refresh().finally(() => {
+            ptrBusy = false;
+            scr.classList.remove("ptr-spin");
+            setPull(0, true);
+        });
+    });
 
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {

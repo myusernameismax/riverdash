@@ -85,7 +85,13 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hnow { font-size: var(--small); opacity: .7; margin-top: 6px; padding-left: 2px; animation: fade var(--anim) ease-out; }
 
 /* ── middle (scrolls) ──────────────────────────────────────────────── */
-#scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; position: relative; }
+#ptr { position: absolute; top: 0; left: 0; right: 0; height: 0; display: flex; justify-content: center; pointer-events: none; }
+#ptr .ic { margin-top: calc(var(--pull, 0px) / 2 - 10px); opacity: calc(var(--pp, 0) * .6); transform: rotate(calc(var(--pp, 0) * 270deg)); }
+#scroll.ptr-ready #ptr .ic { opacity: .9; }
+#scroll.ptr-spin #ptr .ic { opacity: .7; animation: spin .9s linear infinite; }
+#scroll.ptr-on #body { transform: translateY(var(--pull, 0px)); }
+#scroll.ptr-anim #body, #scroll.ptr-anim #ptr .ic { transition: transform .3s ease-out, margin-top .3s ease-out, opacity .3s; }
 #body { padding: 4px var(--gutter) 20px; display: flex; flex-direction: column; gap: 20px; }
 .selected { display: flex; flex-direction: column; gap: 20px; }
 .selected:empty { display: none; }
@@ -130,7 +136,10 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 
 /* chart */
 .big-chart { display: block; width: 100%; touch-action: pan-y; }
-.contact { align-self: center; font-size: var(--small); color: inherit; opacity: .45; text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+.contact { align-self: center; font-size: var(--small); color: inherit; text-decoration: none; border-radius: 8px; padding: 0 10px;
+           line-height: 30px; height: 0; margin-top: -20px; opacity: 0; overflow: hidden;      /* -20px cancels #body's gap */
+           transition: height .25s ease-out, margin-top .25s ease-out, opacity .25s ease-out; }
+.contact.open { height: 30px; margin-top: -8px; opacity: .45; }
 .contact:active { background: var(--hover); }
 html[data-embed] .contact { display: none; }
 .chart-label { text-align: center; font-size: var(--small); opacity: .55; }
@@ -288,8 +297,6 @@ html[data-embed] .contact { display: none; }
 .fbtn { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 10px; border-radius: 10px; font-weight: 600; font-size: 14px; }
 .fbtn:active { background: var(--hover); }
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }
-.fbtn.spin .ic { animation: spin .9s linear infinite; }
-.fbtn.spin:disabled { opacity: .6; }
 
 /* ── add page ──────────────────────────────────────────────────────── */
 .add-top { display: flex; align-items: center; gap: 8px; padding: calc(var(--top) + 8px) var(--gutter) 6px calc(var(--gutter) - 6px); flex: none; }
