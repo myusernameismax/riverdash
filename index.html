@@ -17,6 +17,20 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
+<!-- iPhone 13 mini launch screen (same picture as #splash, so it hands over without a jump) -->
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" href="icons/launch-1125x2436-light.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" href="icons/launch-1125x2436-dark.png">
+<!-- shown before app.css and the scripts arrive; js/app.js fades it out once there's something to show -->
+<style>
+#splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #f2f3f5; color: #1d2125;
+          font: 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: opacity 250ms; }
+@media (prefers-color-scheme: dark) { #splash { background: #16181b; color: #eef0f2; } }
+#splash img { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 22px; }
+#splash .sp-name { position: absolute; left: 0; right: 0; top: calc(50% + 62px); text-align: center; font-size: 20px; font-weight: 700; }
+#splash .sp-text { position: absolute; left: 0; right: 0; top: calc(50% + 94px); text-align: center; font-size: 13px; opacity: .6; }
+#splash.gone { opacity: 0; pointer-events: none; }
+html[data-embed] #splash { display: none; }
+</style>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -49,6 +63,7 @@
 
     <div id="toast"><span id="toastText"></span><button id="toastAct" hidden></button></div>
 </div>
+<div id="splash"><img src="icons/icon-512.png" alt=""><div class="sp-name">Flow Tides</div><div class="sp-text" id="splashText">Loading data…</div></div>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

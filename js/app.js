@@ -159,7 +159,7 @@ function project(d) {
 }
 
 // ── per-place settings (saved with the place) ───────────────────────
-// place.hide:  charts/tabs not shown, e.g. ["surf"]
+// place.hide:  charts/tabs not shown, e.g. ["surf"]; "tidelist" = the Next tides section
 // place.ideal: {stage: [lo, hi], flow: [lo, hi], tide: [lo, hi]}; null = no bound on that side
 // place.jetty: {calm, sketchy, cautionGust, sketchyGust}; missing = the config.js default
 const MODES = { stage: "Height", flow: "Flow", temp: "Water temp", tide: "Tide", surf: "Waves" };
@@ -749,6 +749,7 @@ async function refresh() {
     if (!S.offline) saveSnapshot();
     rememberRivers();
     render();
+    if (seq === fetchSeq) hideSplash();               // done, even if it failed: show what there is
 }
 // Opening a place: if its details weren't downloaded in the last 15 minutes, get them now.
 function freshenShown() {
@@ -888,7 +889,7 @@ function renderChart(cur) {
 
 function renderTides(cur) {
     const t = cur.t;
-    if (!t || hidden(cur.place, "tide")) return "";
+    if (!t || hidden(cur.place, "tide") || hidden(cur.place, "tidelist")) return "";
     const list = S.focusDay < 0 ? t.next : (t.week || []).filter(e => e.time >= S.focusDay && e.time < S.focusDay + DAY_MS);
     if (!list.length) return "";
     const today = new Date().getDate();
@@ -902,14 +903,47 @@ function renderTides(cur) {
     return section({ title: S.focusDay >= 0 ? "Tides · " + dayLabel(S.focusDay) : "Next tides", body: `<div class="tides">${cols}</div>` });
 }
 
-// hourly graph geometry (px)
-const HR = { H: 162, padX: 16, topH: 46, rainH: 22 };
-HR.cy0 = HR.topH + 22; HR.cy1 = HR.H - HR.rainH - 20;
+// hourly graph geometry (px): the time + icon strip on top, rain chance (the big
+// graph), then a small temperature line. Without rain the rain graph shrinks.
+const HR = { padX: 16, topH: 46 };
 function hourGeom(hrs) {
     const temps = hrs.map(h => h.temp).filter(has);
     const tmin = temps.length ? Math.min(...temps) : 0, tmax = temps.length ? Math.max(...temps) : 1;
     const span = Math.max(6, tmax - tmin);
-    return { tmin, tmax, span, yAt: v => HR.cy1 - ((v - (tmin + tmax - span) / 2) / span) * (HR.cy1 - HR.cy0) };
+    const rainy = hrs.some(h => (h.pop || 0) >= LOOK.rainDimBelow);
+    const rb0 = HR.topH + (rainy ? 20 : 8), rb1 = rb0 + (rainy ? 50 : 14);   // rain bars: 100% … 0%
+    const t0 = rb1 + 22, t1 = t0 + 22;                                       // temperature band
+    return { tmin, tmax, span, rainy, rb0, rb1, t0, t1, H: t1 + 20,
+             yAt: v => t1 - ((v - (tmin + tmax - span) / 2) / span) * (t1 - t0),
+             rainY: p => rb1 - Math.max(0, Math.min(100, p)) / 100 * (rb1 - rb0) };
+}
+// The turning points of a series (zigzag): {i, hi} at each high and low that's at
+// least `min` away from the one before. The ends count when they're a high or low.
+function turns(vals, min) {
+    const out = [];
+    let dir = 0, hiI = -1, loI = -1;
+    vals.forEach((v, i) => {
+        if (!has(v)) return;
+        if (hiI < 0) { hiI = loI = i; return; }
+        if (dir >= 0 && v > vals[hiI]) hiI = i;
+        if (dir <= 0 && v < vals[loI]) loI = i;
+        if (dir >= 0 && vals[hiI] - v >= min) { out.push({ i: hiI, hi: true }); dir = -1; loI = i; }
+        else if (dir <= 0 && v - vals[loI] >= min) { out.push({ i: loI, hi: false }); dir = 1; hiI = i; }
+    });
+    if (dir > 0) out.push({ i: hiI, hi: true });
+    if (dir < 0) out.push({ i: loI, hi: false });
+    if (!out.length && hiI >= 0) out.push({ i: hiI, hi: true });   // flat: just the top
+    return out;
+}
+// …without two labels on the same side closer than `gap` hours (the bigger one stays)
+function spaced(list, vals, gap) {
+    const out = [];
+    for (const x of list) {
+        const k = out.findIndex(y => y.hi === x.hi && Math.abs(y.i - x.i) < gap);
+        if (k < 0) out.push(x);
+        else if (x.hi ? vals[x.i] > vals[out[k].i] : vals[x.i] < vals[out[k].i]) out[k] = x;
+    }
+    return out;
 }
 
 function renderWeather(cur) {
@@ -945,13 +979,18 @@ function renderWeather(cur) {
     } else {
         const x = day, n = hours.length, G = hourGeom(hours);
         const pos = i => `left:calc(${HR.padX}px + (100% - ${2 * HR.padX}px) * ${(i / (n - 1)).toFixed(4)})`;
+        const past = h => h.t + 3600000 <= Date.now() ? " past" : "";
+        const temps = hours.map(h => h.temp), pops = hours.map(h => h.pop || 0);
+        // times + icons every 3 h; numbers only at the highs and lows
         const labels = hours.map((h, i) => i).filter(i => new Date(hours[i].t).getHours() % 3 === 0).map(i => {
-            const h = hours[i], past = h.t + 3600000 <= Date.now();
-            return `<div class="hr-col${past ? " past" : ""}" style="${pos(i)}">
-                    <div class="hr-time">${clockShort(h.t).replace(":00", "")}</div>${wxIcon(h.code, h.day, 20)}</div>
-                ${has(h.temp) ? `<div class="hr-temp${past ? " past" : ""}" style="${pos(i)};top:${(G.yAt(h.temp) - 17).toFixed(1)}px">${h.temp}°</div>` : ""}
-                ${(h.pop || 0) >= LOOK.rainDimBelow ? `<div class="hr-pop${past ? " past" : ""}" style="${pos(i)};top:${HR.H - HR.rainH - 14}px">${h.pop}%</div>` : ""}`;
-        }).join("");
+            const h = hours[i];
+            return `<div class="hr-col${past(h)}" style="${pos(i)}">
+                    <div class="hr-time">${clockShort(h.t).replace(":00", "")}</div>${wxIcon(h.code, h.day, 20)}</div>`;
+        }).join("")
+        + spaced(turns(temps, 4), temps, 4).filter(x => has(temps[x.i])).map(({ i, hi }) =>
+            `<div class="hr-temp${past(hours[i])}" style="${pos(i)};top:${(G.yAt(temps[i]) + (hi ? -16 : 3)).toFixed(1)}px">${temps[i]}°</div>`).join("")
+        + (G.rainy ? spaced(turns(pops, 15).filter(x => x.hi && pops[x.i] >= LOOK.rainDimBelow), pops, 3).map(({ i }) =>
+            `<div class="hr-pop${past(hours[i])}" style="${pos(i)};top:${(G.rainY(pops[i]) - 15).toFixed(1)}px">${pops[i]}%</div>`).join("") : "");
         const hv = S.hourHover >= 0 ? hours[S.hourHover] : null;
         body = `<div class="wx-dayview${flash.day ? " fadein" : ""}">
             <div class="wd-sum">
@@ -963,7 +1002,7 @@ function renderWeather(cur) {
                     ${x.rise && x.set ? `<div class="dim">Sun ${clockShort(x.rise)} – ${clockShort(x.set)}</div>` : ""}
                 </div>
             </div>
-            <div class="hourly" style="height:${HR.H}px"><canvas id="hourCanvas"></canvas>${labels}</div>
+            <div class="hourly" style="height:${G.H}px"><canvas id="hourCanvas"></canvas>${labels}</div>
             <div id="hourLine" class="hour-line${hv ? " on" : ""}">${hv ? esc(hourText(hv)) : "&nbsp;"}</div>
         </div>`;
     }
@@ -1011,7 +1050,8 @@ function renderCustomize(cur) {
     const chips = have.map(m => {
         const on = !hidden(p, m);
         return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${MODES[m]}</button>`;
-    }).join("");
+    }).join("") + (have.includes("tide") && !hidden(p, "tide")
+        ? `<button class="cz-chip${hidden(p, "tidelist") ? "" : " on"}" data-act="toggleTab" data-mode="tidelist" style="--accent:${LOOK.tideColor}">Next tides</button>` : "");
     const unit = { stage: "ft", flow: "cfs", tide: "ft" };
     const ranges = have.filter(m => unit[m] && !hidden(p, m)).map(m => {   // only tabs that are shown
         const r = (p.ideal && p.ideal[m]) || [null, null], int = m === "flow" ? "numeric" : "decimal";
@@ -1240,6 +1280,18 @@ function render() {
     renderToast();
     flash.selected = flash.week = flash.day = false;
     paint(cur);
+    if (!S.places.length || d) hideSplash();
+}
+
+// ── splash (index.html): the logo until the shown place has something to show ──
+let splashSlow = 0;
+function splashText(text) { const el = $("#splashText"); if (el) el.textContent = text; }
+function hideSplash() {
+    const el = $("#splash");
+    clearTimeout(splashSlow);
+    if (!el || el.classList.contains("gone")) return;
+    el.classList.add("gone");
+    setTimeout(() => el.remove(), 300);
 }
 
 // ── canvases ────────────────────────────────────────────────────────
@@ -1291,27 +1343,34 @@ function paintHourly(cur = lastCur) {
     const n = H.length, s = (W - HR.padX * 2) / (n - 1), xAt = i => HR.padX + i * s, G = hourGeom(H);
     const style = getComputedStyle(document.documentElement);
     const tc = style.getPropertyValue("--text").trim();
-    // night
-    ctx.globalAlpha = 0.06; ctx.fillStyle = tc;
-    for (let i = 0; i < n; i++) if (!H[i].day) {
-        const x0 = Math.max(0, xAt(i) - s / 2), x1 = Math.min(W, xAt(i) + s / 2);
-        ctx.fillRect(x0, 0, x1 - x0, Ht);
-    }
-    // rain chance bars
-    ctx.fillStyle = LOOK.rainColor;
+    const now = Date.now(), done = i => H[i].t + 3600000 <= now;
+    const rr = (x, y, w, h, r) => { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); ctx.fill(); };
+    // night: shaded behind the times and icons only
+    ctx.globalAlpha = 0.07; ctx.fillStyle = tc;
     for (let i = 0; i < n; i++) {
+        if (H[i].day || (i > 0 && !H[i - 1].day)) continue;
+        let j = i;
+        while (j + 1 < n && !H[j + 1].day) j++;
+        const x0 = Math.max(0, xAt(i) - s / 2), x1 = Math.min(W, xAt(j) + s / 2);
+        rr(x0, 0, x1 - x0, HR.topH - 4, 8);
+    }
+    // rain chance: a bar per hour, on a faint 0–100% track when there's rain to read
+    const bw = Math.max(2, s * 0.62), hv = S.hourHover;
+    for (let i = 0; i < n; i++) {
+        if (G.rainy) { ctx.fillStyle = tc; ctx.globalAlpha = 0.045; rr(xAt(i) - bw / 2, G.rb0, bw, G.rb1 - G.rb0, 2); }
         const p = H[i].pop || 0;
         if (p <= 0) continue;
-        const bh = Math.max(1.5, p / 100 * HR.rainH);
-        ctx.globalAlpha = p >= LOOK.rainDimBelow ? 0.6 : 0.25;
-        ctx.fillRect(xAt(i) - s * 0.32, Ht - bh, s * 0.64, bh);
+        const y = G.rainY(p);
+        ctx.fillStyle = LOOK.rainColor;
+        ctx.globalAlpha = (p >= LOOK.rainDimBelow ? 0.85 : 0.35) * (done(i) && i !== hv ? 0.5 : 1);
+        rr(xAt(i) - bw / 2, y, bw, Math.max(1.5, G.rb1 - y), 2);
     }
     ctx.globalAlpha = 1;
-    // temperature curve
+    // temperature: a thin line
     const pts = [];
     for (let i = 0; i < n; i++) if (has(H[i].temp)) pts.push([xAt(i), G.yAt(H[i].temp)]);
     if (pts.length > 1) {
-        const grad = ctx.createLinearGradient(0, HR.cy0, 0, HR.cy1);
+        const grad = ctx.createLinearGradient(0, G.t0, 0, G.t1);
         grad.addColorStop(0, LOOK.warmColor); grad.addColorStop(1, LOOK.coolColor);
         ctx.beginPath();
         ctx.moveTo(pts[0][0], pts[0][1]);
@@ -1320,27 +1379,21 @@ function paintHourly(cur = lastCur) {
             ctx.quadraticCurveTo(pts[k][0], pts[k][1], mx, my);
         }
         ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-        ctx.lineWidth = LOOK.lineWidth + 0.5; ctx.lineJoin = "round"; ctx.lineCap = "round";
+        ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.lineCap = "round";
         ctx.strokeStyle = grad; ctx.stroke();
-        ctx.lineTo(pts[pts.length - 1][0], HR.cy1 + 2);
-        ctx.lineTo(pts[0][0], HR.cy1 + 2);
-        ctx.closePath();
-        ctx.globalAlpha = 0.12; ctx.fillStyle = grad; ctx.fill(); ctx.globalAlpha = 1;
     }
     // now
-    const now = Date.now();
     if (now >= H[0].t && now <= H[n - 1].t) {
         const x = HR.padX + (now - H[0].t) / 3600000 * s;
         ctx.globalAlpha = 0.45; ctx.strokeStyle = tc; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(x, HR.topH); ctx.lineTo(x, Ht); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
     // picked hour
-    const hv = S.hourHover;
     if (hv >= 0 && hv < n) {
         const x = xAt(hv);
         ctx.globalAlpha = 0.8; ctx.strokeStyle = LOOK.weatherColor; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, HR.topH); ctx.lineTo(x, Ht); ctx.stroke(); ctx.globalAlpha = 1;
-        if (has(H[hv].temp)) { ctx.fillStyle = LOOK.weatherColor; ctx.beginPath(); ctx.arc(x, G.yAt(H[hv].temp), 3.5, 0, Math.PI * 2); ctx.fill(); }
+        if (has(H[hv].temp)) { ctx.fillStyle = LOOK.weatherColor; ctx.beginPath(); ctx.arc(x, G.yAt(H[hv].temp), 3, 0, Math.PI * 2); ctx.fill(); }
     }
 }
 
@@ -1720,6 +1773,9 @@ function reloadForUpdate() {
 }
 
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
+splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
+splashSlow = setTimeout(() => splashText("Slow connection · still loading…"), 8000);
+setTimeout(hideSplash, 30000);                        // never stuck behind it
 if (navigator.standalone === true) document.documentElement.classList.add("ios-app");
 wire();
 render();

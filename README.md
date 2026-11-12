@@ -94,6 +94,8 @@ Tap **Customize** at the bottom of a place:
   A hidden tab also hides its section (Next tides, Jetty / surf) and its settings here
   (its good range, the jetty limits); those are kept and come back with the tab, but
   don't count toward *in shape* while it's off.
+  With tides shown, **Next tides** turns just the tide-times section off (the Tide
+  chart stays); it travels with share links.
 - **Good range**: a low and/or high bound for height, flow or tide. The chart draws
   the line green inside it and red outside (no shading). Next to the place's name:
   *in shape* / *too low* / *too high* (every reading with a range has to be in it).
@@ -109,6 +111,18 @@ Tap **Customize** at the bottom of a place:
   To remove the last one, remove the place under Edit.
 
 - **Name**: rename the place (tapping the name at the top works too).
+
+### Weather day view
+
+Tap a day in **7-day weather**. Under the day's summary:
+
+- **Top strip:** time and weather icon every 3 h. Night hours are shaded here only.
+- **Rain chance** (the big part): one bar per hour on a faint 0–100% track, solid
+  from 30% (`rainDimBelow` in `js/config.js`), faint below. The peaks are labeled.
+  A day with no hour at 30% or more gets a short, flat rain row.
+- **Temperature:** a thin line, labeled only at its highs and lows (turns of 4°F or
+  more, so small wiggles aren't labeled; the start and end count when they're one).
+- Past hours are dimmed. Drag along it or tap for one hour's details.
 
 ### The reading bar and the weather move together
 
@@ -172,6 +186,13 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
   app switches to it: right away if you just opened it and haven't touched anything,
   otherwise the next time you come back after a minute away. A short "Updated to the
   latest version" note shows; your places are kept.
+- **Opening screen:** the app logo with "Getting the latest from NOAA…" until the
+  place on screen has something to show (saved data counts, so normally it's only a
+  blink). After 8 s it says "Slow connection · still loading…"; after the refresh
+  finishes (or fails), or 30 s at most, it fades out either way. Before the page
+  itself loads, iOS shows `icons/launch-1125x2436-*.png` (the same logo, sized for the
+  iPhone 13 mini, light and dark). iOS may only pick that picture up when the icon
+  is added to the home screen.
 - **Loading order:** the app opens at once on the saved data (carried forward to now).
   Then it downloads the place on screen first, in full, then all the others together
   (4 at a time): the ★ place in full, the rest only what the places list shows. A
