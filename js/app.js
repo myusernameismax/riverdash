@@ -977,14 +977,14 @@ function renderCustomize(cur) {
         return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${on ? "✓ " : ""}${MODES[m]}</button>`;
     }).join("");
     const unit = { stage: "ft", flow: "cfs", tide: "ft" };
-    const ranges = have.filter(m => unit[m]).map(m => {
+    const ranges = have.filter(m => unit[m] && !hidden(p, m)).map(m => {   // only tabs that are shown
         const r = (p.ideal && p.ideal[m]) || [null, null], int = m === "flow" ? "numeric" : "decimal";
         return `<div class="cz-row"><span class="cz-label">${MODES[m]}</span>
             ${numField(`data-set="ideal" data-mode="${m}" data-side="0"`, r[0], "", int)}<span class="cz-to">to</span>
             ${numField(`data-set="ideal" data-mode="${m}" data-side="1"`, r[1], unit[m], int)}</div>`;
     }).join("");
     const L = jettyLim(p), custom = !!p.jetty;
-    const jetty = have.includes("surf") ? `
+    const jetty = have.includes("surf") && !hidden(p, "surf") ? `
         <div class="cz-head">Jetty / surf rating${custom ? `<button class="cz-link" data-act="resetJetty">Reset</button>` : ""}</div>
         <div class="cz-row"><span class="cz-label" style="color:${LOOK.calmColor}">Calm</span><span class="cz-to">waves up to</span>${numField(`data-set="jetty" data-k="calm"`, L.calm, "ft")}</div>
         <div class="cz-row"><span class="cz-label" style="color:${LOOK.sketchyColor}">Sketchy</span><span class="cz-to">waves above</span>${numField(`data-set="jetty" data-k="sketchy"`, L.sketchy, "ft")}</div>
