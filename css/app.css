@@ -295,11 +295,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
        border-top: 1px solid var(--hair); background: var(--bg); }
 .fstat { flex: 1; font-size: var(--small); opacity: .6; white-space: pre; }
 /* the easter egg: in the gap the page leaves when pushed up past its end */
-.egg { position: absolute; left: 0; right: 0; bottom: 100%; height: var(--egg-px, 0px); display: flex; align-items: center;
+.egg { position: absolute; left: 0; right: 0; bottom: 100%; height: calc(var(--egg-px, 0px) + 20px);   /* + #body's bottom padding */ display: flex; align-items: center;
        justify-content: center; overflow: hidden; font-size: var(--small); opacity: calc(var(--egg, 0) * .6); pointer-events: none; }
 #details.egg-anim .egg { transition: height .3s ease-out, opacity .3s ease-out; }
 .fbtn { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 10px; border-radius: 10px; font-weight: 600; font-size: 14px; }
 .fbtn:active { background: var(--hover); }
+#ftr .fbtn { opacity: .6; font-weight: 400; font-size: var(--small); }   /* quiet, like the status text */
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }
 
 /* ── add page ──────────────────────────────────────────────────────── */

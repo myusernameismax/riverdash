@@ -1269,8 +1269,8 @@ function renderFooter() {
     morphInto($("#ftr"), `
         <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
-        ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
-        <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 17)}Contact</a>
+        ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
+        <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
         <div class="egg">Stop looking at your phone and go fishing</div>`);
 }
 
@@ -1773,9 +1773,10 @@ function wire() {
         setPull(-px, anim);
         det.classList.toggle("egg-anim", !!anim);
         det.style.setProperty("--egg-px", px + "px");
-        det.style.setProperty("--egg", Math.min(1, px / 40));
+        det.style.setProperty("--egg", Math.min(1, px / 20));
     };
     let eg = null, eggTimer = 0;
+    const EGG_MAX = 40;
     scr.addEventListener("touchstart", e => {
         eg = !ptrBusy && !dragging && e.touches.length === 1 && atEnd() ? { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false } : null;
     }, { passive: true });
@@ -1789,7 +1790,7 @@ function wire() {
         }
         e.preventDefault();
         clearTimeout(eggTimer);
-        setEgg(Math.max(0, rubber(eg.y - e.touches[0].clientY, scr.clientHeight)));
+        setEgg(Math.max(0, rubber(eg.y - e.touches[0].clientY, EGG_MAX)));   // stiff: never much taller than the note
     }, { passive: false });
     scr.addEventListener("touchend", () => {
         if (eg && eg.on) setEgg(0, true);
@@ -1800,7 +1801,7 @@ function wire() {
         const fresh = e.timeStamp - lastWheel > 300;
         lastWheel = e.timeStamp;
         if (!fresh || e.deltaY <= 0 || !atEnd() || ptrBusy) return;
-        setEgg(40, true);
+        setEgg(28, true);
         clearTimeout(eggTimer);
         eggTimer = setTimeout(() => setEgg(0, true), 1500);
     }, { passive: true });
