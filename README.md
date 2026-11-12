@@ -42,10 +42,10 @@ Only the inputs change from the desktop widget:
   NOAA one, where it has a temperature sensor (all four Portland-area test gauges do).
   Measured only: nobody publishes a water temperature forecast, so the chart has no
   dashed part. Older than 2 h: "Measured … ago".
-- Under the Height and Flow charts: **Historical average on Nov 11: 2,310 cfs**, the
-  average flow on that calendar date over every year the USGS gauge has (e.g.
-  1911-2026 for the Sandy). It follows the reading bar's day, else the picked day,
-  else today. USGS has no height history for these gauges, so it's flow only.
+- Under the Flow chart: **Typical flow on Nov 11: 1,640 cfs**, the median flow on
+  that calendar date over every year the USGS gauge has (e.g. 1911-2026 for the
+  Sandy; the median, so flood years don't inflate it). It follows the reading bar's
+  day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
 
 ## Moving places between devices
@@ -167,7 +167,7 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 | Tides (predictions, live level where there's a sensor) | NOAA CO-OPS Tides & Currents |
 | Flow when NOAA has none | USGS Water Data |
 | Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
-| Average flow for each calendar date (over all years) | USGS statistics service |
+| Typical (median) flow for each calendar date (over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |
 
 The jetty rating is a rough model forecast, not a buoy reading. Look at the
