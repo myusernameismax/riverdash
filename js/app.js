@@ -805,7 +805,7 @@ function renderHeader(cur) {
             ${sub ? `<div class="hsub">${esc(sub)}</div>` : ""}
         </div>
         ${wx}
-        <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon(isPin ? "star" : "starOutline", 24)}</button>
+        <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon("star", 24)}</button>
     </div>
     ${S.nowOpen && n ? `<div class="hnow">${has(n.feels) ? `Feels like ${n.feels}° · ` : ""}Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
 }
@@ -1056,7 +1056,7 @@ function placeRow(i, o) {
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
-        <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon(isPin ? "star" : "starOutline", 18)}</button>
+        <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : ""}
     </div>`;
 }

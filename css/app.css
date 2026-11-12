@@ -79,7 +79,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hwx-t { display: flex; flex-direction: column; line-height: 1.05; }
 .hwx-temp { font-size: 22px; font-weight: 300; }
 .hwx-word { font-size: 11.5px; opacity: .6; max-width: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hstar, .pstar { color: var(--text); opacity: .55; flex: none; display: grid; place-items: center; }
+.hstar, .pstar { color: var(--text); opacity: .3; flex: none; display: grid; place-items: center; }
 .hstar { width: 40px; height: 40px; margin: -6px -10px 0 -4px; }
 .hstar.on, .pstar.on { color: #f5c542; opacity: 1; }
 .hnow { font-size: var(--small); opacity: .7; margin-top: 6px; padding-left: 2px; animation: fade var(--anim) ease-out; }
