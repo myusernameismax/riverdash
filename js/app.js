@@ -890,6 +890,7 @@ function renderHeader(cur) {
             ${sub ? `<div class="hsub">${esc(sub)}</div>` : ""}
         </div>
         ${wx}
+        ${d ? `<button class="hcz${S.customizing ? " on" : ""}" data-act="customize" aria-label="Customize">${icon("sliders", 20)}</button>` : ""}
         <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon("star", 24)}</button>
     </div>
     ${S.nowOpen && n ? `<div class="hnow">${has(n.feels) ? `Feels like ${n.feels}° · ` : ""}Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
@@ -1125,7 +1126,8 @@ function renderCustomize(cur) {
     const both = !!(p.river && p.tide);
     const station = (kind, label, name) => p[kind] ? `<div class="cz-row"><span class="cz-label">${label}</span>
         <span class="cz-stn">${esc(name || p[kind])}</span>
-        ${both ? `<button class="cz-rm" data-act="removeStation" data-kind="${kind}">Remove</button>` : ""}</div>` : "";
+        ${both ? `<button class="cz-rm" data-act="removeStation" data-kind="${kind}">Remove</button>` : ""}</div>`
+        : `<div class="cz-row"><span class="cz-label">${label}</span><button class="cz-add" data-act="attach" data-kind="${kind}">${icon("plus", 12)}Add ${kind === "tide" ? "tide station" : "river gauge"}</button></div>`;
     const body = `
         <div class="cz-head">Name</div>
         <input class="cz-name" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
@@ -1252,13 +1254,6 @@ function renderBody(cur) {
         sel += renderTides(cur);
         sel += renderSurf(cur);
         sel += renderCustomize(cur);
-        if (cur.d) {
-            sel += `<div class="add-half">
-                ${!place.tide ? `<button data-act="attach" data-kind="tide">${icon("plus", 13)}Tide station</button>` : ""}
-                ${!place.river ? `<button data-act="attach" data-kind="river">${icon("plus", 13)}River gauge</button>` : ""}
-                ${S.customizing ? "" : `<button data-act="customize" class="cz-open">${icon("sliders", 13)}Customize</button>`}
-            </div>`;
-        }
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
