@@ -746,19 +746,18 @@ function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, b
     return `<div class="sec ${cls}"${id ? ` id="${id}"` : ""}>${head}<div class="sec-box" style="padding:${pad}px;gap:${gap}px">${body}</div></div>`;
 }
 
-// Flow against the normal for today's date (median of all years at the USGS gauge).
-function vsNormal(r) {
-    const d = new Date(), n = r && r.normals && r.normals[String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")];
-    if (!num(n) || !has(r.flow)) return "";
-    const diff = r.flow - n, near = Math.abs(diff) < Math.max(10, n * 0.05);
-    return near ? "About normal" : commas(Math.abs(diff)) + " cfs " + (diff > 0 ? "above" : "below") + " normal";
+// Under the river charts: the average flow on this calendar date over every year the
+// USGS gauge has. Follows the reading bar's day, else the picked day, else today.
+function avgText(r, t) {
+    const d = new Date(isNaN(t) ? (S.focusDay >= 0 ? S.focusDay : Date.now()) : t);
+    const v = r && r.averages && r.averages[String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")];
+    return num(v) ? "Historical average on " + fmtMonthDay(d.getTime()) + ": " + cfs(v) : "";
 }
-function tile({ title, num, unit, detail, detail2, mode, active, accent, shape: k = null }) {
+function tile({ title, num, unit, detail, mode, active, accent, shape: k = null }) {
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
         <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
         <div class="t-val"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
         ${detail ? `<div class="t-det">${esc(detail)}</div>` : ""}
-        ${detail2 ? `<div class="t-det">${esc(detail2)}</div>` : ""}
     </button>`;
 }
 
@@ -796,8 +795,7 @@ function renderTiles(cur) {
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) }));
     if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime),
-        detail2: vsNormal(r) }));
+        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) }));
     if (r && r.temp && !hidden(p, "temp")) out.push(tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
         num: Math.round(r.temp.value).toString(), unit: " °F " + arrow(r.temp.trend, 0.3),
         detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) }));
@@ -820,11 +818,11 @@ function renderChart(cur) {
     const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs"
         : mode === "temp" ? "Water temperature · °F · USGS, measured" : "Height · ft") + rng;
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
-    const p = r && mode !== "temp" ? r.forecastPeak : null;
+    const avg = r && (mode === "stage" || mode === "flow") ? avgText(r, bigChart.hoverT) : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
         <div class="chart-label">${esc(what + day)}</div>
-        ${p ? `<div class="chart-peak">${esc("Forecast peak " + ft(p.stage) + (has(p.flow) ? " / " + cfs(p.flow) : "") + ", " + dayClock(p.time))}</div>` : ""}` });
+        ${avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : ""}` });
 }
 
 function renderTides(cur) {
@@ -1137,6 +1135,8 @@ function paint(cur = lastCur) {
 //   day view:  the hour under the bar is picked, and picking an hour moves the bar
 function syncWeather(t) {
     const ok = !isNaN(t) && !!$("#bigChart");
+    const av = $("#chartAvg");
+    if (av && lastCur && lastCur.r) { const s = avgText(lastCur.r, t); if (s) av.textContent = s; }
     document.querySelectorAll(".wx-day").forEach(el => {
         const a = +el.dataset.start;
         el.classList.toggle("hl", ok && t >= a && t < a + DAY_MS);

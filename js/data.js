@@ -178,11 +178,11 @@ async function usgsTemp(site) {
     return { value: v, time: t, trend: before === null ? null : round(v - before, 1), series: thin(pts) };
 }
 
-// Normal flow for each day of the year: the median of that date's daily means over
-// every year the gauge has (USGS statistics). {"11-11": cfs, ...}; refreshed monthly.
-async function usgsNormals(site) {
-    return cached(`usgs-normal-${site}.json`, 30 * DAY, async () => {
-        const url = "https://waterservices.usgs.gov/nwis/stat/?format=rdb&statReportType=daily&statTypeCd=median&parameterCd=00060&sites=" + encodeURIComponent(site);
+// Average flow for each calendar day: the mean of that date's daily flows over every
+// year the gauge has (USGS statistics). {"11-11": cfs, ...}; refreshed monthly.
+async function usgsAverages(site) {
+    return cached(`usgs-avg-${site}.json`, 30 * DAY, async () => {
+        const url = "https://waterservices.usgs.gov/nwis/stat/?format=rdb&statReportType=daily&statTypeCd=mean&parameterCd=00060&sites=" + encodeURIComponent(site);
         const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
         let text;
         try {
@@ -200,7 +200,7 @@ async function usgsNormals(site) {
             if (!line || line.startsWith("#")) continue;
             const c = line.split("\t");
             if (!head) { head = c; continue; }
-            const m = +c[head.indexOf("month_nu")], dd = +c[head.indexOf("day_nu")], v = parseFloat(c[head.indexOf("p50_va")]);
+            const m = +c[head.indexOf("month_nu")], dd = +c[head.indexOf("day_nu")], v = parseFloat(c[head.indexOf("mean_va")]);
             if (m && dd && isFinite(v)) out[pad2(m) + "-" + pad2(dd)] = v;
         }
         return out;
@@ -245,11 +245,11 @@ async function river(lid) {
         } catch (e) { /* no flow then */ }
     }
     // extras from the USGS gauge; a failure just leaves them out
-    let temp = null, normals = null;
+    let temp = null, averages = null;
     if (g.usgsId) {
-        [temp, normals] = await Promise.all([
+        [temp, averages] = await Promise.all([
             usgsTemp(g.usgsId).catch(() => null),
-            flow !== null ? usgsNormals(g.usgsId).catch(() => null) : null,
+            flow !== null ? usgsAverages(g.usgsId).catch(() => null) : null,
         ]);
     }
 
@@ -276,7 +276,7 @@ async function river(lid) {
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
         forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
         temp,                      // {value °F, time, trend (3 h), series} or null
-        normals,                   // {"MM-DD": median cfs} or null
+        averages,                  // {"MM-DD": average cfs for that calendar date} or null
     };
 }
 
