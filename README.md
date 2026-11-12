@@ -62,6 +62,7 @@ after the river.
   e.g. "Coast"); blank keeps the place out of its river's group. Typing the river's
   name again makes it automatic.
 - Edit mode stays one flat list (reorder, remove); a group sits where its first place is.
+  Places with the same name show where they are there too ("McKenzie · Vida").
 - Groups travel with share links.
 
 ## Moving places between devices

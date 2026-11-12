@@ -1084,22 +1084,16 @@ function renderPlaces() {
         return section({ id: "placesSec", title: "Places", pad: 0, gap: 0,
             trailing: `<button class="edit-btn" data-act="edit">Edit</button>`, body: `<div id="placesList">${rows}</div>` });
     }
-    const firstVisible = S.places.findIndex((p, i) => S.editing || i !== S.selected);
+    // Edit mode: one flat list. Places with the same name (e.g. three "McKenzie")
+    // also show where they are, so you can tell which one you're removing.
+    const named = {};
+    S.places.forEach(p => { const k = p.name.toLowerCase(); named[k] = (named[k] || 0) + 1; });
     const rows = S.places.map((p, i) => {
-        const hidden = !S.editing && i === S.selected;
-        const isPin = i === pinned();
-        const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-        return `<div class="prow${hidden ? " hide" : ""}${i === firstVisible ? " first" : ""}${S.editing && i === S.selected ? " cur" : ""}"
-                     data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
-            ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
-            <div class="pname">${esc(p.name)}</div>
-            ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
-            <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon(isPin ? "star" : "starOutline", 18)}</button>
-            ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : ""}
-        </div>`;
+        const loc = named[p.name.toLowerCase()] > 1 ? memberLabel(i, p.name) : "";
+        return placeRow(i, { first: i === 0, label: loc && loc !== p.name ? p.name + " · " + loc : p.name });
     }).join("");
-    return section({ id: "placesSec", title: S.editing ? "All places" : "Other places", pad: 0, gap: 0,
-        trailing: `<button class="edit-btn${S.editing ? " on" : ""}" data-act="edit">${S.editing ? "Done" : "Edit"}</button>`,
+    return section({ id: "placesSec", title: "All places", pad: 0, gap: 0,
+        trailing: `<button class="edit-btn on" data-act="edit">Done</button>`,
         body: `<div id="placesList">${rows}</div>` });
 }
 
