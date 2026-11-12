@@ -2,7 +2,6 @@
     "name": "Flow Tides",
     "short_name": "Flow Tides",
     "description": "NOAA river levels, flows, tides, waves and weather",
-    "start_url": "./",
     "scope": "./",
     "display": "standalone",
     "orientation": "portrait",

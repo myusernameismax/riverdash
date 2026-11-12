@@ -572,7 +572,7 @@ function openImport(text) {
     if (!code) { S.moving = "import"; S.incoming = null; S.importError = "Not a Flow Tides link"; render(); return; }
     unpackSetup(code).then(r => {
         S.incoming = r; S.importError = "";
-        if (fresh && !S.places.length) applyImport(false, true);
+        if (fresh && !S.places.length) { applyImport(false, true); save("rt:link", code); }
         else S.moving = "import";
     }).catch(e => { S.moving = "import"; S.incoming = null; S.importError = e.message; })
       .finally(() => { waitingForLink = false; render(); });
@@ -620,6 +620,7 @@ async function copyText(text) {
 // A link opened in Safari on an iPhone lands in Safari, not in the home-screen app
 // (they keep separate storage), so it offers to copy the link for the app instead.
 const inSafariTab = () => navigator.standalone === false;
+const standalone = () => navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
 
 function renderMove() {
     $("#moveTitle").textContent = S.moving === "share" ? "Share places" : "Import places";
@@ -1814,10 +1815,18 @@ try {
 } catch (e) { /* fine */ }
 
 // Opened from a share link: show what's in it, then drop it from the address bar.
+// Someone new: the link stays in the address bar, so Add to Home Screen installs
+// the app with its places (on iPhone, Safari and the home-screen app don't share
+// storage; with no start_url in the manifest, the icon opens the address it was
+// added from). That app loads them on its first launch and ignores the link after.
 function takeImportHash() {
     const code = codeFrom(location.hash);
     if (!code) return;
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ }
+    if (S.places.length) {
+        // the link this app already loaded (reopened tab, home-screen icon): nothing to ask
+        if (code === load("rt:link", "") || standalone()) return;
+        try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ }
+    }
     openImport("#import=" + code);
 }
 takeImportHash();
