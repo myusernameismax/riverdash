@@ -1271,7 +1271,7 @@ function renderFooter() {
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
-        <div class="egg">Stop looking at your phone and go fishing</div>`);
+        <div class="egg">Stop looking at your phone and go fishing!</div>`);
 }
 
 function renderAdd() {
