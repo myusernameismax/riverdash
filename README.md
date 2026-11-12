@@ -48,6 +48,21 @@ Only the inputs change from the desktop widget:
   day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
 
+## River groups
+
+Places on the same river group themselves in **Other places** once there are two or
+more (from NOAA's gauge names: "McKenzie River near Vida", "McKenzie River above
+Coburg" → **McKenzie**). The group's mini graph overlaps one line per gauge, each in
+its own status color (green in shape, red not, gray no range). Tap the group to open
+it; its places show where they are ("Vida", "Above Coburg") when they're all named
+after the river.
+
+- **Customize → Group** changes it: another name makes or joins a group (any places,
+  e.g. "Coast"); blank keeps the place out of its river's group. Typing the river's
+  name again makes it automatic.
+- Edit mode stays one flat list (reorder, remove); a group sits where its first place is.
+- Groups travel with share links.
+
 ## Moving places between devices
 
 Tap the **share** button at the bottom (next to + Add). It shows a QR code and a

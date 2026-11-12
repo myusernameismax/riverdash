@@ -243,6 +243,14 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
 .spark { width: 36px; height: 16px; flex: none; }
+/* river groups */
+.prow.grp { cursor: pointer; }
+.prow.grp:active { background: var(--hover); }
+.gcount { font-size: 12px; opacity: .5; font-weight: 600; }
+.gchev { display: flex; opacity: .45; padding: 0 10px 0 2px; transition: transform var(--anim); }
+.prow.grp.open .gchev { transform: rotate(90deg); }
+.prow.member { padding-left: 30px; }
+.prow.member::before { left: 30px; }
 .pname { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pparts { display: flex; gap: 6px; font-size: var(--small); white-space: nowrap; flex: none; }
 .pstar { width: 36px; height: 44px; }

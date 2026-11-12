@@ -4,7 +4,7 @@
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
 import { fetchPlaces, savedPlaces, search as searchStations, warmSearch } from "./data.js";
-import { Chart, drawSpark } from "./chart.js";
+import { Chart, drawSpark, drawMultiSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
 import { morphInto } from "./morph.js";
@@ -48,6 +48,7 @@ const S = {
     editing: false,
     renaming: false,
     customizing: false,      // the "Customize" panel for the shown place
+    openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
@@ -391,6 +392,15 @@ function pin(i) {
     setPinned(i);
     toast("★ " + placeName(i) + " opens first", "", null);
 }
+// Customize → Group. Same as the automatic river name = automatic again.
+function setGroup(i, value) {
+    const list = S.places.map(p => ({ ...p })), p = list[i], v = value.trim();
+    if (!p) return;
+    const auto = autoRiver(p);
+    if (v.toLowerCase() === auto.toLowerCase()) delete p.group; else p.group = v;
+    S.places = list;
+    save("rt:places", list);
+}
 function rename(i, name) {
     name = name.trim();
     if (!name || name === placeName(i)) return;
@@ -520,9 +530,11 @@ function addResult(item) {
     if (S.attachTo >= 0 && S.attachTo < list.length) {
         i = S.attachTo;
         list[i][item.kind] = item.id;
+        if (item.kind === "river") list[i].rv = shortName(item.name);
     } else {
         const p = { name: shortName(item.name) };
         p[item.kind] = item.id;
+        if (item.kind === "river") p.rv = shortName(item.name);
         list.push(p);
         i = list.length - 1;
     }
@@ -705,8 +717,21 @@ async function refresh() {
         }
         S.updated = Math.max(S.updated || 0, r.time);
         if (!r.offline) saveSnapshot();
+        rememberRivers();
     }
     render();
+}
+// Each river gauge's river name (for groups), saved with the place once known.
+function rememberRivers() {
+    let changed = false;
+    const list = S.places.map(p => {
+        if (!p.river || p.rv) return p;
+        const d = S.results[keyOf(p)];
+        if (!d || !d.river || !d.river.name) return p;
+        changed = true;
+        return { ...p, rv: shortName(d.river.name) };
+    });
+    if (changed) { S.places = list; save("rt:places", list); }
 }
 // The last readings, kept where they load instantly at startup (before anything else).
 function saveSnapshot() {
@@ -973,6 +998,9 @@ function renderCustomize(cur) {
         <div class="cz-head">Name</div>
         <input class="cz-name" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
             data-set="name" value="${esc(p.name)}" data-key="${esc(p.name)}">
+        <div class="cz-head">Group</div>
+        <input class="cz-name cz-group" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
+            data-set="group" value="${esc(groupOf(p))}" placeholder="None">
         <div class="cz-head">Show</div>
         <div class="cz-chips">${chips}</div>
         ${ranges ? `<div class="cz-head">Good range</div>${ranges}
@@ -986,8 +1014,77 @@ function renderCustomize(cur) {
         trailing: `<button class="edit-btn on" data-act="customize">Done</button>`, body });
 }
 
+// ── river groups ────────────────────────────────────────────────────
+// Places on the same river ("McKenzie River near Vida", "… at Coburg") group
+// automatically in the places list. Customize → Group overrides it: another name
+// makes or joins a group (any places, e.g. "Coast"), blank keeps the place out.
+// place.rv remembers the river's name; place.group is the override.
+function autoRiver(p) {
+    if (!p || !p.river) return "";
+    if (p.rv) return p.rv;
+    const d = S.results[keyOf(p)];
+    return d && d.river && d.river.name ? shortName(d.river.name) : "";
+}
+const groupOf = p => (p.group !== undefined ? p.group : autoRiver(p)).trim();
+// The list in order: single places, and groups (2+ places) where their first place is.
+function listItems() {
+    const count = {};
+    S.places.forEach(p => { const g = groupOf(p).toLowerCase(); if (g) count[g] = (count[g] || 0) + 1; });
+    const out = [], seen = {};
+    S.places.forEach((p, i) => {
+        const g = groupOf(p), k = g.toLowerCase();
+        if (!k || count[k] < 2) { out.push({ i }); return; }
+        if (!seen[k]) { seen[k] = { key: k, name: g, members: [] }; out.push(seen[k]); }
+        seen[k].members.push(i);
+    });
+    return out;
+}
+// Inside a group, a place named just like the group shows where it is instead ("Vida").
+function memberLabel(i, groupName) {
+    const p = S.places[i];
+    if (p.name.toLowerCase() !== groupName.toLowerCase()) return p.name;
+    const d = S.results[keyOf(p)], n = d && d.river ? d.river.name : "";
+    const m = n.match(/ (?:near|nr|at) (.+)$/) || n.match(/ ((?:above|below|abv|blw) .+)$/);
+    const loc = m ? m[1].replace(/,.*$/, "").trim() : "";
+    return loc ? loc[0].toUpperCase() + loc.slice(1) : p.name;
+}
+function placeRow(i, o) {
+    const p = S.places[i], isPin = i === pinned();
+    const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}"
+                 data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
+        ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
+        <div class="pname">${esc(o.label || p.name)}</div>
+        ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
+        <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon(isPin ? "star" : "starOutline", 18)}</button>
+        ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : ""}
+    </div>`;
+}
+
 function renderPlaces() {
     if (!(S.places.length > 1 || S.editing)) return "";
+    if (!S.editing) {   // grouped; Edit mode below stays one flat list (reorder, remove)
+        let rows = "", first = true;
+        for (const it of listItems()) {
+            if (it.members === undefined) {
+                const hide = it.i === S.selected;
+                rows += placeRow(it.i, { hidden: hide, first: first && !hide });
+                if (!hide) first = false;
+                continue;
+            }
+            const open = S.openGroups.has(it.key);
+            rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
+                <canvas class="spark" data-gspark="${esc(it.key)}"></canvas>
+                <div class="pname">${esc(it.name)}</div>
+                <span class="gcount">${it.members.length}</span>
+                <span class="gchev">${icon("next", 14)}</span>
+            </div>`;
+            first = false;
+            if (open) for (const i of it.members) rows += placeRow(i, { member: true, hidden: i === S.selected, label: memberLabel(i, it.name) });
+        }
+        return section({ id: "placesSec", title: "Other places", pad: 0, gap: 0,
+            trailing: `<button class="edit-btn" data-act="edit">Edit</button>`, body: `<div id="placesList">${rows}</div>` });
+    }
     const firstVisible = S.places.findIndex((p, i) => S.editing || i !== S.selected);
     const rows = S.places.map((p, i) => {
         const hidden = !S.editing && i === S.selected;
@@ -1126,6 +1223,12 @@ function paint(cur = lastCur) {
     if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
     else bigChart.cv = null;
     document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, listSpark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
+    if (document.querySelector("canvas[data-gspark]")) {
+        const groups = {};
+        for (const it of listItems()) if (it.members) groups[it.key] = it.members;
+        document.querySelectorAll("canvas[data-gspark]").forEach(c =>
+            drawMultiSpark(c, (groups[c.dataset.gspark] || []).map(listSpark), LOOK.sparkPlainColor));
+    }
     paintHourly(cur);
     syncWeather(bigChart.hoverT);
 }
@@ -1327,6 +1430,7 @@ const ACTIONS = {
     removeStation: el => removeStation(el.dataset.kind),
     resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
     select: el => select(+el.dataset.i),
+    toggleGroup: el => { const k = el.dataset.g; if (S.openGroups.has(k)) S.openGroups.delete(k); else S.openGroups.add(k); },
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     share: () => { openShare(); return "skip"; },
     importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus({ preventScroll: true }); }, ANIM + 20); return "skip"; },
@@ -1412,6 +1516,7 @@ function wire() {
         const el = e.target;
         if (!el.matches || !el.matches(".cz-in, .cz-name")) return;
         if (el.dataset.set === "name") rename(S.selected, el.value);
+        else if (el.dataset.set === "group") setGroup(S.selected, el.value);
         else if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
         else if (el.dataset.set === "jetty") setJetty(el.dataset.k, el.value);
         render();

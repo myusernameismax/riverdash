@@ -33,6 +33,9 @@ export function cleanPlace(p) {
         }
         if (Object.keys(ideal).length) out.ideal = ideal;
     }
+    // river group: a set name, or "" = kept out of its automatic group; rv = the river's name
+    if (typeof p.group === "string") out.group = p.group.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 40);
+    if (typeof p.rv === "string" && p.rv.trim()) out.rv = p.rv.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 40);
     if (p.jetty && typeof p.jetty === "object") {
         const j = {};
         for (const k of JETTY) if (num(p.jetty[k])) j[k] = p.jetty[k];
