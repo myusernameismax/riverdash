@@ -175,6 +175,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hr-time { font-size: 10.5px; opacity: .6; }
 .hr-temp { font-size: var(--small); font-weight: 700; }
 .hr-pop { font-size: 10px; font-weight: 700; color: #5cb8ff; }
+.hr-cap { position: absolute; left: 6px; font-size: 11px; line-height: 14px; opacity: .55; pointer-events: none; }
 .past { opacity: .45; }
 .hour-line { text-align: center; font-size: 11.5px; opacity: 0; min-height: 16px; padding-bottom: 4px;
              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

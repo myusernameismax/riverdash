@@ -117,6 +117,7 @@ Tap **Customize** at the bottom of a place:
 Tap a day in **7-day weather**. Under the day's summary:
 
 - **Top strip:** time and weather icon every 3 h. Night hours are shaded here only.
+- Each graph has a short caption on its left ("Rain chance · %", "Temperature · °F").
 - **Rain chance** (the big part): one bar per hour on a faint 0–100% track, solid
   from 30% (`rainDimBelow` in `js/config.js`), faint below. The peaks are labeled.
   A day with no hour at 30% or more gets a short, flat rain row.

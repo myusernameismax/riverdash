@@ -911,9 +911,10 @@ function hourGeom(hrs) {
     const tmin = temps.length ? Math.min(...temps) : 0, tmax = temps.length ? Math.max(...temps) : 1;
     const span = Math.max(6, tmax - tmin);
     const rainy = hrs.some(h => (h.pop || 0) >= LOOK.rainDimBelow);
-    const rb0 = HR.topH + (rainy ? 20 : 8), rb1 = rb0 + (rainy ? 50 : 14);   // rain bars: 100% … 0%
-    const t0 = rb1 + 22, t1 = t0 + 22;                                       // temperature band
-    return { tmin, tmax, span, rainy, rb0, rb1, t0, t1, H: t1 + 20,
+    // each graph: a caption row (14 px), room for its peak labels, then the graph
+    const rcap = HR.topH + 4, rb0 = rcap + 14 + (rainy ? 18 : 6), rb1 = rb0 + (rainy ? 50 : 14);   // rain bars: 100% … 0%
+    const tcap = rb1 + 10, t0 = tcap + 14 + 18, t1 = t0 + 22;                                     // temperature band
+    return { tmin, tmax, span, rainy, rcap, rb0, rb1, tcap, t0, t1, H: t1 + 20,
              yAt: v => t1 - ((v - (tmin + tmax - span) / 2) / span) * (t1 - t0),
              rainY: p => rb1 - Math.max(0, Math.min(100, p)) / 100 * (rb1 - rb0) };
 }
@@ -982,7 +983,9 @@ function renderWeather(cur) {
         const past = h => h.t + 3600000 <= Date.now() ? " past" : "";
         const temps = hours.map(h => h.temp), pops = hours.map(h => h.pop || 0);
         // times + icons every 3 h; numbers only at the highs and lows
-        const labels = hours.map((h, i) => i).filter(i => new Date(hours[i].t).getHours() % 3 === 0).map(i => {
+        const labels = `<div class="hr-cap" style="top:${G.rcap}px">Rain chance · %</div>`
+            + `<div class="hr-cap" style="top:${G.tcap}px">Temperature · °F</div>`
+            + hours.map((h, i) => i).filter(i => new Date(hours[i].t).getHours() % 3 === 0).map(i => {
             const h = hours[i];
             return `<div class="hr-col${past(h)}" style="${pos(i)}">
                     <div class="hr-time">${clockShort(h.t).replace(":00", "")}</div>${wxIcon(h.code, h.day, 20)}</div>`;
