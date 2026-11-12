@@ -388,6 +388,7 @@ function select(i, keepScroll = false) {
     S.chartMode = ""; S.focusDay = -1; S.renaming = false; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
     flash.selected = true;
     if (!keepScroll) $("#scroll").scrollTop = 0;
+    setTimeout(freshenShown);
 }
 function pin(i) {
     setPinned(i);
@@ -706,25 +707,55 @@ function resetView() {
 }
 
 // ── data ────────────────────────────────────────────────────────────
+// Refresh order: the place on screen first (everything), then the rest together:
+// the ★ place in full, the others only what the places list shows. Weather, water
+// temperature and typical flow for another place download when you open it.
 let fetchSeq = 0;
+const fullAt = {};                                    // place key -> last full download (ms)
+function mergeResult(p) {
+    const old = S.results[p.key];
+    if (old && !p.river && !p.tide) return { ...old, errors: p.errors };   // a failed download never wipes readings
+    if (!old || !p.light) return p;
+    // the list's part only: keep what the details page had
+    const out = { ...p, weather: old.weather, light: old.light };
+    if (p.river && old.river) out.river = { ...p.river, temp: old.river.temp, averages: old.river.averages };
+    return out;
+}
+async function fetchSome(list, fullKeys) {
+    if (!list.length) return { offline: false };
+    let r;
+    try { r = await fetchPlaces(list, fullKeys); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
+    for (const p of r.places) {
+        S.results[p.key] = mergeResult(p);
+        if (!p.light) fullAt[p.key] = Date.now();
+    }
+    S.updated = Math.max(S.updated || 0, r.time);
+    return r;
+}
 async function refresh() {
     const seq = ++fetchSeq;
     S.loading = true;
     render();
-    let r;
-    try { r = await fetchPlaces(S.places); } catch (e) { r = { error: "Couldn't get data: " + e.message }; }
-    if (seq === fetchSeq) { S.loading = false; S.error = r.error || ""; S.offline = !!r.offline; }
-    if (r.places) {                                   // merge, so nothing blinks out
-        for (const p of r.places) {
-            const old = S.results[p.key];
-            // a failed download never wipes readings already on screen
-            S.results[p.key] = !old || p.river || p.tide ? p : { ...old, errors: p.errors };
-        }
-        S.updated = Math.max(S.updated || 0, r.time);
-        if (!r.offline) saveSnapshot();
-        rememberRivers();
-    }
+    const shown = S.places[S.selected], star = S.places[pinned()];
+    const a = await fetchSome(shown ? [shown] : [], undefined);
     render();
+    const rest = S.places.filter(p => p !== shown);
+    const b = await fetchSome(rest, new Set(star && star !== shown ? [keyOf(star)] : []));
+    if (seq === fetchSeq) {
+        S.loading = false;
+        S.error = a.error || b.error || "";
+        S.offline = (!shown || a.offline) && (!rest.length || b.offline);
+    }
+    if (!S.offline) saveSnapshot();
+    rememberRivers();
+    render();
+}
+// Opening a place: if its details weren't downloaded in the last 15 minutes, get them now.
+function freshenShown() {
+    const p = S.places[S.selected];
+    if (!p || Date.now() - (fullAt[keyOf(p)] || 0) < 15 * 60000) return;
+    fullAt[keyOf(p)] = Date.now();                    // don't ask twice while it loads
+    fetchSome([p], undefined).then(() => render());
 }
 // Each river gauge's river name (for groups), saved with the place once known.
 function rememberRivers() {

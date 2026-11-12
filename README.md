@@ -172,6 +172,15 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
   app switches to it: right away if you just opened it and haven't touched anything,
   otherwise the next time you come back after a minute away. A short "Updated to the
   latest version" note shows; your places are kept.
+- **Loading order:** the app opens at once on the saved data (carried forward to now).
+  Then it downloads the place on screen first, in full, then all the others together
+  (4 at a time): the ★ place in full, the rest only what the places list shows. A
+  place's weather, water temperature and typical flow download when you open it (if
+  older than 15 min). With 21 places: the shown place is current in ~2 s, all in ~6 s,
+  with 62 downloads instead of 104.
+- **Busy servers** (HTTP 429/5xx, e.g. a weather 503) get one quiet retry. Places
+  within 10 km share one weather forecast; if weather can't be downloaded, the
+  nearest saved one within 30 km stands in.
 - **Weak or no signal:** the last downloaded readings show the moment the app opens,
   and fresh ones replace them when they arrive.
 - **Opened after a while (or offline):** the saved data is carried forward to *now*

@@ -39,7 +39,16 @@ const net = { ok: 0, fail: 0, newest: 0 };
 const seen = t => { if (t > net.newest) net.newest = t; };
 const offlineError = e => /can't connect|timed out/.test(e && e.message);   // vs. a real "no such data"
 
+// A busy server (HTTP 429 or 5xx, like Open-Meteo's occasional 503) gets one quiet retry.
 async function get(url, params, timeout = 25) {
+    try { return await getOnce(url, params, timeout); }
+    catch (e) {
+        if (!/^HTTP Error (429|5\d\d)$/.test(e.message) && !e.busy) throw e;
+        await new Promise(r => setTimeout(r, 2500));
+        return getOnce(url, params, timeout);
+    }
+}
+async function getOnce(url, params, timeout) {
     if (params) url += (url.includes("?") ? "&" : "?") + new URLSearchParams(params).toString();
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), timeout * 1000);
@@ -55,7 +64,11 @@ async function get(url, params, timeout = 25) {
     net.ok++;
     let body = null;
     try { body = await r.json(); } catch (e) { /* not JSON */ }
-    if (!r.ok) throw new Error((body && body.message) || `HTTP Error ${r.status}`);
+    if (!r.ok) {
+        const e = new Error((body && (body.message || body.reason)) || `HTTP Error ${r.status}`);
+        e.busy = r.status === 429 || r.status >= 500;
+        throw e;
+    }
     if (body === null) throw new Error("bad response");
     return body;
 }
@@ -223,7 +236,8 @@ async function usgsFlow(site) {
     return null;
 }
 
-async function river(lid) {
+// full = false (places list): skips the extras only the details page shows.
+async function river(lid, full = true) {
     lid = lid.trim().toUpperCase();
     const g = await cached(`gauge-${lid}.json`, 5 * MIN, () => get(`${NWPS}/gauges/${encodeURIComponent(lid)}`));
     if (!("lid" in g)) throw new Error(g.message || `No NOAA gauge ${lid}`);
@@ -247,7 +261,7 @@ async function river(lid) {
     }
     // extras from the USGS gauge; a failure just leaves them out
     let temp = null, averages = null;
-    if (g.usgsId) {
+    if (g.usgsId && full) {
         [temp, averages] = await Promise.all([
             usgsTemp(g.usgsId).catch(() => null),
             flow !== null ? usgsAverages(g.usgsId).catch(() => null) : null,
@@ -481,16 +495,55 @@ async function surf(sid) {
 // now:   {temp, feels, code, day (bool), wind, gust, windDir}
 // days:  [local-midnight ms, code, hi °F, lo °F, rain chance %, rain in, wind mph, gust mph, wind dir°, sunrise ms, sunset ms]
 // hours: [ms, temp °F, code, rain chance %, rain in, wind mph, gust mph, daylight (bool)]
+// Places close together share one download: a saved forecast for a point within 10 km
+// (under an hour old) is used as is. If the download fails, the nearest saved one
+// within 30 km stands in. Saved points are listed in WX_INDEX.
+const WX_INDEX = "rt:wx-points";
+const wxPoints = () => { try { return JSON.parse(localStorage.getItem(WX_INDEX) || "[]"); } catch (e) { return []; } };
+function nearestWx(lat, lon, maxKm, maxAgeMs) {
+    let best = null;
+    for (const [la, lo, t] of wxPoints()) {
+        const d = km(lat, lon, la, lo);
+        if (d <= maxKm && Date.now() - t < maxAgeMs && (!best || d < best.d)) best = { d, key: `weather2-${la}_${lo}.json` };
+    }
+    return best;
+}
+function rememberWx(lat, lon) {
+    try {
+        const pts = wxPoints().filter(p => !(p[0] === lat && p[1] === lon) && Date.now() - p[2] < 30 * DAY * 1000);
+        pts.push([lat, lon, Date.now()]);
+        localStorage.setItem(WX_INDEX, JSON.stringify(pts.slice(-100)));
+    } catch (e) { /* fine */ }
+}
+const fetchWeather = (lat, lon) => get(WEATHER, {
+    latitude: lat, longitude: lon, timezone: "auto", timeformat: "unixtime", forecast_days: 7,
+    temperature_unit: "fahrenheit", wind_speed_unit: "mph", precipitation_unit: "inch",
+    current: "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max," +
+           "precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset",
+    hourly: "temperature_2m,weather_code,precipitation_probability,precipitation," +
+            "wind_speed_10m,wind_gusts_10m,is_day" });
+async function weatherData(lat, lon) {
+    const key = `weather2-${lat}_${lon}.json`;
+    if (savedOnly) return cached(key, HOUR, null);
+    const own = await readCache(key);
+    if (own && Date.now() - own.t < HOUR * 1000) { seen(own.t); return own.data; }
+    const near = nearestWx(lat, lon, 10, HOUR * 1000), nc = near && await readCache(near.key);
+    if (nc && Date.now() - nc.t < HOUR * 1000) { seen(nc.t); return nc.data; }
+    try {
+        const d = await fetchWeather(lat, lon);
+        seen(Date.now()); await writeCache(key, d); rememberWx(lat, lon);
+        return d;
+    } catch (e) {
+        if (own) { seen(own.t); return own.data; }
+        const far = nearestWx(lat, lon, 30, 30 * DAY * 1000), fc = far && await readCache(far.key);
+        if (fc) { seen(fc.t); return fc.data; }
+        throw e;
+    }
+}
 async function weather(lat, lon) {
     lat = round(parseFloat(lat), 2); lon = round(parseFloat(lon), 2);   // ~1 km; also the cache key
-    const d = await cached(`weather2-${lat}_${lon}.json`, HOUR, () => get(WEATHER, {
-        latitude: lat, longitude: lon, timezone: "auto", timeformat: "unixtime", forecast_days: 7,
-        temperature_unit: "fahrenheit", wind_speed_unit: "mph", precipitation_unit: "inch",
-        current: "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m",
-        daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max," +
-               "precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset",
-        hourly: "temperature_2m,weather_code,precipitation_probability,precipitation," +
-                "wind_speed_10m,wind_gusts_10m,is_day" }));
+    const d = await weatherData(lat, lon);
     const c = d.current, w = d.daily, h = d.hourly || {};
     return {
         now: c ? { time: c.time ? c.time * 1000 : Date.now(), temp: round(c.temperature_2m), feels: round(c.apparent_temperature),
@@ -510,18 +563,20 @@ async function weather(lat, lon) {
 
 const title = s => s[0].toUpperCase() + s.slice(1);
 
-async function place(p) {
-    const out = { key: (p.river || "") + "|" + (p.tide || ""), river: null, tide: null, errors: [] };
+// full = false: what the places list needs (readings, mini graph, jetty color) without
+// weather, water temperature or typical flow. light marks such a result.
+async function place(p, full = true) {
+    const out = { key: (p.river || "") + "|" + (p.tide || ""), river: null, tide: null, errors: [], light: !full };
     await Promise.all([["river", river], ["tide", tide]].map(async ([kind, fn]) => {
         if (!p[kind]) return;
-        try { out[kind] = await fn(p[kind]); } catch (e) { out.errors.push(`${title(kind)} ${p[kind]}: ${e.message}`); }
+        try { out[kind] = await fn(p[kind], full); } catch (e) { out.errors.push(`${title(kind)} ${p[kind]}: ${e.message}`); }
     }));
     if (p.tide) {
         try { out.surf = await surf(p.tide); } catch (e) { out.surf = null; out.errors.push(`Swell forecast: ${e.message}`); }
     }
     // weather at the river gauge, else at the tide station
     out.weather = null;
-    try {
+    if (full) try {
         const r = out.river;
         if (r && r.lat !== null && r.lat !== undefined) out.weather = await weather(r.lat, r.lon);
         else if (p.tide) {
@@ -540,9 +595,12 @@ export async function savedPlaces(places) {
 }
 
 // offline: nothing could be downloaded (the saved copies were used instead).
-export async function fetchPlaces(places) {
+// fullKeys: a Set of place keys that get everything (the rest get the list's part),
+// or undefined = all of them. 4 places at a time: all at once would queue in the
+// browser anyway, and one by one is much slower.
+export async function fetchPlaces(places, fullKeys) {
     net.ok = net.fail = net.newest = 0;
-    const out = await pool(places, 6, place);
+    const out = await pool(places, 4, p => place(p, !fullKeys || fullKeys.has((p.river || "") + "|" + (p.tide || ""))));
     const offline = navigator.onLine === false || (net.fail > 0 && net.ok === 0);
     return { places: out, time: net.newest || Date.now(), offline };
 }
