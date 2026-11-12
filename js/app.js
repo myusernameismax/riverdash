@@ -1051,7 +1051,7 @@ function memberLabel(i, groupName) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}"
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}${!S.editing && i === S.selected ? " shown" : ""}"
                  data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
@@ -1063,13 +1063,13 @@ function placeRow(i, o) {
 
 function renderPlaces() {
     if (!(S.places.length > 1 || S.editing)) return "";
+    // The place on screen stays in the list (lightly highlighted), so places compare easily.
     if (!S.editing) {   // grouped; Edit mode below stays one flat list (reorder, remove)
         let rows = "", first = true;
         for (const it of listItems()) {
             if (it.members === undefined) {
-                const hide = it.i === S.selected;
-                rows += placeRow(it.i, { hidden: hide, first: first && !hide });
-                if (!hide) first = false;
+                rows += placeRow(it.i, { first });
+                first = false;
                 continue;
             }
             const open = S.openGroups.has(it.key);
@@ -1080,9 +1080,9 @@ function renderPlaces() {
                 <span class="gchev">${icon("next", 14)}</span>
             </div>`;
             first = false;
-            if (open) for (const i of it.members) rows += placeRow(i, { member: true, hidden: i === S.selected, label: memberLabel(i, it.name) });
+            if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
-        return section({ id: "placesSec", title: "Other places", pad: 0, gap: 0,
+        return section({ id: "placesSec", title: "Places", pad: 0, gap: 0,
             trailing: `<button class="edit-btn" data-act="edit">Edit</button>`, body: `<div id="placesList">${rows}</div>` });
     }
     const firstVisible = S.places.findIndex((p, i) => S.editing || i !== S.selected);

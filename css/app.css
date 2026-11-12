@@ -240,6 +240,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.first::before, body.dragging .prow::before { display: none; }
 .prow[data-act]:active { background: var(--hover); }
 .prow.cur { background: color-mix(in srgb, #5cb8ff 14%, transparent); }
+.prow.shown { background: color-mix(in srgb, #5cb8ff 7%, transparent); }   /* the place on screen */
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
 .spark { width: 36px; height: 16px; flex: none; }

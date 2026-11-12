@@ -50,7 +50,7 @@ Only the inputs change from the desktop widget:
 
 ## River groups
 
-Places on the same river group themselves in **Other places** once there are two or
+Places on the same river group themselves in the **Places** list once there are two or
 more (from NOAA's gauge names: "McKenzie River near Vida", "McKenzie River above
 Coburg" → **McKenzie**). The group's mini graph overlaps one line per gauge, each in
 its own status color (green in shape, red not, gray no range). Tap the group to open
@@ -91,7 +91,7 @@ Tap **Customize** at the bottom of a place:
   the line green inside it and red outside (no shading). Next to the place's name:
   *in shape* / *too low* / *too high* (every reading with a range has to be in it).
   Leave a side blank for no limit.
-- **Other places list:** each mini graph is one color that says how the place is
+- **Places list:** each mini graph is one color that says how the place is
   doing: green in shape, red not, gray with no good range set. Coastal tide stations
   show the jetty / surf rating instead (green calm, yellow caution, red sketchy).
 - **Jetty / surf rating**: the wave heights for calm and sketchy, and the gust limits,
