@@ -52,8 +52,8 @@ Only the inputs change from the desktop widget:
 
 Places on the same river group themselves in the **Places** list once there are two or
 more (from NOAA's gauge names: "McKenzie River near Vida", "McKenzie River above
-Coburg" → **McKenzie**). The group row shows the count and an arrow on the left, and each
-gauge's mini graph side by side on the right (up to 4), each in its own status color
+Coburg" → **McKenzie**). The group row shows an arrow on the left, the name with the
+number of gauges, and each gauge's mini graph side by side on the right (up to 4), each in its own status color
 (green in shape, red not, gray no range). Tap the group to open
 it; its places show where they are ("Vida", "Above Coburg") when they're all named
 after the river.

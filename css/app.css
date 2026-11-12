@@ -245,12 +245,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
 .spark { width: 36px; height: 16px; flex: none; }
 /* river groups: count + arrow where a place's graph goes, the gauges' graphs on the right (up to 4) */
-.ghead { width: 36px; flex: none; display: flex; align-items: center; gap: 2px; }
+.ghead { width: 36px; flex: none; display: flex; align-items: center; justify-content: center; }
 .gsparks { display: flex; gap: 6px; flex: none; padding-right: 10px; }
 .spark.gs { width: 28px; }
 .prow.grp { cursor: pointer; }
 .prow.grp:active { background: var(--hover); }
-.gcount { font-size: 12px; opacity: .5; font-weight: 600; }
+.gcount { font-size: 13px; opacity: .45; font-weight: 600; margin-left: 7px; }
 .gchev { display: flex; opacity: .45; transition: transform var(--anim); }
 .prow.grp.open .gchev { transform: rotate(90deg); }
 .prow.member { padding-left: 30px; }
