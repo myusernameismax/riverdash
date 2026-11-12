@@ -244,7 +244,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
 .spark { width: 36px; height: 16px; flex: none; }
-/* river groups */
+/* river groups: one small graph per gauge, side by side (up to 4) */
+.gsparks { display: flex; gap: 4px; flex: none; }
+.spark.gs { width: 24px; }
 .prow.grp { cursor: pointer; }
 .prow.grp:active { background: var(--hover); }
 .gcount { font-size: 12px; opacity: .5; font-weight: 600; }

@@ -4,7 +4,7 @@
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
 import { fetchPlaces, savedPlaces, search as searchStations, warmSearch } from "./data.js";
-import { Chart, drawSpark, drawMultiSpark } from "./chart.js";
+import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
 import { morphInto } from "./morph.js";
@@ -1074,7 +1074,7 @@ function renderPlaces() {
             }
             const open = S.openGroups.has(it.key);
             rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
-                <canvas class="spark" data-gspark="${esc(it.key)}"></canvas>
+                <div class="gsparks">${it.members.slice(0, 4).map(i => `<canvas class="spark gs" data-spark="${i}"></canvas>`).join("")}</div>
                 <div class="pname">${esc(it.name)}</div>
                 <span class="gcount">${it.members.length}</span>
                 <span class="gchev">${icon("next", 14)}</span>
@@ -1223,12 +1223,6 @@ function paint(cur = lastCur) {
     if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
     else bigChart.cv = null;
     document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, listSpark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
-    if (document.querySelector("canvas[data-gspark]")) {
-        const groups = {};
-        for (const it of listItems()) if (it.members) groups[it.key] = it.members;
-        document.querySelectorAll("canvas[data-gspark]").forEach(c =>
-            drawMultiSpark(c, (groups[c.dataset.gspark] || []).map(listSpark), LOOK.sparkPlainColor));
-    }
     paintHourly(cur);
     syncWeather(bigChart.hoverT);
 }

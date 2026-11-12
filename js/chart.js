@@ -368,35 +368,6 @@ export class Chart {
     }
 }
 
-// Several sparklines on one canvas (a river group in the places list): each line
-// scaled to its own range, gray ones underneath so the colored ones stand out.
-export function drawMultiSpark(cv, gs, plain, lineWidth = 1.25) {
-    if (!cv || !cv.isConnected) return;
-    const [ctx, w, h] = sizeCanvas(cv);
-    const lines = gs.map(g => ({ g, past: clean(g.series), fut: clean(g.forecast) }))
-        .filter(l => l.past.length + l.fut.length > 1)
-        .sort((a, b) => (b.g.color === plain) - (a.g.color === plain));
-    if (!lines.length) return;
-    let t0 = Infinity, t1 = -Infinity;
-    for (const l of lines) for (const p of l.past.concat(l.fut)) { t0 = Math.min(t0, p[0]); t1 = Math.max(t1, p[0]); }
-    const pad = lineWidth + 1, X = t => pad + (t - t0) / (t1 - t0 || 1) * (w - 2 * pad);
-    ctx.lineWidth = lineWidth; ctx.lineJoin = "round";
-    for (const l of lines) {
-        const all = l.past.concat(l.fut);
-        let lo = Math.min(...all.map(p => p[1])), hi = Math.max(...all.map(p => p[1]));
-        if (hi - lo < 1e-9) { hi += 1; lo -= 1; }
-        const Y = v => h - pad - (v - lo) / (hi - lo) * (h - 2 * pad);
-        const stroke = (pts, alpha, dash) => {
-            if (pts.length < 2) return;
-            ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1])));
-            ctx.globalAlpha = alpha; ctx.strokeStyle = l.g.color; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]);
-        };
-        stroke(l.past, 0.95, []);
-        stroke(l.past.length ? [l.past[l.past.length - 1]].concat(l.fut) : l.fut, 0.7, [3, 2]);
-    }
-    ctx.globalAlpha = 1;
-}
-
 // Sparkline into a canvas (places list).
 export function drawSpark(cv, g, lineWidth = 1.25, fillOpacity = 0.18) {
     const c = new Chart({ minimal: true, lineWidth, fillOpacity });
