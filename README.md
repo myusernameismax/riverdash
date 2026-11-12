@@ -104,6 +104,12 @@ Tap **Customize** at the bottom of a place:
   don't count toward *in shape* while it's off.
   With tides shown, **Next tides** turns just the tide-times section off (the Tide
   chart stays); it travels with share links.
+  A tab that's off isn't downloaded either (Height and Flow both off: no river
+  history; Tide off: no tide predictions; Waves off: no wave forecast). What was
+  already saved stays on the phone, so turning one back on soon after shows it right
+  away; otherwise just its tile spins while it downloads. A station whose tabs are
+  all off isn't named under the place's name. The app remembers which tabs each
+  station has (`rt:avail`), so Show still offers ones that aren't being downloaded.
 - **Good range**: a low and/or high bound for height, flow or tide. The chart draws
   the line green inside it and red outside (no shading). Next to the place's name:
   *in shape* / *too low* / *too high* (every reading with a range has to be in it).

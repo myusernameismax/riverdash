@@ -237,11 +237,14 @@ async function usgsFlow(site) {
 }
 
 // full = false (places list): skips the extras only the details page shows.
-async function river(lid, full = true) {
+// need: which parts are shown ({series, flow, temp}); hidden ones aren't downloaded.
+// With height and flow both off, the gauge itself (name, place for the weather) is
+// only looked up now and then.
+async function river(lid, full = true, need = { series: true, flow: true, temp: true }) {
     lid = lid.trim().toUpperCase();
-    const g = await cached(`gauge-${lid}.json`, 5 * MIN, () => get(`${NWPS}/gauges/${encodeURIComponent(lid)}`));
+    const g = await cached(`gauge-${lid}.json`, need.series ? 5 * MIN : 30 * DAY, () => get(`${NWPS}/gauges/${encodeURIComponent(lid)}`));
     if (!("lid" in g)) throw new Error(g.message || `No NOAA gauge ${lid}`);
-    const sf = await cached(`stageflow-${lid}.json`, 3 * HOUR, () => stageflow(lid));
+    const sf = need.series ? await cached(`stageflow-${lid}.json`, 3 * HOUR, () => stageflow(lid)) : { observed: [], forecast: [] };
     const obs = (g.status || {}).observed || {};
     const k = (obs.secondaryUnit || "").toLowerCase() === "kcfs" ? 1000 : 1;
     const series = sf.observed.slice();
@@ -253,7 +256,7 @@ async function river(lid, full = true) {
 
     let flowNote = "NOAA", flowTime = t;
     const hasFlowSeries = series.some(p => p[2] !== null);
-    if (flow === null && g.usgsId) {
+    if (flow === null && g.usgsId && need.flow) {
         try {
             const u = await usgsFlow(g.usgsId);
             if (u) [flow, flowTime, flowNote] = u;
@@ -263,8 +266,8 @@ async function river(lid, full = true) {
     let temp = null, averages = null;
     if (g.usgsId && full) {
         [temp, averages] = await Promise.all([
-            usgsTemp(g.usgsId).catch(() => null),
-            flow !== null ? usgsAverages(g.usgsId).catch(() => null) : null,
+            need.temp ? usgsTemp(g.usgsId).catch(() => null) : null,
+            flow !== null && need.flow ? usgsAverages(g.usgsId).catch(() => null) : null,
         ]);
     }
 
@@ -565,14 +568,26 @@ const title = s => s[0].toUpperCase() + s.slice(1);
 
 // full = false: what the places list needs (readings, mini graph, jetty color) without
 // weather, water temperature or typical flow. light marks such a result.
+//
+// Parts switched off in Customize (p.hide) aren't downloaded; whatever was saved
+// stays saved, so switching one back on soon after shows it right away.
+// asked: the parts that were really looked for (so the app can tell "this station
+// has no water temperature" from "not downloaded").
 async function place(p, full = true) {
-    const out = { key: (p.river || "") + "|" + (p.tide || ""), river: null, tide: null, errors: [], light: !full };
-    await Promise.all([["river", river], ["tide", tide]].map(async ([kind, fn]) => {
-        if (!p[kind]) return;
-        try { out[kind] = await fn(p[kind], full); } catch (e) { out.errors.push(`${title(kind)} ${p[kind]}: ${e.message}`); }
-    }));
-    if (p.tide) {
-        try { out.surf = await surf(p.tide); } catch (e) { out.surf = null; out.errors.push(`Swell forecast: ${e.message}`); }
+    const out = { key: (p.river || "") + "|" + (p.tide || ""), river: null, tide: null, errors: [], light: !full, asked: [] };
+    const off = m => Array.isArray(p.hide) && p.hide.includes(m);
+    const need = { series: !off("stage") || !off("flow"), flow: !off("flow"), temp: !off("temp") && full };
+    const tasks = [];
+    if (p.river) tasks.push(river(p.river, full, need).then(r => {
+        out.river = r;
+        if (need.series) out.asked.push("stage", "flow");
+        if (need.temp) out.asked.push("temp");
+    }, e => { out.errors.push(`River ${p.river}: ${e.message}`); }));
+    if (p.tide && !off("tide")) tasks.push(tide(p.tide).then(t => { out.tide = t; out.asked.push("tide"); },
+        e => { out.errors.push(`Tide ${p.tide}: ${e.message}`); }));
+    await Promise.all(tasks);
+    if (p.tide && !off("surf")) {
+        try { out.surf = await surf(p.tide); out.asked.push("surf"); } catch (e) { out.surf = null; out.errors.push(`Swell forecast: ${e.message}`); }
     }
     // weather at the river gauge, else at the tide station
     out.weather = null;

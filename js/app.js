@@ -213,6 +213,29 @@ function parts(d, p) {
     return out;
 }
 
+// Which charts each station has, remembered once seen ("r:LID" / "t:SID" → {mode: true/false}).
+// Switched-off charts aren't downloaded, so this is how Customize still knows to offer them.
+const AVAIL = load("rt:avail", {});
+const RIVER_MODES = ["stage", "flow", "temp"];
+const stationKey = (p, m) => RIVER_MODES.includes(m) ? (p.river ? "r:" + p.river.trim().toUpperCase() : "")
+                                                     : (p.tide ? "t:" + p.tide.trim() : "");
+// true / false once known; undefined = never looked (a station that exists is assumed to have it)
+const availOf = (p, m) => { const k = stationKey(p, m); return k ? ((AVAIL[k] || {})[m] ?? undefined) : false; };
+function noteAvail(p, d) {
+    if (!d || !d.asked || !d.asked.length) return;
+    const have = haveModes(d);
+    let changed = false;
+    for (const m of d.asked) {
+        const k = stationKey(p, m), v = have.includes(m);
+        if (!k || (AVAIL[k] || {})[m] === v) continue;
+        (AVAIL[k] = AVAIL[k] || {})[m] = v; changed = true;
+    }
+    if (changed) save("rt:avail", AVAIL);
+}
+// Shown but no data yet: just switched back on and still downloading (that tile spins).
+const loadingKeys = new Set();
+const waiting = (p, d, m) => !hidden(p, m) && availOf(p, m) !== false && !haveModes(d).includes(m) && loadingKeys.has(keyOf(p));
+
 // Which charts this data has (whether hidden or not).
 function haveModes(d) {
     const r = d ? d.river : null, t = d ? d.tide : null;
@@ -461,6 +484,13 @@ function toggleTab(mode) {
         if (h.has(mode)) h.delete(mode); else h.add(mode);
         if (h.size) p.hide = [...h]; else delete p.hide;
     });
+    // switched back on with nothing here: get it (from the phone's saved copy if it's
+    // still fresh). Only its own tile waits; the rest of the page stays as it is.
+    const p = S.places[S.selected], d = S.results[keyOf(p)];
+    if (!p || hidden(p, mode) || !(mode in MODES) || haveModes(d).includes(mode)) return;
+    const key = keyOf(p);
+    loadingKeys.add(key);
+    fetchSome([p], undefined).finally(() => { loadingKeys.delete(key); render(); });
 }
 // Take the river gauge or tide station off a place (a place keeps at least one).
 function removeStation(kind, i = S.selected) {
@@ -737,6 +767,8 @@ async function fetchSome(list, fullKeys) {
     try { r = await fetchPlaces(list, fullKeys); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
     for (const p of r.places) {
         S.results[p.key] = mergeResult(p);
+        const pl = list.find(q => keyOf(q) === p.key);
+        if (pl) noteAvail(pl, p);
         if (!p.light) fullAt[p.key] = Date.now();
     }
     S.updated = Math.max(S.updated || 0, r.time);
@@ -828,7 +860,8 @@ function avgText(r, t) {
     const v = r && r.averages && r.averages[String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")];
     return num(v) ? "Typical flow on " + fmtMonthDay(d.getTime()) + ": " + cfs(v) : "";
 }
-function tile({ title, num, unit, detail, mode, active, accent, shape: k = null }) {
+function tile({ title, num, unit, detail, mode, active, accent, shape: k = null, wait = false }) {
+    if (wait) return `<div class="tile still wait" style="--accent:${accent}"><div class="t-title">${title}</div><span class="spinner"></span></div>`;
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
         <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
         <div class="t-val"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
@@ -883,6 +916,9 @@ function renderTiles(cur) {
     const h = surfNow(d.surf);
     if (h && !hidden(p, "surf")) out.push(tile({ title: "WAVES", accent: LOOK.surfColor, mode: "surf", active: mode === "surf",
         num: has(h[1]) ? h[1].toFixed(1) : "–", unit: " ft", detail: Math.round(h[2]) + " s " + compass(h[3]) + " · " + rateWord(rate(h, jettyLim(p))) }));
+    const TITLES = { stage: ["HEIGHT", LOOK.stageColor], flow: ["FLOW", LOOK.flowColor], temp: ["WATER", LOOK.tempColor],
+                     tide: ["TIDE", LOOK.tideColor], surf: ["WAVES", LOOK.surfColor] };
+    for (const m of Object.keys(TITLES)) if (waiting(p, d, m)) out.push(tile({ title: TITLES[m][0], accent: TITLES[m][1], wait: true }));
     if (!out.length) return "";
     return `<div class="tiles n${out.length}">${out.join("")}</div>`;
 }
@@ -1065,7 +1101,9 @@ function numField(attrs, value, unit, mode = "decimal") {
 function renderCustomize(cur) {
     const p = cur.place, d = cur.d;
     if (!S.customizing || !p || !d) return "";
-    const have = haveModes(d);
+    // what the data has, plus switched-off ones the station has (or might: never checked)
+    const got = haveModes(d);
+    const have = Object.keys(MODES).filter(m => got.includes(m) || (availOf(p, m) !== false && (hidden(p, m) || waiting(p, d, m))));
     const chips = have.map(m => {
         const on = !hidden(p, m);
         return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${MODES[m]}</button>`;
@@ -1224,7 +1262,7 @@ function renderBody(cur) {
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
-    html += `<a class="contact${contactOpen ? " open" : ""}" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Contact</a>`;
+    html += `<a class="contact${contactOpen ? " open" : ""}" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Send me feature ideas / issues! → <b>Contact</b></a>`;
     morphInto($("#body"), html);
 }
 
