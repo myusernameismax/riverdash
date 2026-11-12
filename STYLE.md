@@ -24,6 +24,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   remove is a plain red minus, not a red circle.
 - Stars are solid: yellow for the ★ place, gray for the others. No outline stars.
 - Arrows after readings: ↑ rising, ↓ falling, → steady.
+- One signal per state: an on/off chip is shown by its tint alone, no ✓ added.
 
 ## Words
 
