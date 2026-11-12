@@ -974,7 +974,7 @@ function renderCustomize(cur) {
     const have = haveModes(d);
     const chips = have.map(m => {
         const on = !hidden(p, m);
-        return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${on ? "✓ " : ""}${MODES[m]}</button>`;
+        return `<button class="cz-chip${on ? " on" : ""}" data-act="toggleTab" data-mode="${m}" style="--accent:${{ stage: LOOK.stageColor, flow: LOOK.flowColor, temp: LOOK.tempColor, tide: LOOK.tideColor, surf: LOOK.surfColor }[m]}">${MODES[m]}</button>`;
     }).join("");
     const unit = { stage: "ft", flow: "cfs", tide: "ft" };
     const ranges = have.filter(m => unit[m] && !hidden(p, m)).map(m => {   // only tabs that are shown
