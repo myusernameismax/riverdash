@@ -1517,7 +1517,11 @@ function wire() {
     });
 
     // Swipe a place left in the Places list to delete it (same as Edit → −, with Undo):
-    // a short swipe shows a Delete button, a long one deletes right away.
+    // a short swipe shows a Delete button, a long one deletes right away. Made hard to do
+    // by accident: the swipe must be clearly sideways, the row resists once Delete is
+    // fully out (UIScrollView's rubber-band curve, c = 0.55), and deleting outright
+    // takes a drag of 3/4 of the row's width.
+    const DEL_W = 84, rubber = (x, dim) => (x * dim * 0.55) / (dim + 0.55 * x);
     let sw = null, swallowClick = false;
     // (kept in S.swiped too, so a re-render while it's open keeps it open)
     const setSx = (row, px) => {
@@ -1530,28 +1534,30 @@ function wire() {
         if (!e.target.closest(".pdel")) closeSwipes(row);
         const t = e.touches[0];
         sw = row && !S.editing && e.touches.length === 1 && t.clientX > 24
-            ? { row, x: t.clientX, y: t.clientY, base: row.classList.contains("swiped") ? -84 : 0, sx: 0, mode: "" } : null;
+            ? { row, x: t.clientX, y: t.clientY, base: row.classList.contains("swiped") ? -DEL_W : 0, sx: 0, raw: 0, mode: "" } : null;
     }, { passive: true });
     $("#body").addEventListener("touchmove", e => {
         if (!sw) return;
         const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
         if (!sw.mode) {
-            if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) sw.mode = "h";
-            else if (Math.abs(dy) > 8) { sw = null; return; }
+            if (Math.abs(dx) > 14 && Math.abs(dx) > 2 * Math.abs(dy)) sw.mode = "h";
+            else if (Math.abs(dy) > 8 || Math.abs(dx) > 14) { sw = null; return; }   // scrolling, or not sideways enough
             else return;
         }
         e.preventDefault();
-        sw.sx = Math.min(0, sw.base + dx);
+        sw.raw = Math.min(0, sw.base + dx);
+        const over = -sw.raw - DEL_W;
+        sw.sx = over > 0 ? -(DEL_W + rubber(over, sw.row.offsetWidth)) : sw.raw;
         sw.row.classList.add("dragx");
         setSx(sw.row, sw.sx);
     }, { passive: false });
     $("#body").addEventListener("touchend", () => {
         if (!sw || sw.mode !== "h") { sw = null; return; }
-        const { row, sx } = sw;
+        const { row, sx, raw } = sw;
         sw = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 400);
         row.classList.remove("dragx");
-        if (sx < -row.offsetWidth * 0.55) { const b = row.querySelector(".pdel"); S.swiped = -1; if (b) ACTIONS.remove(b); }
-        else setSx(row, sx < -50 ? -84 : 0);
+        if (raw < -row.offsetWidth * 0.75) { const b = row.querySelector(".pdel"); S.swiped = -1; if (b) ACTIONS.remove(b); }
+        else setSx(row, sx < -DEL_W * 0.6 ? -DEL_W : 0);
     });
     $("#app").addEventListener("click", e => { if (swallowClick && !e.target.closest(".pdel")) { e.stopPropagation(); e.preventDefault(); } }, true);
 
