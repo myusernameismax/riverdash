@@ -253,6 +253,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gchev { display: flex; opacity: .45; transition: transform var(--anim); }
 .prow.grp.open .gchev { transform: rotate(90deg); }
 .prow.member { padding-left: 30px; }
+/* swipe left to delete: the row's contents slide over, a red Delete grows from the right */
+.prow > :not(.pdel) { transform: translateX(var(--sx, 0px)); transition: transform var(--anim); }
+.prow.dragx > :not(.pdel), .prow.dragx .pdel { transition: none; }
+.pdel { position: absolute; top: 0; right: 0; bottom: 0; width: calc(-1 * var(--sx, 0px)); overflow: hidden;
+        background: var(--negative); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap;
+        display: flex; align-items: center; justify-content: center; transition: width var(--anim); }
 .prow.member::before { left: 30px; }
 .pname { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pparts { display: flex; gap: 6px; font-size: var(--small); white-space: nowrap; flex: none; }
@@ -297,7 +303,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .rtitle { font-size: 11px; font-weight: 700; letter-spacing: .4px; margin: 14px 0 4px 4px; }
 .hit { display: flex; align-items: center; gap: 10px; padding: 7px 6px 7px 8px; border-radius: 10px; transition: background 120ms; cursor: pointer; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }
-.hit.have { cursor: default; }
+.hit.have { cursor: pointer; }
 .hit.have .hit-name { opacity: .5; }
 .hit-main { flex: 1; min-width: 0; }
 .hit-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -349,3 +355,5 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
    frame (Plasma theme) is the background, so the app matches other popups. */
 html[data-embed], html[data-embed] body, html[data-embed] #addPage,
 html[data-embed] #movePage, html[data-embed] #ftr { background: transparent; }
+.prow { overflow: hidden; }
+#placesSec .sec-box { overflow: hidden; }   /* keeps a red Delete inside the rounded box */

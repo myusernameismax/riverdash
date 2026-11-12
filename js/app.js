@@ -49,6 +49,7 @@ const S = {
     renaming: false,
     customizing: false,      // the "Customize" panel for the shown place
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
+    swiped: -1,              // place row swiped open to show Delete
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
@@ -461,8 +462,8 @@ function toggleTab(mode) {
     });
 }
 // Take the river gauge or tide station off a place (a place keeps at least one).
-function removeStation(kind) {
-    const i = S.selected, p = S.places[i];
+function removeStation(kind, i = S.selected) {
+    const p = S.places[i];
     if (!p || !p[kind] || !(p.river && p.tide)) return;
     const before = JSON.parse(JSON.stringify(p)), old = S.results[keyOf(p)];
     updatePlace(i, q => { delete q[kind]; });
@@ -1051,13 +1052,13 @@ function memberLabel(i, groupName) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}${!S.editing && i === S.selected ? " shown" : ""}"
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>
-        ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : ""}
+        ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
     </div>`;
 }
 
@@ -1159,7 +1160,7 @@ function renderAdd() {
             html += `<div class="rtitle" style="color:${g.color}">${g.title}</div>`;
             html += g.hits.map(h => {
                 const have = alreadyHave(h);
-                return `<div class="hit${have ? " have" : ""}" style="--accent:${g.color}" ${have ? "" : `data-act="addHit" data-kind="${h.kind}" data-id="${esc(h.id)}"`}>
+                return `<div class="hit${have ? " have" : ""}" style="--accent:${g.color}" data-act="${have ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
                         <div class="hit-sub">${esc([h.state, h.id].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
                     ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">${icon("map", 24)}</a>` : ""}
@@ -1447,8 +1448,16 @@ const ACTIONS = {
         S.editing = !S.editing;
         if (S.editing) setTimeout(showList, ANIM + 20);
     },
+    // Tapping an already-added result in search takes it back out (with Undo):
+    // the station from its place if the place has another one, else the whole place.
+    unHit: el => {
+        const kind = el.dataset.kind, i = S.places.findIndex(p => p[kind] === el.dataset.id);
+        if (i < 0) return;
+        if (S.places[i].river && S.places[i].tide) removeStation(kind, i); else remove(i);
+    },
     remove: el => {
         const i = +el.dataset.i, row = el.closest(".prow");
+        S.swiped = -1;
         if (!row || row.classList.contains("removing")) return "skip";
         row.style.height = row.offsetHeight + "px";
         void row.offsetHeight;
@@ -1506,6 +1515,45 @@ function wire() {
         const h = e.target.closest(".handle");
         if (h) startDrag(e, h);
     });
+
+    // Swipe a place left in the Places list to delete it (same as Edit → −, with Undo):
+    // a short swipe shows a Delete button, a long one deletes right away.
+    let sw = null, swallowClick = false;
+    // (kept in S.swiped too, so a re-render while it's open keeps it open)
+    const setSx = (row, px) => {
+        row.style.setProperty("--sx", px + "px"); row.classList.toggle("swiped", px < 0);
+        if (px < 0) S.swiped = +row.dataset.i; else if (S.swiped === +row.dataset.i) S.swiped = -1;
+    };
+    const closeSwipes = keep => document.querySelectorAll("#placesList .prow.swiped").forEach(r => { if (r !== keep) setSx(r, 0); });
+    $("#body").addEventListener("touchstart", e => {
+        const row = e.target.closest("#placesList .prow[data-act=select]");
+        if (!e.target.closest(".pdel")) closeSwipes(row);
+        const t = e.touches[0];
+        sw = row && !S.editing && e.touches.length === 1 && t.clientX > 24
+            ? { row, x: t.clientX, y: t.clientY, base: row.classList.contains("swiped") ? -84 : 0, sx: 0, mode: "" } : null;
+    }, { passive: true });
+    $("#body").addEventListener("touchmove", e => {
+        if (!sw) return;
+        const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+        if (!sw.mode) {
+            if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) sw.mode = "h";
+            else if (Math.abs(dy) > 8) { sw = null; return; }
+            else return;
+        }
+        e.preventDefault();
+        sw.sx = Math.min(0, sw.base + dx);
+        sw.row.classList.add("dragx");
+        setSx(sw.row, sw.sx);
+    }, { passive: false });
+    $("#body").addEventListener("touchend", () => {
+        if (!sw || sw.mode !== "h") { sw = null; return; }
+        const { row, sx } = sw;
+        sw = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 400);
+        row.classList.remove("dragx");
+        if (sx < -row.offsetWidth * 0.55) { const b = row.querySelector(".pdel"); S.swiped = -1; if (b) ACTIONS.remove(b); }
+        else setSx(row, sx < -50 ? -84 : 0);
+    });
+    $("#app").addEventListener("click", e => { if (swallowClick && !e.target.closest(".pdel")) { e.stopPropagation(); e.preventDefault(); } }, true);
 
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
