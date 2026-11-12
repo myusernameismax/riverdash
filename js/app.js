@@ -381,12 +381,12 @@ function savePlaces(list) {
     save("rt:places", list);
     refresh();
 }
-function select(i) {
+function select(i, keepScroll = false) {
     if (i === S.selected) return;
     S.selected = i;
     S.chartMode = ""; S.focusDay = -1; S.renaming = false; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
     flash.selected = true;
-    $("#scroll").scrollTop = 0;
+    if (!keepScroll) $("#scroll").scrollTop = 0;
 }
 function pin(i) {
     setPinned(i);
@@ -1423,7 +1423,16 @@ const ACTIONS = {
     toggleTab: el => toggleTab(el.dataset.mode),
     removeStation: el => removeStation(el.dataset.kind),
     resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
-    select: el => select(+el.dataset.i),
+    // Tapping a place in the list keeps the list where it is on screen: the tapped row
+    // stays put while the place above it changes (so places compare easily).
+    select: el => {
+        const i = +el.dataset.i, top = el.getBoundingClientRect().top;
+        select(i, true);
+        render();
+        const row = document.querySelector(`#placesList .prow[data-i="${i}"]`);
+        if (row) $("#scroll").scrollTop += row.getBoundingClientRect().top - top;
+        return "skip";
+    },
     toggleGroup: el => { const k = el.dataset.g; if (S.openGroups.has(k)) S.openGroups.delete(k); else S.openGroups.add(k); },
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     share: () => { openShare(); return "skip"; },
