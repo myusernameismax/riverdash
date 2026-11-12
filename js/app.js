@@ -532,6 +532,9 @@ function addResult(item) {
         i = S.attachTo;
         list[i][item.kind] = item.id;
         if (item.kind === "river") list[i].rv = shortName(item.name);
+        // tides added to a river place: waves / jetty rating start hidden (Customize → Show
+        // turns them on); a tide station on its own shows them
+        if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
     } else {
         const p = { name: shortName(item.name) };
         p[item.kind] = item.id;

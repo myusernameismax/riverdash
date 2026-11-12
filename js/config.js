@@ -55,7 +55,7 @@ export const LOOK = {
     // ── Motion & timing ──────────────────────────────────────────────
     animationMs: 220,         // slides, fades, row removal (0 = off)
     toastMs: 4500,            // how long a note stays up ("Link copied", "Updated to the latest version")
-    undoToastMs: 1000,        // …and one with Undo ("Removed Sandy · Undo")
+    undoToastMs: 2000,        // …and one with Undo ("Removed Sandy · Undo")
     refreshMinutes: 15,       // refresh while the app is open
     resetAfterAwaySec: 60,    // away longer than this = reopen on the ★ place, right now
 };

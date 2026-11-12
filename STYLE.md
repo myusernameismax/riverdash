@@ -28,7 +28,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 
 ## Motion and timing
 
-- Notes with **Undo** stay up 1 s; other notes 4.5 s (`js/config.js`).
+- Notes with **Undo** stay up 2 s; other notes 4.5 s (`js/config.js`).
 - Swipes copy iOS: clearly sideways before anything moves, rubber-band resistance
   past the end (UIScrollView curve, c = 0.55), destructive full swipes need a long drag.
 
