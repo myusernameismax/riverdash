@@ -843,7 +843,7 @@ async function runSearch(text) {
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
                             onHover: t => syncWeather(t) });
-let contactOpen = false; // "Contact" under the list: shown by pushing past the end
+let eggOpen = false; // the note under the list: shown by pushing past the end
 let dragging = null;     // reorder in progress (render waits)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
@@ -901,24 +901,24 @@ const riverDetail = (r, normal) => r.predicted ? "Forecast · measured " + ago(r
 function renderTiles(cur) {
     const { d, r, t, mode, place: p } = cur;
     if (!d) return "";
-    const out = [];
-    if (r && !hidden(p, "stage")) out.push(tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
-        num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) }));
-    if (r && has(r.flow) && !hidden(p, "flow")) out.push(tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
+    const T = {};   // by tab, so a tile that's still downloading keeps its place
+    if (r && !hidden(p, "stage")) T.stage = tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
+        num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) });
+    if (r && has(r.flow) && !hidden(p, "flow")) T.flow = tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) }));
-    if (r && r.temp && !hidden(p, "temp")) out.push(tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
+        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) });
+    if (r && r.temp && !hidden(p, "temp")) T.temp = tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
         num: Math.round(r.temp.value).toString(), unit: " °F " + arrow(r.temp.trend, 0.3),
-        detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) }));
-    if (t && !hidden(p, "tide")) out.push(tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
+        detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) });
+    if (t && !hidden(p, "tide")) T.tide = tile({ title: "TIDE", accent: LOOK.tideColor, mode: "tide", active: mode === "tide",
         num: has(t.height) ? t.height.toFixed(1) : "–", unit: " ft " + (t.rising === null ? "" : t.rising ? "↑" : "↓"),
-        detail: (t.rising ? "Rising" : "Falling") + (t.live ? "" : " (predicted)") }));
+        detail: (t.rising ? "Rising" : "Falling") + (t.live ? "" : " (predicted)") });
     const h = surfNow(d.surf);
-    if (h && !hidden(p, "surf")) out.push(tile({ title: "WAVES", accent: LOOK.surfColor, mode: "surf", active: mode === "surf",
-        num: has(h[1]) ? h[1].toFixed(1) : "–", unit: " ft", detail: Math.round(h[2]) + " s " + compass(h[3]) + " · " + rateWord(rate(h, jettyLim(p))) }));
+    if (h && !hidden(p, "surf")) T.surf = tile({ title: "WAVES", accent: LOOK.surfColor, mode: "surf", active: mode === "surf",
+        num: has(h[1]) ? h[1].toFixed(1) : "–", unit: " ft", detail: Math.round(h[2]) + " s " + compass(h[3]) + " · " + rateWord(rate(h, jettyLim(p))) });
     const TITLES = { stage: ["HEIGHT", LOOK.stageColor], flow: ["FLOW", LOOK.flowColor], temp: ["WATER", LOOK.tempColor],
                      tide: ["TIDE", LOOK.tideColor], surf: ["WAVES", LOOK.surfColor] };
-    for (const m of Object.keys(TITLES)) if (waiting(p, d, m)) out.push(tile({ title: TITLES[m][0], accent: TITLES[m][1], wait: true }));
+    const out = Object.keys(TITLES).map(m => T[m] || (waiting(p, d, m) ? tile({ title: TITLES[m][0], accent: TITLES[m][1], wait: true }) : "")).filter(x => x);
     if (!out.length) return "";
     return `<div class="tiles n${out.length}">${out.join("")}</div>`;
 }
@@ -1195,7 +1195,7 @@ function placeRow(i, o) {
 }
 
 function renderPlaces() {
-    if (!(S.places.length > 1 || S.editing)) return "";
+    if (!S.places.length) return "";
     // The place on screen stays in the list (lightly highlighted), so places compare easily.
     if (!S.editing) {   // grouped; Edit mode below stays one flat list (reorder, remove)
         let rows = "", first = true;
@@ -1215,7 +1215,8 @@ function renderPlaces() {
             if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
         return section({ id: "placesSec", title: "Places", pad: 0, gap: 0,
-            trailing: `<button class="edit-btn" data-act="edit">Edit</button>`, body: `<div id="placesList">${rows}</div>` });
+            trailing: `<button class="edit-btn" data-act="edit">Edit</button><button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button>`,
+            body: `<div id="placesList">${rows}</div>` });
     }
     // Edit mode: one flat list. Places with the same name (e.g. three "McKenzie")
     // also show where they are, so you can tell which one you're removing.
@@ -1262,7 +1263,7 @@ function renderBody(cur) {
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
-    html += `<a class="contact${contactOpen ? " open" : ""}" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">Send me feature ideas / issues! → <b>Contact</b></a>`;
+    html += `<div class="egg${eggOpen ? " open" : ""}">Stop looking at your phone and go fishing</div>`;
     morphInto($("#body"), html);
 }
 
@@ -1271,7 +1272,7 @@ function renderFooter() {
         <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 18)}</button>` : ""}
-        <button class="fbtn" data-act="add">${icon("plus", 16)}Add</button>`);
+        <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 17)}Contact</a>`);
 }
 
 function renderAdd() {
@@ -1657,29 +1658,29 @@ function wire() {
     const appEl = $("#app");
     appEl.addEventListener("scroll", () => { if (appEl.scrollLeft || appEl.scrollTop) appEl.scrollLeft = appEl.scrollTop = 0; });
 
-    // "Contact" stays out of the way: scroll to the end as usual, then push down
-    // once more (a new swipe or wheel turn) and it slides in. Scrolling back up hides it.
+    // Easter egg: scroll to the end as usual, then push down once more (a new swipe
+    // or wheel turn) and a note slides in. Scrolling back up hides it.
     const scr = $("#scroll");
     const atEnd = () => scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 2;
-    const showContact = on => {
-        if (contactOpen === on) return;
-        contactOpen = on;
-        const c = $("#body .contact");
+    const showEgg = on => {
+        if (eggOpen === on) return;
+        eggOpen = on;
+        const c = $("#body .egg");
         if (c) c.classList.toggle("open", on);
         if (on) setTimeout(() => scr.scrollTo({ top: scr.scrollHeight, behavior: "smooth" }), 260);
     };
     let pull = null, lastWheel = 0;
     scr.addEventListener("touchstart", e => { pull = atEnd() ? e.touches[0].clientY : null; }, { passive: true });
     scr.addEventListener("touchmove", e => {
-        if (pull !== null && pull - e.touches[0].clientY > 50) { pull = null; showContact(true); }
+        if (pull !== null && pull - e.touches[0].clientY > 50) { pull = null; showEgg(true); }
     }, { passive: true });
     scr.addEventListener("wheel", e => {
         const fresh = e.timeStamp - lastWheel > 300;
         lastWheel = e.timeStamp;
-        if (fresh && e.deltaY > 0 && atEnd()) showContact(true);
+        if (fresh && e.deltaY > 0 && atEnd()) showEgg(true);
     }, { passive: true });
     scr.addEventListener("scroll", () => {
-        if (contactOpen && scr.scrollHeight - scr.clientHeight - scr.scrollTop > 120) showContact(false);
+        if (eggOpen && scr.scrollHeight - scr.clientHeight - scr.scrollTop > 120) showEgg(false);
     }, { passive: true });
 
     $("#app").addEventListener("pointerdown", e => {

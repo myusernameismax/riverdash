@@ -245,10 +245,11 @@ water yourself before going out on rocks or a jetty.
 
 ## Contact
 
-A small "Contact" link under the places list (scroll to the end, then push down
-once more to show it) opens an email to
-flowtidessupport@gmail.com (subject "Flow Tides"), which forwards to Max. It's
-hidden in the desktop widget.
+**Contact** in the bottom bar opens an email to flowtidessupport@gmail.com (subject
+"Flow Tides"), which forwards to Max. It's hidden in the desktop widget. Adding a
+place is **+ Add** next to Edit in the Places list.
+
+Scroll to the end of the page, then push down once more: a small note slides in.
 
 ## Security
 

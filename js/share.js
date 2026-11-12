@@ -5,7 +5,7 @@
 //   https://…/riverdash/#import=z<base64url of deflated JSON {v:1, s: ★ index, p: places}>
 // "z" = deflate-raw compressed, "j" = plain JSON (browsers without CompressionStream).
 
-const MODES = ["stage", "flow", "tide", "surf", "tidelist"];
+const MODES = ["stage", "flow", "temp", "tide", "surf", "tidelist"];
 const JETTY = ["calm", "sketchy", "cautionGust", "sketchyGust"];
 const MAX_PLACES = 50;
 const num = v => typeof v === "number" && isFinite(v) && Math.abs(v) < 1e7;
