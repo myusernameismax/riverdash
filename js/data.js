@@ -595,6 +595,7 @@ export async function savedPlaces(places) {
 }
 
 // offline: nothing could be downloaded (the saved copies were used instead).
+// downloads: how many requests went out (0 = everything was still fresh in the cache).
 // fullKeys: a Set of place keys that get everything (the rest get the list's part),
 // or undefined = all of them. 4 places at a time: all at once would queue in the
 // browser anyway, and one by one is much slower.
@@ -602,7 +603,7 @@ export async function fetchPlaces(places, fullKeys) {
     net.ok = net.fail = net.newest = 0;
     const out = await pool(places, 4, p => place(p, !fullKeys || fullKeys.has((p.river || "") + "|" + (p.tide || ""))));
     const offline = navigator.onLine === false || (net.fail > 0 && net.ok === 0);
-    return { places: out, time: net.newest || Date.now(), offline };
+    return { places: out, time: net.newest || Date.now(), offline, downloads: net.ok + net.fail };
 }
 
 // Search index: lower-cased words of "id name state", built once per list.

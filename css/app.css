@@ -90,6 +90,10 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #ptr .ic { margin-top: calc(var(--pull, 0px) / 2 - 10px); opacity: calc(var(--pp, 0) * .6); transform: rotate(calc(var(--pp, 0) * 270deg)); }
 #scroll.ptr-ready #ptr .ic { opacity: .9; }
 #scroll.ptr-spin #ptr .ic { opacity: .7; animation: spin .9s linear infinite; }
+#ptr .ptr-msg { display: none; margin-top: calc(var(--pull, 0px) / 2 - 9px); font-size: var(--small); opacity: .6; }
+#scroll.ptr-said #ptr .ic { display: none; }
+#scroll.ptr-said #ptr .ptr-msg { display: block; }
+#scroll.ptr-anim #ptr .ptr-msg { transition: margin-top .3s ease-out; }
 #scroll.ptr-on #body { transform: translateY(var(--pull, 0px)); }
 #scroll.ptr-anim #body, #scroll.ptr-anim #ptr .ic { transition: transform .3s ease-out, margin-top .3s ease-out, opacity .3s; }
 #body { padding: 4px var(--gutter) 20px; display: flex; flex-direction: column; gap: 20px; }

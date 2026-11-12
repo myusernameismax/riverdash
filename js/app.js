@@ -742,6 +742,7 @@ async function fetchSome(list, fullKeys) {
     S.updated = Math.max(S.updated || 0, r.time);
     return r;
 }
+// Resolves to {downloads, offline} (pull-to-refresh says "Up to date" when nothing was due).
 async function refresh() {
     const seq = ++fetchSeq;
     S.loading = true;
@@ -754,12 +755,13 @@ async function refresh() {
     if (seq === fetchSeq) {
         S.loading = false;
         S.error = a.error || b.error || "";
-        S.offline = (!shown || a.offline) && (!rest.length || b.offline);
+        S.offline = S.places.length > 0 && (!shown || a.offline) && (!rest.length || b.offline);   // no places: nothing to be offline about
     }
     if (!S.offline) saveSnapshot();
     rememberRivers();
     render();
     if (seq === fetchSeq && !waitingForLink) hideSplash();   // done, even if it failed: show what there is
+    return { downloads: (a.downloads || 0) + (b.downloads || 0), offline: S.offline };
 }
 // Opening a place: if its details weren't downloaded in the last 15 minutes, get them now.
 function freshenShown() {
@@ -840,7 +842,10 @@ function renderHeader(cur) {
     const place = S.places[S.selected];
     if (!place) { morphInto(hdr, ""); return; }
     const d = cur.d, r = cur.r, t = cur.t;
-    const sub = [r ? r.name : "", t ? "Tides: " + t.name : ""].filter(s => s).join("  ·  ");
+    // a station whose charts are all switched off (Customize → Show) isn't named
+    const off = ms => ms.every(m => hidden(place, m));
+    const sub = [r && !off(["stage", "flow", "temp"]) ? r.name : "", t && !off(["tide", "surf"]) ? "Tides: " + t.name : ""]
+        .filter(s => s).join("  ·  ");
     const n = d && d.weather ? d.weather.now : null;
     const wx = LOOK.showWeather && n && has(n.temp)
         ? `<button class="hwx" data-act="nowToggle">${wxIcon(n.code, n.day, 34)}<span class="hwx-t"><span class="hwx-temp">${n.temp}°</span><span class="hwx-word">${esc(wxWord(n.code))}</span></span></button>`
@@ -1691,9 +1696,10 @@ function wire() {
 
     // Pull down from the top to refresh. The page follows the finger with
     // resistance; let go past PTR_GO and it holds there with a spinning arrow
-    // until the refresh is done.
+    // until the refresh is done. If nothing was due (all still fresh in the cache)
+    // or there's no signal, it says so for a moment instead of just springing back.
     const PTR_GO = 64, PTR_HOLD = 44, ptr = $("#ptr");
-    ptr.innerHTML = icon("refresh", 20);
+    ptr.innerHTML = icon("refresh", 20) + `<span class="ptr-msg"></span>`;
     let pd = null, ptrBusy = false, ptrOff = 0;
     const setPull = (px, anim) => {
         clearTimeout(ptrOff);
@@ -1729,10 +1735,17 @@ function wire() {
         ptrBusy = true;
         setPull(PTR_HOLD, true);
         scr.classList.add("ptr-spin");
-        refresh().finally(() => {
-            ptrBusy = false;
-            scr.classList.remove("ptr-spin");
-            setPull(0, true);
+        const t0 = Date.now();
+        refresh().catch(() => ({ offline: true })).then(res => {
+            const msg = res.offline ? "No connection" : !res.downloads ? "Data up to date" : "";
+            if (msg) { ptr.querySelector(".ptr-msg").textContent = msg; scr.classList.remove("ptr-spin"); scr.classList.add("ptr-said"); }
+            // a spin too short to see reads as a glitch: keep it up at least briefly
+            setTimeout(() => {
+                ptrBusy = false;
+                scr.classList.remove("ptr-spin");
+                setPull(0, true);
+                setTimeout(() => scr.classList.remove("ptr-said"), 320);
+            }, msg ? 1100 : Math.max(0, 500 - (Date.now() - t0)));
         });
     });
 
