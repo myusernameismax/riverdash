@@ -26,6 +26,10 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 - Stars are solid: yellow for the ★ place, gray for the others. No outline stars.
 - Arrows after readings: ↑ rising, ↓ falling, → steady.
 - One signal per state: an on/off chip is shown by its tint alone, no ✓ added.
+- Tappable text is blue (`var(--link)`): Edit, + Add, Done, station names. A button that
+  belongs to a chart takes that tab's accent instead (View History). A small ↗ marks only
+  links that leave the app (the map). No colored pins or emoji-like icons.
+- Pick from presets, don't type values (history ranges are chips, not dates).
 
 ## Motion and timing
 
