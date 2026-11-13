@@ -1622,20 +1622,7 @@ const ACTIONS = {
     // only then takes the panel away (so the page doesn't jump as it gets shorter).
     customize: () => {
         if (!S.customizing) { S.customizing = true; setTimeout(() => showSection("#czSec"), 30); return; }
-        const f = $("#scroll");
-        if (f.scrollTop <= 1 || !ANIM) { S.customizing = false; return; }
-        let done = false;
-        const close = () => {
-            if (done) return;
-            done = true;
-            f.removeEventListener("scroll", onScroll);
-            S.customizing = false;
-            render();
-        };
-        const onScroll = () => { if (f.scrollTop <= 1) close(); };
-        f.addEventListener("scroll", onScroll, { passive: true });
-        f.scrollTo({ top: 0, behavior: "smooth" });
-        setTimeout(close, 900);   // in case the glide gets interrupted
+        glideThen(0, () => { S.customizing = false; });
         return "skip";
     },
     toggleTab: el => toggleTab(el.dataset.mode),
@@ -1679,10 +1666,13 @@ const ACTIONS = {
     },
     importMerge: () => applyImport(false),
     importReplace: () => applyImport(true),
+    // Same feel as Customize: opening glides down to the list, Done glides back to
+    // where the page was before Edit and only then switches the list back.
     edit: () => {
-        S.editing = !S.editing;
         S.newGroups = [];
-        if (S.editing) setTimeout(showList, ANIM + 20);
+        if (!S.editing) { S.editing = true; editFrom = $("#scroll").scrollTop; setTimeout(showList, 30); return; }
+        glideThen(editFrom, () => { S.editing = false; });
+        return "skip";
     },
     newGroup: () => {
         let name = "New group", n = 2;
@@ -1725,6 +1715,26 @@ const ACTIONS = {
 
 // Edit mode adds the current place to the list; scroll so the whole list is in view.
 function showList() { showSection("#placesSec"); }
+let editFrom = 0;   // where the page was when Edit opened
+// Glide the page to `top`, then run fn and re-render: a panel closes only once the
+// page is back, so nothing jumps as the page gets shorter.
+function glideThen(top, fn) {
+    const f = $("#scroll");
+    top = Math.max(0, Math.min(top, f.scrollHeight - f.clientHeight));
+    let done = false;
+    const finish = () => {
+        if (done) return;
+        done = true;
+        f.removeEventListener("scroll", onScroll);
+        fn();
+        render();
+    };
+    const onScroll = () => { if (Math.abs(f.scrollTop - top) <= 1) finish(); };
+    if (Math.abs(f.scrollTop - top) <= 1 || !ANIM) { finish(); return; }
+    f.addEventListener("scroll", onScroll, { passive: true });
+    f.scrollTo({ top, behavior: "smooth" });
+    setTimeout(finish, 900);   // in case the glide gets interrupted
+}
 function showSection(sel) {
     const sec = $(sel);
     if (sec) reveal(sec, sec);
