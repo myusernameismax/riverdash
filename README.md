@@ -12,9 +12,6 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 2. Tap Share → **Add to Home Screen** → Add.
 3. Open it from the home screen icon ("Flow Tides"). It runs full screen without Safari's bars.
 
-Under a place's name, each station's name (with a pin) opens a map at the exact spot of
-the gauge or tide station.
-
 It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NOAA's,
 like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
@@ -22,6 +19,9 @@ The Add page stays open after adding, so several can go in at once (every gauge 
 river, say); added ones get a ✓, Back turns into **Done**, and Done shows the first one.
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
+
+Under a place's name, each station's name (with a pin) opens a map at the exact spot of
+the gauge or tide station.
 
 ## What's different from the widget
 
@@ -46,8 +46,8 @@ Only the inputs change from the desktop widget:
 
 ## Water temperature and normal flow
 
-- **Water** tile (°F, change over 3 h) and chart tab, from the USGS gauge behind the
-  NOAA one, where it has a temperature sensor (all four Portland-area test gauges do).
+- **Water** tile (°F, change over 3 h) and chart tab, from the USGS gauge (the one
+  behind a NOAA gauge, or the gauge itself), where it has a temperature sensor (all four Portland-area test gauges do).
   Measured only: nobody publishes a water temperature forecast, so the chart has no
   dashed part. Older than 2 h: "Measured … ago".
 - Under the Flow chart: **Typical flow on Nov 11: 1,640 cfs**, the median flow on
@@ -56,10 +56,17 @@ Only the inputs change from the desktop widget:
   day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
 
-## River groups
+## Places list and groups
+
+- Every place, the one on screen lightly highlighted; tapping one keeps the list where
+  it is. **+ Add** and **Edit** sit on the list's header.
+- Each mini graph is one color that says how the place is doing: green in shape, red
+  not, gray with no good range set. Coastal tide stations show the jetty / surf rating
+  instead (green calm, yellow caution, red sketchy).
+- Stars: yellow = the ★ place that opens first, gray = tap to make it that.
 
 Places on the same river group themselves in the **Places** list once there are two or
-more (from NOAA's gauge names: "McKenzie River near Vida", "McKenzie River above
+more (from the gauge names: "McKenzie River near Vida", "McKenzie River above
 Coburg" → **McKenzie**). The group row shows an arrow on the left, the name with the
 number of gauges, and each gauge's mini graph side by side on the right (up to 4), each in its own status color
 (green in shape, red not, gray no range). Tap the group to open
@@ -74,13 +81,15 @@ after the river.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
-- Edit scrolls the list into view; the place on screen isn't highlighted there.
+- Edit glides down to the list, Done glides back to where the page was; the place on
+  screen isn't highlighted in Edit. Opening a group that runs off the screen scrolls it
+  into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
 
 ## Moving places between devices
 
-Tap the **share** button at the bottom (next to + Add). It shows a QR code and a
+Tap the **share** button in the bottom bar (next to Contact). It shows a QR code and a
 link that hold your places and their settings (name, ★, shown tabs, good ranges,
 jetty limits). The readings themselves aren't in it; they download fresh.
 
@@ -107,10 +116,10 @@ jetty limits). The readings themselves aren't in it; they download fresh.
 ## Customize a place
 
 Tap the **sliders** button left of the place's name. The panel unfolds right under the
-name, above the tiles (from further down, the page glides up first); Done folds it away:
+name, above the tiles (from further down, the page glides up first); Done folds it away.
+In the panel's order:
 
-- Adding tides to a river place starts with **Waves** (and the jetty / surf rating)
-  off; turn it on under Show. A tide station on its own shows them.
+- **Name**: rename the place (only here; the name at the top isn't editable).
 - **Show**: turn tabs (Height, Flow, Water temp, Tide, Waves) on or off for this place.
   A hidden tab also hides its section (Next tides, Jetty / surf) and its settings here
   (its good range, the jetty limits); those are kept and come back with the tab, but
@@ -123,22 +132,17 @@ name, above the tiles (from further down, the page glides up first); Done folds 
   away; otherwise just its tile spins while it downloads. A station whose tabs are
   all off isn't named under the place's name. The app remembers which tabs each
   station has (`rt:avail`), so Show still offers ones that aren't being downloaded.
+  Adding tides to a river place starts with **Waves** (and the jetty / surf rating)
+  off; a tide station on its own shows them.
 - **Good range**: a low and/or high bound for height, flow or tide. The chart draws
   the line green inside it and red outside (no shading). Next to the place's name:
   *in shape* / *too low* / *too high* (every reading with a range has to be in it).
   Leave a side blank for no limit.
-- **Places list:** every place, the one on screen lightly highlighted; tapping one
-  keeps the list where it is. Each mini graph is one color that says how the place is
-  doing: green in shape, red not, gray with no good range set. Coastal tide stations
-  show the jetty / surf rating instead (green calm, yellow caution, red sketchy).
-  Stars: yellow = the ★ place that opens first, gray = tap to make it that.
 - **Jetty / surf rating**: the wave heights for calm and sketchy, and the gust limits,
   for this spot (defaults come from `js/config.js`). **Reset** goes back to them.
 - **Stations**: add a tide station to a river place (or a river gauge to a tide place), or
-  remove one of the two (with Undo).
+  remove one of the two (with Undo). River gauges show their USGS number here.
   To remove the last one, remove the place under Edit.
-
-- **Name**: rename the place (only here; the name at the top isn't editable).
 
 ### Weather day view
 
@@ -196,7 +200,8 @@ sea grid cell to the tide station, not a buoy reading.
 | `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new NOAA lists itself when they're old). Looks up which USGS gauge each NOAA gauge is; `tools/noaa-usgs-ids.json` keeps those so reruns are quick |
 
 Downloads are cached on the phone for the same times as the widget (river
-history 3 h, tides 6 h, waves 3 h, weather 1 h, current readings 5 min).
+history 3 h, tides 6 h, waves 3 h, weather 1 h, current readings 5 min; USGS-only
+gauges 15 min, water temperature 30 min, typical flow 30 days).
 
 ## Trying it on the PC
 
@@ -208,7 +213,7 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 
 ## Troubleshooting
 
-- **A red line under the name:** a NOAA site is down, or an id is wrong. The last copy keeps showing meanwhile.
+- **A red line under the name:** a data site (NOAA, USGS, Open-Meteo) is down, or an id is wrong. The last copy keeps showing meanwhile.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
 - **Updates:** no need to reinstall. The app always opens from the copy saved on the
   phone (instant, works with no signal) and checks GitHub for a new version in the
@@ -262,11 +267,10 @@ water yourself before going out on rocks or a jetty.
 ## Contact
 
 **Contact** in the bottom bar opens an email to flowtidessupport@gmail.com (subject
-"Flow Tides"), which forwards to Max. It's hidden in the desktop widget. Adding a
-place is **+ Add** before Edit in the Places list.
+"Flow Tides"), which forwards to Max. It's hidden in the desktop widget.
 
-Scroll to the end of the page, then keep pushing: the page lifts like a rubber band
-over a small note, and springs back when you let go.
+Easter egg: scroll to the end of the page, then keep pushing: the page lifts like a
+rubber band over a small note, and springs back when you let go.
 
 ## Security
 

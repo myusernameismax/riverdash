@@ -1,4 +1,5 @@
-// Data fetcher: a straight port of the widget's contents/code/rivers.py.
+// Data fetcher: started as a port of the widget's contents/code/rivers.py; the web
+// app is now the only one that gets new features (USGS-only gauges, skipped hidden tabs).
 //
 //   fetchPlaces(places) -> {places: [...], time: ms}
 //   search(text)        -> {rivers: [...], tides: [...], error?}

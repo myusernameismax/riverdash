@@ -1217,7 +1217,8 @@ function autoRiver(p) {
     return d && d.river && d.river.name ? shortName(d.river.name) : "";
 }
 const groupOf = p => (p.group !== undefined ? p.group : autoRiver(p)).trim();
-// The list in order: single places, and groups (2+ places) where their first place is.
+// The list in order: single places, and groups (river groups with 2+ places, your own
+// with any) where their first place is.
 function listItems() {
     const count = {}, own = {};
     S.places.forEach(p => {
@@ -1258,7 +1259,7 @@ function placeRow(i, o) {
 function renderPlaces() {
     if (!S.places.length) return "";
     // The place on screen stays in the list (lightly highlighted), so places compare easily.
-    if (!S.editing) {   // grouped; Edit mode below stays one flat list (reorder, remove)
+    if (!S.editing) {   // grouped, folders open/close; Edit mode below shows every place
         let rows = "", first = true;
         for (const it of listItems()) {
             if (it.members === undefined) {
@@ -1754,7 +1755,7 @@ const ACTIONS = {
     },
 };
 
-// Edit mode adds the current place to the list; scroll so the whole list is in view.
+// Edit: glide down so the list is in view.
 function showList() { showSection("#placesSec"); }
 let editFrom = 0;   // where the page was when Edit opened
 // Glide the page to `top`, then run fn and re-render: a panel closes only once the

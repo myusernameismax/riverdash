@@ -13,7 +13,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   jetty / surf day is orange.
 - **Text fields:** a gray tint at rest, a light blue tint while typing. No outline.
 - **Rows in a list** are separated by hairlines only *between* rows (`var(--hair)`),
-  never boxed.
+  never boxed. Exception: in Edit, a group is a light blue tinted box (still no
+  outline) so it's clear what's inside it.
 - Rounded corners everywhere (`var(--radius)` for boxes).
 - In the Linux panel popup, the page background is see-through so Plasma's own
   rounded frame is the background. Don't add a frame of our own.
@@ -31,6 +32,10 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 - Notes with **Undo** stay up 2 s; other notes 4.5 s (`js/config.js`).
 - Swipes copy iOS: clearly sideways before anything moves, rubber-band resistance
   past the end (UIScrollView curve, c = 0.55), destructive full swipes need a long drag.
+- Nothing jumps. Panels (Customize, Edit) glide the page first, then unfold / switch;
+  closing glides back, then folds. Things loading keep their spot (a spinning tile
+  sits where the real one will be). Pull-to-refresh and the end-of-page pull are
+  stiff rubber bands that spring back.
 
 ## Words
 
