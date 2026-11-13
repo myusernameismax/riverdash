@@ -1659,7 +1659,7 @@ function renderPlaces() {
             first = false;
             if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
-        return sortChips() + section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
+        return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
     }
     // Edit mode: every place with its ≡ handle; each group is a tinted box (always
     // open) with its name field, − (ungroup) and its own ≡. Drag places into and
@@ -1687,7 +1687,7 @@ function renderPlaces() {
             it.members.map(i => placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) })).join(""));
         first = false;
     }
-    return sortChips() + section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
+    return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
 }
 
 function renderBody(cur) {
@@ -1717,18 +1717,14 @@ function renderBody(cur) {
     morphInto($("#body"), html);
 }
 
-// The bottom bar, under a place and under the places list (the same bar; the list
-// button is tinted where the list is showing and goes back to the place from there).
 function renderFooter() {
-    const bar = inList => `
+    morphInto($("#ftr"), `
         <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
-        <button class="fbtn round flist${inList || (wide() && !S.listHidden) ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
-        ${inList ? "" : `<div class="egg">Stop looking at your phone and go fishing!</div>`}`;
-    morphInto($("#ftr"), bar(false));
-    morphInto($("#listFtr"), bar(true));
+        <button class="fbtn round flist${wide() && !S.listHidden ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
+        <div class="egg">Stop looking at your phone and go fishing!</div>`);
 }
 
 // The places list page: its top row, then the list, or search results while searching.
@@ -1743,6 +1739,8 @@ function renderList() {
     page.classList.toggle("editing", S.editing);
     $("#lqCancel").classList.toggle("on", S.lsearch);
     morphInto($("#listTop"), `<h1 class="ltitle">Places</h1>`);
+    // Sort and Edit stay under the search bar while the list scrolls
+    morphInto($("#listTools"), S.places.length ? sortChips() : "");
     const results = S.lsearch && ($("#lq").value.trim() || !S.places.length);
     morphInto($("#listBody"), results || !S.places.length ? hitsHtml(true, true, $("#lq").value.trim().length) : renderPlaces());
 }
@@ -1794,7 +1792,7 @@ function renderToast() {
     const t = S.toast, el = $("#toast");
     el.classList.toggle("on", t.shown);
     const picks = (S.adding || listShown()) && S.attachTo < 0 && S.addedKeys.length > 0;
-    el.classList.toggle("above-footer", !S.adding);   // above the bottom bar (a place's or the list's)
+    el.classList.toggle("above-footer", !S.adding && !S.listing);   // above the bottom bar
     el.classList.toggle("above-commit", picks);                      // above the floating Add button
     if (t.shown) {
         $("#toastText").textContent = t.text;
@@ -2161,14 +2159,8 @@ const ACTIONS = {
     },
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
-    // the list button: on a wide screen slides the list pane; on the phone opens the list,
-    // or from the list goes back into the place it came from (the same zoom as tapping its row)
-    list: () => {
-        if (wide()) toggleListPane();
-        else if (S.listing) zoomInto(rowFor(S.selected), closeList);
-        else zoomToList();
-        return "skip";
-    },
+    // the list button: on a wide screen slides the list pane; on the phone opens the list
+    list: () => { if (wide()) toggleListPane(); else zoomToList(); return "skip"; },
     sortMenu: () => { S.sortOpen = !S.sortOpen; },
     sort: el => {
         S.sortOpen = false;

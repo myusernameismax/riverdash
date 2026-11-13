@@ -424,7 +424,7 @@ body.editing .psub.full { margin-left: 32px; }
 .sort-opt:active { background: var(--hover); }
 .sort-opt.on { background: color-mix(in srgb, var(--link) 16%, transparent); color: var(--link); font-weight: 600; }   /* the pick: tint, no ✓ */
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-              padding: 0 var(--gutter) 20px; display: flex; flex-direction: column; }
+              padding: 0 var(--gutter) calc(var(--bote) + 20px); display: flex; flex-direction: column; }
 #listBody { display: flex; flex-direction: column; flex: 1; }
 /* while the keyboard is up, the hint ("Find a river or tide station") centers in the
    space above it (iOS doesn't shrink the page for the keyboard; --kb is the part it covers) */
@@ -432,9 +432,13 @@ body.editing .psub.full { margin-left: 32px; }
 #listPage.searching #listScroll { padding-bottom: calc(max(var(--bote), var(--kb, 0px)) + 20px); }
 #listPage.picking #listScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
 .ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
-.ftr .fbtn.flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list is showing */
-html.wide #listFtr { display: none; }   /* a pane next to the place: the place's bar serves both */
-#listPage.searching #listFtr { display: none; }   /* searching: the keyboard's there; the hint centers above it */
+/* Sort and Edit: fixed under the search bar (the list scrolls under them); they slide up
+   out of the way with the title while searching */
+#listTools { position: relative; z-index: 20; flex: none; padding: 0 var(--gutter);
+             transition: margin-top var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
+#listTools:empty { display: none; }
+.lsearch { position: relative; z-index: 21; background: inherit; }
+#listPage.searching #listTools { margin-top: -36px; opacity: 0; pointer-events: none; }
 
 /* ── add page ──────────────────────────────────────────────────────── */
 .add-top { display: flex; align-items: center; gap: 8px; padding: calc(var(--top) + 8px) var(--gutter) 6px calc(var(--gutter) - 6px); flex: none; }

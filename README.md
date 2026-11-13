@@ -78,10 +78,10 @@ Only the inputs change from the desktop widget:
 ## Places list and groups
 
 - Opened with the **list button** at the bottom right (blue); the river view zooms out
-  and the list zooms in. The list has the same bottom bar (status, Share, Contact), its
-  list button tinted: tapping it again zooms back into the place you came from. Big **Places** title, the search bar under it (that's
-  where places get added), a row with **Sort** on the left and **Edit** on the right,
-  then every place (none highlighted:
+  and the list zooms in; tapping a place (or the back swipe) zooms back into one. Big **Places** title, the search bar under it (that's
+  where places get added), a row with **Sort** on the left and **Edit** on the right
+  (both stay put under the search bar while the list scrolls, so a long list can be
+  rearranged without going back to the top), then every place (none highlighted:
   the list is its own page now). Each row has the place's name, the readings and ★ on
   the right, and under the name its stations in full (as at the top of a place: "Sandy
   River near Marmot", "Tides: Newport"), wrapping across the whole row, under the
