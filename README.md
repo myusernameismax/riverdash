@@ -50,7 +50,7 @@ Only the inputs change from the desktop widget:
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
-| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button): the arrow spins until the place on screen is updated. When the app refreshes by itself and the place on screen takes a moment, the arrow peeks out half as far and spins until it's done. |
+| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button): the arrow spins until the place on screen is updated (if it was already downloading, until that's done). When the app refreshes by itself nothing shows at the top; the bottom bar says **Updating…** while the place on screen downloads, and otherwise when that place was last updated. |
 
 ## Water temperature and normal flow
 

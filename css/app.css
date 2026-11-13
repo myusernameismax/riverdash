@@ -330,6 +330,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gbox > .prow:first-child { padding-top: 2px; }
 .gbox > .prow:last-child { padding-bottom: 4px; }
 .gbox + .prow::before, .drag-ph + .prow::before, .gbox > .prow:first-child::before { display: none; }
+.gbox > .prow.gedit + .prow::before { display: none; }   /* Edit: no hairline under a group's name (its deeper tint sets it apart) */
 .gbox.lifted { background: color-mix(in srgb, var(--link) 10%, var(--bg)); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .drag-ph { border-radius: 10px; background: var(--hover); flex: none; }
 .gbox > .prow.gedit { background: color-mix(in srgb, var(--link) 14%, transparent); }   /* Edit: the group's name row, a deeper tint than its places */
