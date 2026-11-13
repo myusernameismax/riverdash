@@ -396,10 +396,25 @@ body.editing .psub.full { margin-left: 32px; }
 .lq-cancel { flex: none; max-width: 0; margin-left: 0; opacity: 0; overflow: hidden; white-space: nowrap; color: var(--link); font-size: 16px;
              transition: max-width var(--anim) cubic-bezier(.33,1,.68,1), margin-left var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
 .lq-cancel.on { max-width: 80px; margin-left: 12px; opacity: 1; }
-/* sort chips over the list (dimmed in Edit, which always shows your own order) */
-.sort-row { display: flex; gap: 6px; padding: 0 2px 8px; flex: none; transition: opacity var(--anim); }
-.sort-chip { font-size: 13px; padding: 5px 11px; --accent: var(--link); }
+/* "Sort: A–Z" over the list; its menu pops out under it (dimmed in Edit) */
+.sort-row { position: relative; z-index: 20; display: flex; padding: 0 0 6px; flex: none; transition: opacity var(--anim); }
 .sort-row.off { opacity: .35; pointer-events: none; }
+.sort-btn { display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 6px; margin-left: -2px; border-radius: 8px;
+            color: var(--link); font-size: 14px; }
+.sort-btn b { font-weight: 700; }
+.sort-btn:active, .sort-btn.open { background: color-mix(in srgb, var(--link) 12%, transparent); }
+.sort-chev { display: flex; transform: rotate(90deg); transition: transform var(--anim); }
+.sort-btn.open .sort-chev { transform: rotate(-90deg); }
+.sort-menu { position: absolute; top: 34px; left: -2px; min-width: 170px; padding: 5px; border-radius: 12px;
+             display: flex; flex-direction: column; background: color-mix(in srgb, var(--text) 6%, var(--bg));
+             box-shadow: 0 8px 28px rgba(0,0,0,.28); transform-origin: 24px 0;
+             transform: scale(.85); opacity: 0; visibility: hidden; pointer-events: none;
+             transition: transform calc(var(--anim) * 1.2) cubic-bezier(.34,1.56,.64,1), opacity var(--anim), visibility 0s var(--anim); }
+.sort-menu.on { transform: none; opacity: 1; visibility: visible; pointer-events: auto;
+                transition: transform calc(var(--anim) * 1.2) cubic-bezier(.34,1.56,.64,1), opacity var(--anim); }
+.sort-opt { text-align: left; padding: 10px 12px; border-radius: 8px; font-size: 15px; }
+.sort-opt:active { background: var(--hover); }
+.sort-opt.on { background: color-mix(in srgb, var(--link) 16%, transparent); color: var(--link); font-weight: 600; }   /* the pick: tint, no ✓ */
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
               padding: 0 var(--gutter) calc(var(--bot) + 20px); display: flex; flex-direction: column; }
 #listBody { display: flex; flex-direction: column; flex: 1; }

@@ -56,6 +56,7 @@ const S = {
     addedKeys: [],           // places added in this search (Cancel / Back takes them out)
     swiped: -1,              // place row swiped open to show Delete
     sort: load("rt:sort", "mine"),   // places list order: "mine" (as arranged in Edit) | "az" | "views"
+    sortOpen: false,         // its menu is out
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
@@ -730,6 +731,7 @@ function zoomToList() {
 }
 // Leaving the list for the river view (a place was tapped, or Back)
 function closeList() {
+    S.sortOpen = false;
     if (S.lsearch) endSearch();
     S.listing = false; S.editing = false; S.newGroups = []; S.swiped = -1;
 }
@@ -917,7 +919,8 @@ function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 // search, then Edit, then the list itself), then a picked day (back to the week), then
 // another place (back to the ★ place).
 function goBack() {
-    if (S.adding) closeAdd();
+    if (S.sortOpen) S.sortOpen = false;
+    else if (S.adding) closeAdd();
     else if (S.moving) closeMove();
     else if (S.listing && S.lsearch) endSearch();
     else if (S.editing) { S.editing = false; S.newGroups = []; }
@@ -1542,7 +1545,7 @@ function moveViews(before, after) {
     delete VIEWS[a];
     save("rt:views", VIEWS);
 }
-const SORTS = [["mine", "My order"], ["az", "A–Z"], ["views", "Most viewed"]];
+const SORTS = [["mine", "Custom order"], ["az", "A–Z"], ["views", "Most viewed"]];
 const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
 // The list's items in the picked order. Groups stay together: A–Z by the group's (or
 // place's) name, then A–Z inside; Most viewed by the group's total, then inside. Ties
@@ -1575,10 +1578,15 @@ function glideRows(change) {
         if (Math.abs(dy) > 1) r.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: ANIM * 1.6, easing: "cubic-bezier(.33,1,.68,1)" });
     }
 }
+// One "Sort: A–Z" button over the list; tapping it pops out the choices (the picked one
+// tinted). Picking one, tapping anywhere else or Back closes it.
 function sortChips() {
-    const cur = S.sort;
-    return `<div class="sort-row${S.editing ? " off" : ""}">${SORTS.map(([k, l]) =>
-        `<button class="hist-chip sort-chip${k === cur ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>`;
+    const cur = (SORTS.find(([k]) => k === S.sort) || SORTS[0])[1];
+    return `<div class="sort-row${S.editing ? " off" : ""}">
+        <button class="sort-btn${S.sortOpen ? " open" : ""}" data-act="sortMenu">Sort: <b>${cur}</b><span class="sort-chev">${icon("next", 11)}</span></button>
+        <div class="sort-menu${S.sortOpen ? " on" : ""}">${SORTS.map(([k, l]) =>
+            `<button class="sort-opt${k === S.sort ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>
+    </div>`;
 }
 // The second line in the places list: the station names, like under the name at the top
 // of a place (a station whose charts are all switched off isn't named; ids until the
@@ -2010,7 +2018,7 @@ function startDrag(e, handle) {
 // After a drag in Edit, the list on screen is the new order; a dragged place's
 // group is the box it ended up in (none if outside every box).
 // Dragging while the list is sorted A–Z / Most viewed starts your own order from what's
-// on screen: that order (with the move) becomes "My order".
+// on screen: that order (with the move) becomes "Custom order".
 function dropInEdit(D) {
     if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
     const order = [...D.list.querySelectorAll(".prow[data-i]")].map(x => +x.dataset.i);
@@ -2087,7 +2095,7 @@ const ACTIONS = {
     importReplace: () => applyImport(true),
     // Edit / Done on the places list (the search bar folds away while editing)
     edit: () => {
-        S.newGroups = []; S.swiped = -1;
+        S.newGroups = []; S.swiped = -1; S.sortOpen = false;
         if (S.lsearch) endSearch();
         S.editing = !S.editing;
     },
@@ -2123,8 +2131,10 @@ const ACTIONS = {
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
     list: () => { zoomToList(); return "skip"; },
+    sortMenu: () => { S.sortOpen = !S.sortOpen; },
     sort: el => {
-        if (S.editing || el.dataset.s === S.sort) return "skip";
+        S.sortOpen = false;
+        if (S.editing || el.dataset.s === S.sort) return;
         glideRows(() => { S.sort = el.dataset.s; save("rt:sort", S.sort); });
         return "skip";
     },
@@ -2169,6 +2179,13 @@ function reveal(first, last, f = $("#scroll")) {
 function wire() {
     document.addEventListener("touchstart", () => {}, { passive: true });   // lets :active work on iOS
 
+    // the sort menu is out: a tap anywhere else just closes it
+    $("#app").addEventListener("click", e => {
+        if (!S.sortOpen || e.target.closest(".sort-row")) return;
+        e.stopPropagation(); e.preventDefault();
+        S.sortOpen = false;
+        render();
+    }, true);
     $("#app").addEventListener("click", e => {
         if (e.target.closest("a")) return;            // map links open on their own
         const el = e.target.closest("[data-act]");
