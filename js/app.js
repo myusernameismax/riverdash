@@ -1672,14 +1672,14 @@ function sortChips() {
         <button class="top-btn${S.editing ? " strong" : ""}" data-act="edit">${S.editing ? "Done" : "Edit"}</button>
     </div>`;
 }
-// The second line in the places list: the station names, like under the name at the top
-// of a place (a station whose charts are all switched off isn't named; ids until the
-// first download).
-function stationLine(i) {
+// Under a place's name in the list: its stations, like under the name at the top of a
+// place (a station whose charts are all switched off isn't named; ids until the first
+// download), one per line: a river gauge and a tide station stack instead of running on.
+function stationLines(i) {
     const p = S.places[i], d = S.results[keyOf(p)] || {};
     const off = ms => ms.every(m => hidden(p, m));
     return [p.river && !off(["stage", "flow", "temp"]) ? (d.river && d.river.name) || p.river : "",
-            p.tide && !off(["tide", "surf"]) ? "Tides: " + ((d.tide && d.tide.name) || p.tide) : ""].filter(x => x).join("  ·  ");
+            p.tide && !off(["tide", "surf"]) ? "Tides: " + ((d.tide && d.tide.name) || p.tide) : ""].filter(x => x);
 }
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
@@ -1691,7 +1691,7 @@ function placeRow(i, o) {
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
-        <div class="psub full">${esc(stationLine(i))}</div>
+        <div class="psub full">${stationLines(i).map(l => `<div class="pst">${esc(l)}</div>`).join("")}</div>
     </div>`;
 }
 
