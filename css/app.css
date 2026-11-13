@@ -293,8 +293,13 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.first::before, body.dragging .prow::before { display: none; }
 .prow[data-act]:active { background: var(--hover); }
 /* A tinted row (the place on the right on a wide screen, places just added) needs no
-   hairlines around it; tinted rows next to each other join into one block. */
-.prow.shown::before, .prow.shown + .prow::before, .prow.fresh::before, .prow.fresh + .prow::before { display: none; }
+   hairlines around it; tinted rows next to each other join into one block, with their
+   own hairline between them. */
+/* (hidden by fading, so they come back softly as the tint goes; between two tinted
+   rows the hairline stays) */
+.prow::before { transition: opacity var(--anim); }
+.prow.shown::before, .prow.shown + .prow::before, .prow.fresh::before, .prow.fresh + .prow::before { opacity: 0; }
+.prow.fresh + .prow.fresh::before { opacity: 1; }
 .prow.fresh + .prow.fresh { border-top-left-radius: 0; border-top-right-radius: 0; }
 .prow.fresh:has(+ .prow.fresh) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
