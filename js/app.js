@@ -670,10 +670,18 @@ function insetOf(el) {
     const px = v => Math.round(v) + "px";
     return `inset(${px(r.top - a.top)} ${px(a.right - r.right)} ${px(a.bottom - r.bottom)} ${px(r.left - a.left)} round 12px)`;
 }
+// The hand-off at the end is instant: with transitions on, the list (above the place in
+// the page order) would fade out over the place for a moment, a flicker (Safari).
 function stopZoom() {
-    zoomAnims.forEach(a => a.cancel());
+    const b = document.body;
+    if (b.classList.contains("zooming")) {
+        b.classList.add("zoom-settle");
+        b.classList.remove("zooming");
+        void b.offsetWidth;                                   // the switch happens now, untransitioned
+        zoomAnims.forEach(a => a.cancel());
+        requestAnimationFrame(() => requestAnimationFrame(() => b.classList.remove("zoom-settle")));
+    } else zoomAnims.forEach(a => a.cancel());
     zoomAnims = [];
-    document.body.classList.remove("zooming");
 }
 function runZoom(from, opening) {
     const det = $("#details"), list = $("#listPage"), full = "inset(0px 0px 0px 0px round 0px)";
@@ -684,12 +692,12 @@ function runZoom(from, opening) {
     const page = det.animate(opening
         ? [{ clipPath: from, opacity: 0, backgroundColor: card }, { opacity: 1, offset: 0.15 }, { backgroundColor: card, offset: 0.3 }, { clipPath: full, opacity: 1, backgroundColor: bg }]
         : [{ clipPath: full, opacity: 1, backgroundColor: bg }, { backgroundColor: card, offset: 0.7 }, { opacity: 1, offset: 0.8 }, { clipPath: from, opacity: 0, backgroundColor: card }],
-        { duration: ZOOM_MS, easing: ZOOM_EASE });
+        { duration: ZOOM_MS, easing: ZOOM_EASE, fill: "forwards" });
     // the list behind sinks back a little as a place opens, and settles with a small bounce as it comes back
     const back = list.animate(opening
         ? [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.96)", opacity: 0.4 }]
         : [{ transform: "scale(.96)", opacity: 0.4 }, { transform: "scale(1)", opacity: 1 }],
-        { duration: ZOOM_MS, easing: opening ? ZOOM_EASE : "cubic-bezier(.34,1.5,.64,1)" });
+        { duration: ZOOM_MS, easing: opening ? ZOOM_EASE : "cubic-bezier(.34,1.5,.64,1)", fill: "forwards" });
     zoomAnims = [page, back];
     page.onfinish = () => { if (zoomAnims[0] === page) stopZoom(); };
 }
