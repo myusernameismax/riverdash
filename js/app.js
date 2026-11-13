@@ -1469,13 +1469,14 @@ function stationLine(i) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
-        <div class="pmain"><div class="pname">${esc(o.label || p.name)}</div><div class="psub">${esc(stationLine(i))}</div></div>
+        <div class="pmain"><div class="pname">${esc(o.label || p.name)}</div></div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
+        <div class="psub full">${esc(stationLine(i))}</div>
     </div>`;
 }
 
