@@ -431,6 +431,12 @@ body.editing .psub.full { margin-left: 32px; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .hit.have { cursor: pointer; }
 .hit.picked { background: color-mix(in srgb, var(--accent) 18%, transparent); }   /* added this visit (Back takes it out) */
+/* with a mouse: the row under the pointer is tinted, so it's clear which gauge the + far
+   on the right belongs to (not on touch screens, where a hover would stick after a tap) */
+@media (hover: hover) and (pointer: fine) {
+    .hit:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+    .hit.picked:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+}
 .hit.have .hit-name { opacity: .5; white-space: normal; }   /* added: the full name, on two lines if needed */
 .hit-main { flex: 1; min-width: 0; }
 .hit-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
