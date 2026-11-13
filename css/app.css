@@ -315,7 +315,11 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .bubble.neg { background: none; color: var(--negative); font-size: 26px; font-weight: 500; }   /* remove: just a red minus */
 
 /* empty / search states */
-.placeholder { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 40px 20px; }
+/* no places yet: the icon, words and buttons centered as one group in the space between
+   the top and the bottom bar (like the splash screen) */
+#body:has(> .placeholder) { min-height: 100%; box-sizing: border-box; padding-bottom: 4px; }   /* even top and bottom */
+.placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+               gap: 6px; padding: 20px; flex: 1; }
 .ph-icon { opacity: .4; }
 .ph-text { font-size: 18px; font-weight: 600; opacity: .8; }
 .ph-expl { font-size: 13px; opacity: .6; max-width: 280px; }
