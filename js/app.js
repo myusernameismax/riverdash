@@ -35,7 +35,10 @@ const S = {
     loading: false,
     chartMode: "",           // "stage" | "flow" | "tide" | "surf", "" = automatic
     focusDay: -1,            // local midnight (ms) of a day picked in the surf/weather lists; -1 = now
-    // add page
+    // places list page (opened from the bottom bar), its search adds places
+    listing: false,
+    lsearch: false,          // its search is in use (field focused or holding text)
+    // add page (Customize → Stations: a gauge or tide station for the shown place)
     adding: false,
     attachTo: -1,            // -1 = new place, else add a gauge/station to this place
     attachKind: "",          // "river" | "tide" | "" (both)
@@ -50,7 +53,7 @@ const S = {
     hist: null,              // {mode, range}: the chart shows history (Flow / Water temp)
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     newGroups: [],           // Edit → + Group: groups made but still empty (gone if left empty)
-    addedKeys: [],           // places added during this visit to the Add page (Back takes them out)
+    addedKeys: [],           // places added in this search (Cancel / Back takes them out)
     swiped: -1,              // place row swiped open to show Delete
     // share / import page
     moving: "",              // "share" | "import" | ""
@@ -617,6 +620,41 @@ function unAdd(keys) {
     const sel = list.findIndex(p => keyOf(p) === shownKey);
     S.selected = sel >= 0 ? sel : pinned();
 }
+// The places list. Typing in its search shows results instead of the list; tapping a
+// result adds it right away (✓, starts loading), several can go in, and the floating
+// "Add 2 Rivers To List" button keeps them and opens the first. Cancel / Back takes
+// them out again.
+function openList(search = false) {
+    S.listing = true;
+    S.editing = false; S.newGroups = []; S.swiped = -1;
+    S.attachTo = -1; S.attachKind = "";
+    render();
+    if (search) { startSearch(); $("#lq").focus({ preventScroll: true }); }   // inside the tap, so the keyboard comes up
+}
+function startSearch() {
+    if (S.lsearch) return;
+    S.lsearch = true; S.editing = false; S.newGroups = []; S.swiped = -1;
+    S.attachTo = -1; S.attachKind = "";
+    S.addedKeys = [];
+    S.searchResults = []; S.searchError = ""; S.searching = false; S.searchSeq++;
+    render();
+    warmSearch();
+}
+function endSearch(keep = false) {
+    const lq = $("#lq");
+    lq.value = ""; lq.blur();
+    S.lsearch = false;
+    S.searchResults = []; S.searchError = ""; S.searching = false; S.searchSeq++;
+    if (!keep) unAdd(S.addedKeys);
+    const i = S.places.findIndex(p => S.addedKeys.includes(keyOf(p)));
+    S.addedKeys = [];
+    if (i >= 0) { select(i); flash.selected = true; S.listing = false; }
+}
+// Leaving the list for the river view (a place was tapped, or Back)
+function closeList() {
+    if (S.lsearch) endSearch();
+    S.listing = false; S.editing = false; S.newGroups = []; S.swiped = -1;
+}
 const alreadyHave = item => S.places.some(p => p[item.kind] === item.id);
 const addedNow = item => S.places.some(p => p[item.kind] === item.id && S.addedKeys.includes(keyOf(p)));
 // "Add 1 River To List", "Add 2 Tide Stations To List", mixed: "Add 3 Places To List"
@@ -628,7 +666,7 @@ function addLabel() {
 }
 function keepAdded() {
     const n = S.addedKeys.length, first = S.places.find(p => S.addedKeys.includes(keyOf(p)));
-    closeAdd(true);
+    if (S.listing) endSearch(true); else closeAdd(true);
     if (first) toast("Added " + (n === 1 ? first.name : n + " places"), "", null);
 }
 function addResult(item) {
@@ -783,13 +821,16 @@ function toast(text, actionText, action) {
 function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 
 // Back gesture / Esc: leave the add page, edit mode or a picked day. false = nothing to go back from
-// One step at a time, innermost first: a page or panel on top, then a picked day
-// (back to the week), then another place (back to the ★ place).
+// One step at a time, innermost first: a page or panel on top (on the places list: its
+// search, then Edit, then the list itself), then a picked day (back to the week), then
+// another place (back to the ★ place).
 function goBack() {
     if (S.adding) closeAdd();
     else if (S.moving) closeMove();
+    else if (S.listing && S.lsearch) endSearch();
+    else if (S.editing) { S.editing = false; S.newGroups = []; }
+    else if (S.listing) closeList();
     else if (S.customizing) closeCustomize();
-    else if (S.editing) S.editing = false;
     else if (S.hist) S.hist = null;
     else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
     else if (S.places.length && S.selected !== pinned()) select(pinned());
@@ -817,10 +858,11 @@ function pickDay(start) {
 // forgotten when you leave the app for a while, so it reopens on "now" for the ★ place.
 function resetView() {
     if (S.moving === "share") S.moving = "";
-    S.adding = false; S.editing = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
+    S.adding = false; S.editing = false; S.listing = false; S.lsearch = false; S.addedKeys = []; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
     S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1; S.hist = null;
     bigChart.hoverT = bigChart.pinT = NaN;
     $("#q").blur();
+    const lq = $("#lq"); lq.value = ""; lq.blur();
     $("#scroll").scrollTop = 0;
 }
 
@@ -1374,9 +1416,7 @@ function renderPlaces() {
             first = false;
             if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
-        return section({ id: "placesSec", title: "Places", pad: 0, gap: 0,
-            trailing: `<button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button><button class="edit-btn" data-act="edit">Edit</button>`,
-            body: `<div id="placesList">${rows}</div>` });
+        return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
     }
     // Edit mode: every place with its ≡ handle; each group is a tinted box (always
     // open) with its name field, − (ungroup) and its own ≡. Drag places into and
@@ -1404,9 +1444,7 @@ function renderPlaces() {
             it.members.map(i => placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) })).join(""));
         first = false;
     }
-    return section({ id: "placesSec", title: "All places", pad: 0, gap: 0,
-        trailing: `<button class="edit-btn" data-act="newGroup">${icon("plus", 12)}Group</button><button class="edit-btn on" data-act="edit">Done</button>`,
-        body: `<div id="placesList">${rows}</div>` });
+    return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
 }
 
 function renderBody(cur) {
@@ -1433,7 +1471,6 @@ function renderBody(cur) {
         sel += renderSurf(cur);
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
-    html += renderPlaces();
     morphInto($("#body"), html);
 }
 
@@ -1443,21 +1480,43 @@ function renderFooter() {
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
+        <button class="fbtn round flist" data-act="list" aria-label="Places">${icon("list", 24)}</button>
         <div class="egg">Stop looking at your phone and go fishing!</div>`);
+}
+
+// The places list page: its top row, then the list, or search results while searching.
+function renderList() {
+    const picks = S.listing && S.lsearch && S.addedKeys.length > 0;
+    const commit = $("#listCommit");
+    commit.classList.toggle("on", picks);
+    if (picks) commit.textContent = addLabel();
+    const page = $("#listPage");
+    page.classList.toggle("picking", picks);
+    page.classList.toggle("searching", S.lsearch);
+    page.classList.toggle("editing", S.editing);
+    $("#lqCancel").classList.toggle("on", S.lsearch);
+    morphInto($("#listTop"), `<h1 class="ltitle">Places</h1>
+        ${S.editing ? `<button class="top-btn" data-act="newGroup">${icon("plus", 14)}Group</button>` : ""}
+        ${S.places.length ? `<button class="top-btn${S.editing ? " strong" : ""}" data-act="edit">${S.editing ? "Done" : "Edit"}</button>` : ""}`);
+    const results = S.lsearch && ($("#lq").value.trim() || !S.places.length);
+    morphInto($("#listBody"), results || !S.places.length ? hitsHtml(true, true, $("#lq").value.trim().length) : renderPlaces());
 }
 
 function renderAdd() {
     const rivers = S.attachKind !== "tide", tides = S.attachKind !== "river";
-    const commit = $("#addCommit"), picks = S.attachTo < 0 && S.addedKeys.length > 0;
+    const commit = $("#addCommit"), picks = S.adding && S.attachTo < 0 && S.addedKeys.length > 0;
     commit.classList.toggle("on", picks);
     if (picks) commit.textContent = addLabel();
     $("#addPage").classList.toggle("picking", picks);
     $("#addTitle").textContent = S.attachTo < 0 ? "Add a place"
         : (S.attachKind === "tide" ? "Tides for " : "River gauge for ") + placeName(S.attachTo);
     $("#q").placeholder = tides && rivers ? "River, town, bay or gauge id" : tides ? "Search tide stations" : "Search river gauges";
+    if (S.adding) morphInto($("#addBody"), hitsHtml(rivers, tides, $("#q").value.trim().length));
+}
+// Search results (river gauges, tide stations) with ✓ / + and Map ↗, or a hint.
+function hitsHtml(rivers, tides, qlen) {
     const riverHits = S.searchResults.filter(x => x.kind === "river"), tideHits = S.searchResults.filter(x => x.kind === "tide");
     const shown = (rivers ? riverHits.length : 0) + (tides ? tideHits.length : 0);
-    const qlen = $("#q").value.trim().length;
     let html = "";
     if (shown) {
         for (const g of [
@@ -1483,13 +1542,15 @@ function renderAdd() {
             <div class="ph-text">${qlen < 2 ? "Find a river or tide station" : "No matches"}</div>
             <div class="ph-expl">${esc(S.searchError || (qlen < 2 ? "Try “Rogue”, “Newport OR”, “Coos Bay” or a gauge id like SNDO3." : "Try fewer words, or the town nearest the gauge."))}</div></div>`;
     }
-    morphInto($("#addBody"), html);
+    return html;
 }
 
 function renderToast() {
     const t = S.toast, el = $("#toast");
     el.classList.toggle("on", t.shown);
-    el.classList.toggle("above-footer", !S.adding || (S.attachTo < 0 && S.addedKeys.length > 0));   // above the footer / the Add button
+    const picks = (S.adding || S.listing) && S.attachTo < 0 && S.addedKeys.length > 0;
+    el.classList.toggle("above-footer", !S.adding && !S.listing);   // above the bottom bar
+    el.classList.toggle("above-commit", picks);                      // above the floating Add button
     if (t.shown) {
         $("#toastText").textContent = t.text;
         const a = $("#toastAct");
@@ -1502,12 +1563,14 @@ function render() {
     const place = S.places[S.selected] || null;
     const d = dataFor(S.selected);
     const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
+    document.body.classList.toggle("listing", S.listing);
     document.body.classList.toggle("adding", S.adding);
     document.body.classList.toggle("editing", S.editing);
     document.body.classList.toggle("moving", !!S.moving);
     renderHeader(cur);
     renderBody(cur);
     renderFooter();
+    renderList();
     renderAdd();
     renderMove();
     renderToast();
@@ -1682,7 +1745,7 @@ function startDrag(e, handle) {
     document.body.classList.add("dragging");
     dragging = { row: actual, isBox, ph, list, grab: e.clientY - r.top, y: e.clientY, pending: false };
     handle.setPointerCapture(e.pointerId);
-    const scroller = $("#scroll");
+    const scroller = $("#listScroll");
     const others = el => [...el.children].filter(x => x !== actual && x !== ph);
     const mid = x => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; };
     const nextOf = x => { let n = x.nextElementSibling; while (n === actual) n = n.nextElementSibling; return n; };
@@ -1776,15 +1839,11 @@ const ACTIONS = {
     toggleTab: el => toggleTab(el.dataset.mode),
     removeStation: el => removeStation(el.dataset.kind),
     resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
-    // Tapping a place in the list keeps the list where it is on screen: the tapped row
-    // stays put while the place above it changes (so places compare easily).
+    // Tapping a place in the list zooms into it (the list keeps its spot for next time).
     select: el => {
-        const i = +el.dataset.i, top = el.getBoundingClientRect().top;
-        select(i, true);
-        render();
-        const row = document.querySelector(`#placesList .prow[data-i="${i}"]`);
-        if (row) $("#scroll").scrollTop += row.getBoundingClientRect().top - top;
-        return "skip";
+        select(+el.dataset.i);
+        flash.selected = true;
+        closeList();
     },
     // Opening a group that runs off the bottom scrolls it into view (its name stays on screen).
     toggleGroup: el => {
@@ -1795,7 +1854,7 @@ const ACTIONS = {
         const head = [...document.querySelectorAll("#placesList .prow.grp")].find(x => x.dataset.g === k);
         let last = head;
         while (last && last.nextElementSibling && last.nextElementSibling.classList.contains("member")) last = last.nextElementSibling;
-        if (head) setTimeout(() => reveal(head, last), 30);
+        if (head) setTimeout(() => reveal(head, last, $("#listScroll")), 30);
         return "skip";
     },
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
@@ -1814,13 +1873,11 @@ const ACTIONS = {
     },
     importMerge: () => applyImport(false),
     importReplace: () => applyImport(true),
-    // Same feel as Customize: opening glides down to the list, Done glides back to
-    // where the page was before Edit and only then switches the list back.
+    // Edit / Done on the places list (the search bar folds away while editing)
     edit: () => {
-        S.newGroups = [];
-        if (!S.editing) { S.editing = true; editFrom = $("#scroll").scrollTop; setTimeout(showList, 30); return; }
-        glideThen(editFrom, () => { S.editing = false; });
-        return "skip";
+        S.newGroups = []; S.swiped = -1;
+        if (S.lsearch) endSearch();
+        S.editing = !S.editing;
     },
     newGroup: () => {
         let name = "New group", n = 2;
@@ -1852,7 +1909,8 @@ const ACTIONS = {
         return "skip";
     },
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
-    add: () => { openAdd(-1, ""); return "skip"; },
+    add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
+    list: () => { openList(); return "skip"; },
     attach: el => { openAdd(S.selected, el.dataset.kind); return "skip"; },
     refresh: () => { refresh(); return "skip"; },
     closeAdd: () => closeAdd(),
@@ -1862,9 +1920,6 @@ const ACTIONS = {
     },
 };
 
-// Edit: glide down so the list is in view.
-function showList() { showSection("#placesSec"); }
-let editFrom = 0;   // where the page was when Edit opened
 // Glide the page to `top`, then run fn and re-render: a panel closes only once the
 // page is back, so nothing jumps as the page gets shorter.
 function glideThen(top, fn) {
@@ -1884,14 +1939,10 @@ function glideThen(top, fn) {
     f.scrollTo({ top, behavior: "smooth" });
     setTimeout(finish, 900);   // in case the glide gets interrupted
 }
-function showSection(sel) {
-    const sec = $(sel);
-    if (sec) reveal(sec, sec);
-}
 // Scroll down just enough to show `last` whole, but never so far that `first` leaves
 // the top of the screen (a long list: its start stays in view, the rest is a scroll away).
-function reveal(first, last) {
-    const f = $("#scroll"), fr = f.getBoundingClientRect();
+function reveal(first, last, f = $("#scroll")) {
+    const fr = f.getBoundingClientRect();
     const need = last.getBoundingClientRect().bottom - (fr.bottom - 12);
     const room = first.getBoundingClientRect().top - (fr.top + 8);
     const by = Math.min(need, room, f.scrollHeight - f.clientHeight - f.scrollTop);
@@ -1936,14 +1987,15 @@ function wire() {
         if (px < 0) S.swiped = +row.dataset.i; else if (S.swiped === +row.dataset.i) S.swiped = -1;
     };
     const closeSwipes = keep => document.querySelectorAll("#placesList .prow.swiped").forEach(r => { if (r !== keep) setSx(r, 0); });
-    $("#body").addEventListener("touchstart", e => {
+    const lb = $("#listBody");
+    lb.addEventListener("touchstart", e => {
         const row = e.target.closest("#placesList .prow[data-act=select]");
         if (!e.target.closest(".pdel")) closeSwipes(row);
         const t = e.touches[0];
         sw = row && !S.editing && e.touches.length === 1 && t.clientX > 24
             ? { row, x: t.clientX, y: t.clientY, base: row.classList.contains("swiped") ? -DEL_W : 0, sx: 0, raw: 0, mode: "" } : null;
     }, { passive: true });
-    $("#body").addEventListener("touchmove", e => {
+    lb.addEventListener("touchmove", e => {
         if (!sw) return;
         const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
         if (!sw.mode) {
@@ -1958,7 +2010,7 @@ function wire() {
         sw.row.classList.add("dragx");
         setSx(sw.row, sw.sx);
     }, { passive: false });
-    $("#body").addEventListener("touchend", () => {
+    lb.addEventListener("touchend", () => {
         if (!sw || sw.mode !== "h") { sw = null; return; }
         const { row, sx, raw } = sw;
         sw = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 400);
@@ -2068,7 +2120,6 @@ function wire() {
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
         const el = e.target;
-        if (el.matches && el.matches(".gname")) { renameGroup(el.dataset.g, el.value); render(); return; }
         if (!el.matches || !el.matches(".cz-in, .cz-name")) return;
         if (el.dataset.set === "name") rename(S.selected, el.value);
         else if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
@@ -2076,8 +2127,30 @@ function wire() {
         render();
     });
     $("#body").addEventListener("keydown", e => {
-        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name, .gname")) { e.preventDefault(); e.target.blur(); }
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name")) { e.preventDefault(); e.target.blur(); }
     });
+    // Edit: group names are saved when you leave the field or press Done
+    lb.addEventListener("change", e => {
+        if (e.target.matches && e.target.matches(".gname")) { renameGroup(e.target.dataset.g, e.target.value); render(); }
+    });
+    lb.addEventListener("keydown", e => {
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".gname")) { e.preventDefault(); e.target.blur(); }
+    });
+
+    // the places list's search
+    const lq = $("#lq");
+    lq.addEventListener("focus", () => startSearch());
+    // leaving an empty search (nothing added) puts the list back, like Cancel
+    lq.addEventListener("blur", () => setTimeout(() => {
+        if (S.lsearch && document.activeElement !== lq && !lq.value.trim() && !S.addedKeys.length) { S.lsearch = false; render(); }
+    }, 150));
+    lq.addEventListener("input", () => { clearTimeout(searchTimer); render(); searchTimer = setTimeout(() => runSearch(lq.value), 250); });
+    lq.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchTimer); runSearch(lq.value); lq.blur(); }
+        if (e.key === "Escape") { endSearch(); render(); }
+    });
+    $("#lqCancel").addEventListener("click", () => { endSearch(); render(); });
+    $("#listCommit").addEventListener("click", () => { keepAdded(); render(); });
 
     // search
     const q = $("#q");
@@ -2089,13 +2162,13 @@ function wire() {
     $("#addBack").addEventListener("click", () => { closeAdd(); render(); });
     $("#addCommit").addEventListener("click", () => { keepAdded(); render(); });
     // The keyboard covers the bottom of the Add page (iOS doesn't shrink the page for
-    // it), so the floating button rides on top of it: --kb = the covered height.
+    // it), so the floating Add buttons ride on top of it: --kb = the covered height.
     const vv = window.visualViewport;
     if (vv) {
-        const addPage = $("#addPage");
+        const app = $("#app");
         const lift = () => {
-            const covered = addPage.getBoundingClientRect().bottom - (vv.offsetTop + vv.height);
-            addPage.style.setProperty("--kb", Math.max(0, Math.round(covered)) + "px");
+            const covered = app.getBoundingClientRect().bottom - (vv.offsetTop + vv.height);
+            app.style.setProperty("--kb", Math.max(0, Math.round(covered)) + "px");
         };
         vv.addEventListener("resize", lift);
         vv.addEventListener("scroll", lift);
@@ -2135,7 +2208,7 @@ function wire() {
         edge = null;
     }, { passive: true });
     document.addEventListener("keydown", e => {
-        if (e.key !== "Escape" || document.activeElement === q) return;
+        if (e.key !== "Escape" || document.activeElement === q || document.activeElement === lq) return;
         if (goBack()) render(); else backAtTop();
     });
 
