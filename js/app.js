@@ -2585,25 +2585,6 @@ function reloadForUpdate() {
     } catch (e) { /* fine */ }
     location.reload();
 }
-// A computer often keeps the tab open and on screen for days, so "when you come back"
-// never comes: while it's open, check every 30 min (and when the window gets the focus
-// back after 10), and switch to a new version once nothing's been touched for 2 min
-// and nothing's half done (Edit, a search, Customize, Share / Add).
-let lastCheck = Date.now(), lastInput = Date.now();
-for (const t of ["pointerdown", "keydown", "wheel", "touchstart"])
-    document.addEventListener(t, () => { lastInput = Date.now(); }, { capture: true, passive: true });
-function checkSometimes(gap) {
-    if (document.hidden || Date.now() - lastCheck < gap) return;
-    lastCheck = Date.now();
-    checkForUpdate();
-}
-const busy = () => S.adding || !!S.moving || S.editing || S.customizing || S.lsearch || !!dragging;
-setInterval(() => {
-    if (document.hidden) return;
-    checkSometimes(30 * 60000);
-    if (updateReady && Date.now() - lastInput > 2 * 60000 && !busy()) reloadForUpdate();
-}, 60000);
-window.addEventListener("focus", () => checkSometimes(10 * 60000));
 
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
@@ -2637,8 +2618,22 @@ savedPlaces(S.places).then(r => {
 if ("serviceWorker" in navigator && location.protocol === "https:")
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
 document.addEventListener("pointerdown", () => { touched = true; }, { capture: true, once: true });
-// just opened: if there's a new version and you haven't touched anything yet, switch now
-setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hidden) reloadForUpdate(); }), 1500);
+// Just opened: if there's a new version, switch now if you haven't touched anything yet.
+// Opened in a background tab (a browser restoring its tabs after a restart): switch the
+// moment it's first shown, before it's used. Already clicked: a note offers to reload
+// now; otherwise it switches the next time you come back after a minute away.
+setTimeout(() => checkForUpdate().then(u => {
+    if (!u) return;
+    if (document.hidden && !touched) {
+        const onShow = () => {
+            if (document.hidden) return;
+            document.removeEventListener("visibilitychange", onShow);
+            if (!touched) reloadForUpdate();
+        };
+        document.addEventListener("visibilitychange", onShow);
+    } else if (!touched) reloadForUpdate();
+    else { toast("New version ready", "Reload", reloadForUpdate); render(); }
+}), 1500);
 try {
     if (sessionStorage.getItem("rt:updated")) {
         sessionStorage.removeItem("rt:updated");
