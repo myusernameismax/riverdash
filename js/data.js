@@ -423,7 +423,7 @@ async function tide(sid) {
     const st = (await tideStations().catch(() => [])).find(s => s[0] === sid);
     const past = events.filter(e => e.time <= now);
     return {
-        id: sid, name: st ? st[1] : sid,
+        id: sid, name: st ? st[1] : sid, lat: st ? st[3] : null, lon: st ? st[4] : null,
         height: live ? obs[1] : (predNow !== null ? round(predNow, 2) : null),
         live, time: live ? obs[0] : now,
         rising: predNow === null || later === null ? null : later > predNow,

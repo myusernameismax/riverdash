@@ -911,7 +911,11 @@ function renderHeader(cur) {
     const d = cur.d, r = cur.r, t = cur.t;
     // a station whose charts are all switched off (Customize → Show) isn't named
     const off = ms => ms.every(m => hidden(place, m));
-    const sub = [r && !off(["stage", "flow", "temp"]) ? r.name : "", t && !off(["tide", "surf"]) ? "Tides: " + t.name : ""]
+    // each station's name opens a map at the exact spot of the gauge / tide station
+    const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
+        ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener">${icon("map", 12)}${esc(label)}</a>`
+        : esc(label);
+    const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
         .filter(s => s).join("  ·  ");
     const n = d && d.weather ? d.weather.now : null;
     const wx = LOOK.showWeather && n && has(n.temp)
@@ -922,7 +926,7 @@ function renderHeader(cur) {
         ${d ? `<button class="hcz${S.customizing ? " on" : ""}" data-act="customize" aria-label="Customize">${icon("sliders", 20)}</button>` : ""}
         <div class="hname">
             <div class="htitle"><h1>${esc(place.name)}</h1>${k === null ? "" : `<span class="hshape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
-            ${sub ? `<div class="hsub">${esc(sub)}</div>` : ""}
+            ${sub ? `<div class="hsub">${sub}</div>` : ""}
         </div>
         ${wx}
         <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon("star", 24)}</button>
