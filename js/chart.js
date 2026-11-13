@@ -364,7 +364,7 @@ export class Chart {
                 const when = g.dates ? dateLabel(t, !sameYear(t, now), true)
                     : (g.history ? fmtMonthDay(t) + " " : sameDay(t, now) ? "" : fmtDay(t) + " ") + fmtTime(t, "h:mm A");
                 const tv = typ.length ? valueOn(typ, t) : NaN;
-                const label = fmt(v) + unit + "  ·  " + when + (isNaN(tv) ? "" : "  ·  typical " + fmt(tv))
+                const label = fmt(v) + unit + "  ·  " + when + (isNaN(tv) ? "" : "  ·  average " + fmt(tv))
                     + (past.length && t > past[past.length - 1][0] && fut.length ? " (forecast)" : "");
                 const w = ctx.measureText(label).width + 10, h = px + 8;
                 const bx = Math.min(Math.max(x - w / 2, left), right - w);

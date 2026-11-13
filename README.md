@@ -58,7 +58,9 @@ Only the inputs change from the desktop widget:
 - **History** (blue, under the Flow chart next to Typical flow, and under the Water temp chart)
   turns the chart into a longer view: **1 wk · 1 mo · 3 mo · 1 yr · 5 yr** (no dates
   to type). The river's line keeps its good-range colors; a faint dashed line is the
-  typical value for each date (a small legend under the chart names both); dragging shows the value, date and typical. 1 wk uses
+  typical value for each date (the legend under the chart says Recorded Flow / Average
+  Flow, or Temp; "average" here is the median for that date over every year, so floods
+  don't skew it); dragging shows the value, date and average. 1 wk uses
   the 15-minute readings, longer ranges USGS's daily averages. Only for gauges with a
   USGS number, and only downloaded when opened (saved 6 h; 1 wk 15 min). **Done**, the
   back swipe, another tab or place, or picking a weather day goes back.

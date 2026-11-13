@@ -41,7 +41,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 
 - **No text that explains the UI**: no "tap to…", legends describing the screen or
   banners. Short labels only ("Tide · ft"). Explanations go in the README.
-  Exception: the history chart has a one-line legend (Flow / Typical for the date),
+  Exception: the history chart has a one-line legend (Recorded Flow / Average Flow),
   because its two lines are easy to mix up.
 - Data in tooltips and labels is fine ("Forecast · measured 8 h ago").
 - Plain words over jargon ("Typical flow", not "median").

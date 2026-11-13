@@ -1010,8 +1010,8 @@ function renderHistory(cur) {
                   nowValue: NaN, dates: range !== "1w", noNow: range !== "1w", history: true };
         // a legend here (unlike the other charts): two lines that are easy to mix up
         body = `<canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
-            <div class="hist-legend" style="--accent:${color}"><span class="lg-solid"></span>${temp ? "Water temp" : "Flow"}${h.data.typical.length > 1
-                ? `<span class="lg-dash"></span>Typical for the date` : ""}</div>`;
+            <div class="hist-legend" style="--accent:${color}"><span class="lg-solid"></span>${temp ? "Recorded Temp" : "Recorded Flow"}${h.data.typical.length > 1
+                ? `<span class="lg-dash"></span>${temp ? "Average Temp" : "Average Flow"}` : ""}</div>`;
     } else {
         cur.g = null;
         body = `<div class="chart-empty" style="height:${LOOK.chartHeight}px">${h.loading ? `<span class="spinner"></span>`
