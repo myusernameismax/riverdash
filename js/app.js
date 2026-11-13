@@ -1039,7 +1039,7 @@ function renderChart(cur) {
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
     const hist = S.focusDay < 0 && histSite(cur);
-    const under = hist ? `<div class="hist-row">${avg ? `<span class="chart-peak" id="chartAvg">${esc(avg)}</span>` : ""}<button class="edit-btn" data-act="history" style="color:${mode === "temp" ? LOOK.tempColor : LOOK.flowColor}">History</button></div>`
+    const under = hist ? `<div class="hist-row">${avg ? `<span class="chart-peak" id="chartAvg">${esc(avg)}</span>` : ""}<button class="edit-btn" data-act="history" style="color:${mode === "temp" ? LOOK.tempColor : LOOK.flowColor}">View History</button></div>`
         : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
