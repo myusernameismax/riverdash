@@ -1198,8 +1198,9 @@ function renderHeader(cur) {
     const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
         ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener"><span class="hmap-arrow lead">↗</span>${esc(label)}</a>`
         : esc(label);
+    // one line per station (a river gauge and a tide station stack), each its own map link
     const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
-        .filter(s => s).join("  ·  ");
+        .filter(s => s).map(s => `<div class="hsub-l">${s}</div>`).join("");
     const n = d && d.weather ? d.weather.now : null;
     const wx = LOOK.showWeather && n && has(n.temp)
         ? `<button class="hwx" data-act="nowToggle">${wxIcon(n.code, n.day, 34)}<span class="hwx-t"><span class="hwx-temp">${n.temp}°</span><span class="hwx-word">${esc(wxWord(n.code))}</span></span></button>`
