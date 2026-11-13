@@ -78,8 +78,9 @@ Only the inputs change from the desktop widget:
 ## Places list and groups
 
 - Opened with the **list button** at the bottom right (blue); the river view zooms out
-  and the list zooms in. Big **Places** title with **Edit** on its right, the search
-  bar under it (that's where places get added), then every place (none highlighted:
+  and the list zooms in. Big **Places** title, the search bar under it (that's
+  where places get added), a row with **Sort** on the left and **Edit** on the right,
+  then every place (none highlighted:
   the list is its own page now). Each row has the place's name, the readings and ★ on
   the right, and under the name its stations in full (as at the top of a place: "Sandy
   River near Marmot", "Tides: Newport"), wrapping across the whole row, under the
@@ -128,7 +129,7 @@ rivers share a name.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
-- In Edit, **+ Group** and **Done** sit where Edit was and the search bar dims in place;
+- In Edit, **+ Group** and **Done** sit where Edit was and the search bar and Sort dim in place;
   nothing moves (long station names wrap the same way in both). Opening a group that runs off the screen scrolls it
   into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
