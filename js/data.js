@@ -685,7 +685,10 @@ const title = s => s[0].toUpperCase() + s.slice(1);
 // stays saved, so switching one back on soon after shows it right away.
 // asked: the parts that were really looked for (so the app can tell "this station
 // has no water temperature" from "not downloaded").
-async function place(p, full = true) {
+// onPart(snapshot) runs as parts arrive (river / tide, then waves), so a slow weather or
+// wave download doesn't keep the readings off the screen; parts not there yet are
+// left out of the snapshot (undefined), not null.
+async function place(p, full = true, onPart) {
     const out = { key: (p.river || "") + "|" + (p.tide || ""), river: null, tide: null, errors: [], light: !full, asked: [] };
     const off = m => Array.isArray(p.hide) && p.hide.includes(m);
     const need = { series: !off("stage") || !off("flow"), flow: !off("flow"), temp: !off("temp") && full };
@@ -698,8 +701,11 @@ async function place(p, full = true) {
     if (p.tide && !off("tide")) tasks.push(tide(p.tide).then(t => { out.tide = t; out.asked.push("tide"); },
         e => { out.errors.push(`Tide ${p.tide}: ${e.message}`); }));
     await Promise.all(tasks);
+    const part = () => { if (onPart) onPart({ ...out, errors: [...out.errors], asked: [...out.asked], partial: true }); };
+    part();
     if (p.tide && !off("surf")) {
         try { out.surf = await surf(p.tide); out.asked.push("surf"); } catch (e) { out.surf = null; out.errors.push(`Swell forecast: ${e.message}`); }
+        if (full) part();
     }
     // weather at the river gauge, else at the tide station
     out.weather = null;
@@ -726,9 +732,9 @@ export async function savedPlaces(places) {
 // fullKeys: a Set of place keys that get everything (the rest get the list's part),
 // or undefined = all of them. 4 places at a time: all at once would queue in the
 // browser anyway, and one by one is much slower.
-export async function fetchPlaces(places, fullKeys) {
+export async function fetchPlaces(places, fullKeys, onPart) {
     net.ok = net.fail = net.newest = 0;
-    const out = await pool(places, 4, p => place(p, !fullKeys || fullKeys.has((p.river || "") + "|" + (p.tide || ""))));
+    const out = await pool(places, 4, p => place(p, !fullKeys || fullKeys.has((p.river || "") + "|" + (p.tide || "")), onPart));
     const offline = navigator.onLine === false || (net.fail > 0 && net.ok === 0);
     return { places: out, time: net.newest || Date.now(), offline, downloads: net.ok + net.fail };
 }

@@ -50,7 +50,7 @@ Only the inputs change from the desktop widget:
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
-| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button). |
+| Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button): the arrow spins until the place on screen is updated. When the app refreshes by itself and the place on screen takes a moment, the arrow peeks out half as far and spins until it's done. |
 
 ## Water temperature and normal flow
 
@@ -271,7 +271,9 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   place's weather, water temperature and typical flow download when you open it (if
   older than 15 min); while it does, a tile it may still get (Water for a just-added
   gauge, say) spins in its spot, and is gone if the gauge turns out not to have it.
-  The USGS extras download alongside the river history, not after it. With 21 places: the shown place is current in ~2 s, all in ~6 s,
+  The USGS extras download alongside the river history, not after it. A place's
+  readings show as soon as they're in: a slow weather or wave forecast download doesn't
+  hold them back (or keep the other tiles spinning). With 21 places: the shown place is current in ~2 s, all in ~6 s,
   with 62 downloads instead of 104.
 - **Busy servers** (HTTP 429/5xx, e.g. a weather 503) get one quiet retry. Places
   within 10 km share one weather forecast; if weather can't be downloaded, the
