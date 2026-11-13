@@ -977,7 +977,18 @@ async function fetchSome(list, fullKeys) {
     full.forEach(k => loadingKeys.add(k));
     ptrSync();
     let r;
-    try { r = await fetchPlaces(list, fullKeys); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
+    // each place's readings show as soon as they're in, not after its weather / waves
+    const onPart = part => {
+        const old = S.results[part.key];
+        const m = mergeResult(part);
+        for (const k of ["weather", "surf"]) if (part[k] === undefined) m[k] = old ? old[k] : undefined;
+        delete m.partial;
+        S.results[part.key] = m;
+        const pl = list.find(q => keyOf(q) === part.key);
+        if (pl) noteAvail(pl, part);
+        if (S.listing || keyOf(S.places[S.selected]) === part.key) render();   // on screen
+    };
+    try { r = await fetchPlaces(list, fullKeys, onPart); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
     finally { full.forEach(k => loadingKeys.delete(k)); }
     for (const p of r.places) {
         S.results[p.key] = mergeResult(p);
