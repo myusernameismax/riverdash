@@ -1004,8 +1004,9 @@ function renderHeader(cur) {
     // a station whose charts are all switched off (Customize → Show) isn't named
     const off = ms => ms.every(m => hidden(place, m));
     // each station's name opens a map at the exact spot of the gauge / tide station
+    // (↗ in front, so a long name cut off at the edge still shows it opens something)
     const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
-        ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener">${esc(label)}<span class="hmap-arrow">↗</span></a>`
+        ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener"><span class="hmap-arrow lead">↗</span>${esc(label)}</a>`
         : esc(label);
     const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
         .filter(s => s).join("  ·  ");
