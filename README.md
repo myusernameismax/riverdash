@@ -135,6 +135,15 @@ rivers share a name.
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
 
+## On a computer (wide windows)
+
+In a window 760 px wide or more, the Places list stays on the left (about a third of
+the window) and the place you click fills the right; there's no list button and no
+zoom. The place on the right is tinted in the list (its folder's row, when that's
+closed). The right side's content stays at a readable width instead of stretching,
+and Add / Share slide in over the right side only. Narrower windows, and the desktop
+panel widget's popup, keep the phone layout.
+
 ## Moving places between devices
 
 Tap the **share** button in the bottom bar (next to Contact). It shows a QR code and a
