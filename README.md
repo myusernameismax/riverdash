@@ -287,7 +287,7 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   app switches to it: right away if you just opened it and haven't touched anything,
   otherwise the next time you come back after a minute away. Opened in a background tab
   (a browser restoring its tabs after a restart), it switches the moment the tab is first
-  shown; if you've already clicked, a **New version ready · Reload** note offers it. A
+  shown. A
   short "Updated to the latest version" note shows; your places are kept, and the app
   comes back on the same place.
 - **Opening screen:** the app logo with "Getting the latest from NOAA…" until the

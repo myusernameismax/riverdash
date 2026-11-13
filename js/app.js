@@ -2618,21 +2618,19 @@ savedPlaces(S.places).then(r => {
 if ("serviceWorker" in navigator && location.protocol === "https:")
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
 document.addEventListener("pointerdown", () => { touched = true; }, { capture: true, once: true });
-// Just opened: if there's a new version, switch now if you haven't touched anything yet.
-// Opened in a background tab (a browser restoring its tabs after a restart): switch the
-// moment it's first shown, before it's used. Already clicked: a note offers to reload
-// now; otherwise it switches the next time you come back after a minute away.
+// Just opened: if there's a new version and you haven't touched anything yet, switch now
+// (otherwise the next time you come back after a minute away). Opened in a background
+// tab (a browser restoring its tabs after a restart): switch the moment it's first shown,
+// before it's used. That tab never "came back" from anywhere, so it used to stay old.
 setTimeout(() => checkForUpdate().then(u => {
-    if (!u) return;
-    if (document.hidden && !touched) {
-        const onShow = () => {
-            if (document.hidden) return;
-            document.removeEventListener("visibilitychange", onShow);
-            if (!touched) reloadForUpdate();
-        };
-        document.addEventListener("visibilitychange", onShow);
-    } else if (!touched) reloadForUpdate();
-    else { toast("New version ready", "Reload", reloadForUpdate); render(); }
+    if (!u || touched) return;
+    if (!document.hidden) { reloadForUpdate(); return; }
+    const onShow = () => {
+        if (document.hidden) return;
+        document.removeEventListener("visibilitychange", onShow);
+        if (!touched) reloadForUpdate();
+    };
+    document.addEventListener("visibilitychange", onShow);
 }), 1500);
 try {
     if (sessionStorage.getItem("rt:updated")) {
