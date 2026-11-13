@@ -633,7 +633,7 @@ function unAdd(keys) {
 // "Add 2 Rivers To List" button keeps them and goes back to the list, scrolled to them. Cancel / Back takes
 // them out again.
 function openList(search = false) {
-    S.listing = true;
+    S.listing = !wide();
     S.editing = false; S.newGroups = []; S.swiped = -1;
     S.attachTo = -1; S.attachKind = "";
     render();
@@ -656,6 +656,17 @@ function endSearch(keep = false) {
     if (!keep) unAdd(S.addedKeys);
     S.addedKeys = [];
 }
+// ── wide windows (a computer): the places list stays on the left, the place on the right ──
+// No list button and no zoom there; the place on screen is tinted in the list. The
+// desktop panel widget's popup is narrow, so it keeps the phone layout.
+const wideMQ = matchMedia("(min-width: 760px)");
+const wide = () => wideMQ.matches && !document.documentElement.dataset.embed;
+const listShown = () => S.listing || wide();   // the places list is on screen
+function applyWide() {
+    document.documentElement.classList.toggle("wide", wide());
+    if (wide()) S.listing = false;   // the list is always there
+}
+wideMQ.addEventListener("change", () => render());
 // ── zoom between the list and a place (Apple Weather) ──
 // Tapping a row: the place's page opens out of the row, its top edge racing up and its
 // bottom edge down so both reach the screen's edges together. The list button: the page
@@ -664,7 +675,7 @@ function endSearch(keep = false) {
 const ZOOM_MS = Math.round(ANIM * 2.4);
 const ZOOM_EASE = "cubic-bezier(.45,0,.15,1)";        // eases out of the row, glides, settles softly
 let zoomAnims = [];
-const canZoom = () => ANIM > 0 && !!document.body.animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const canZoom = () => !wide() && ANIM > 0 && !!document.body.animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
 function rowFor(i) {
     const row = document.querySelector(`#placesList .prow[data-i="${i}"]`);
     if (row) return row;
@@ -749,7 +760,7 @@ function addLabel() {
 function keepAdded() {
     const keys = [...S.addedKeys], n = keys.length, first = S.places.find(p => keys.includes(keyOf(p)));
     if (first) toast("Added " + (n === 1 ? placeLabel(S.places.indexOf(first)) : n + " places"), "", null);
-    if (!S.listing) { closeAdd(true); return; }
+    if (S.adding) { closeAdd(true); return; }
     endSearch(true);
     for (const p of S.places) if (keys.includes(keyOf(p)) && groupOf(p)) S.openGroups.add(groupOf(p).toLowerCase());
     render();
@@ -922,7 +933,7 @@ function goBack() {
     if (S.sortOpen) S.sortOpen = false;
     else if (S.adding) closeAdd();
     else if (S.moving) closeMove();
-    else if (S.listing && S.lsearch) endSearch();
+    else if (listShown() && S.lsearch) endSearch();
     else if (S.editing) { S.editing = false; S.newGroups = []; }
     else if (S.listing) zoomInto(rowFor(S.selected), closeList);
     else if (S.customizing) closeCustomize();
@@ -994,7 +1005,7 @@ async function fetchSome(list, fullKeys) {
         S.results[part.key] = m;
         const pl = list.find(q => keyOf(q) === part.key);
         if (pl) noteAvail(pl, part);
-        if (S.listing || keyOf(S.places[S.selected]) === part.key) render();   // on screen
+        if (listShown() || keyOf(S.places[S.selected]) === part.key) render();   // on screen
     };
     try { r = await fetchPlaces(list, fullKeys, onPart); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
     finally { full.forEach(k => loadingKeys.delete(k)); }
@@ -1605,7 +1616,7 @@ function stationLine(i) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pmain"><div class="pname">${esc(o.label || placeLabel(i))}</div></div>
@@ -1628,7 +1639,8 @@ function renderPlaces() {
                 continue;
             }
             const open = S.openGroups.has(it.key);
-            rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
+            const holdsShown = wide() && !open && it.members.includes(S.selected);   // the place on the right is inside, folded away
+            rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}${holdsShown ? " shown" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
                 <div class="ghead"><span class="gchev">${icon("next", 14)}</span></div>
                 <div class="pmain"><div class="pname">${esc(it.name)}<span class="gcount">${it.members.length}</span></div></div>
                 <div class="gsparks">${it.members.slice(0, 4).map(i => `<canvas class="spark gs" data-spark="${i}"></canvas>`).join("")}</div>
@@ -1706,7 +1718,7 @@ function renderFooter() {
 
 // The places list page: its top row, then the list, or search results while searching.
 function renderList() {
-    const picks = S.listing && S.lsearch && S.addedKeys.length > 0;
+    const picks = listShown() && S.lsearch && S.addedKeys.length > 0;
     const commit = $("#listCommit");
     commit.classList.toggle("on", picks);
     if (picks) commit.textContent = addLabel();
@@ -1766,7 +1778,7 @@ function hitsHtml(rivers, tides, qlen) {
 function renderToast() {
     const t = S.toast, el = $("#toast");
     el.classList.toggle("on", t.shown);
-    const picks = (S.adding || S.listing) && S.attachTo < 0 && S.addedKeys.length > 0;
+    const picks = (S.adding || listShown()) && S.attachTo < 0 && S.addedKeys.length > 0;
     el.classList.toggle("above-footer", !S.adding && !S.listing);   // above the bottom bar
     el.classList.toggle("above-commit", picks);                      // above the floating Add button
     if (t.shown) {
@@ -1781,6 +1793,7 @@ function render() {
     const place = S.places[S.selected] || null;
     const d = dataFor(S.selected);
     const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
+    applyWide();
     document.body.classList.toggle("listing", S.listing);
     document.body.classList.toggle("adding", S.adding);
     document.body.classList.toggle("editing", S.editing);

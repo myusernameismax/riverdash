@@ -520,3 +520,16 @@ html[data-embed] #movePage, html[data-embed] #ftr { background: transparent; }
 html[data-embed] #ftr a[href^="mailto:"] { display: none; }   /* the desktop widget is for me */
 .prow { overflow: hidden; }
 #placesSec .sec-box { overflow: hidden; }   /* keeps a red Delete inside the rounded box */
+
+/* ── wide windows (a computer) ─────────────────────────────────────── */
+/* The places list stays on the left (about a third of the window), the place on the
+   right, its content no wider than reads well. Add / Share slide in over the right side
+   only. Set by app.js (html.wide) from 760 px up, not in the desktop panel popup. */
+html.wide { --listw: clamp(320px, 36vw, 480px); }
+html.wide #listPage { right: auto; width: var(--listw); transform: none; opacity: 1; visibility: visible; transition: none;
+                      background: color-mix(in srgb, var(--text) 3%, var(--bg)); }
+html.wide #details, html.wide #addPage, html.wide #movePage { left: var(--listw); }
+html.wide #hdr, html.wide #body { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+html.wide #ftr .flist { display: none; }
+html.wide .prow.shown { background: color-mix(in srgb, var(--link) 12%, transparent); }   /* the place on the right */
+html.wide #toast { left: calc(var(--listw) + (100% - var(--listw)) / 2); }
