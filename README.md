@@ -143,8 +143,10 @@ fills the right, with no zoom. The **list button** (bottom right, tinted while t
 is out) slides the pane away so the place, and its chart, get the whole width, and
 brings it back. Searching for a place (Add a place) brings it back too. The place on the right is tinted in the list (its folder's row, when that's
 closed). The right side's content stays at a readable width instead of stretching,
-and Add / Share slide in over the right side only. A sideways phone keeps clear of the
-notch. Narrower windows, and the desktop panel widget's popup, keep the phone layout.
+and Add / Share slide in over the right side only. On a sideways phone the
+pane is a bit wider, a name that doesn't fit next to its readings wraps to a second line,
+and the space iOS reserves on both sides is mostly used (just enough is kept clear for
+the notch and the rounded corners). Narrower windows, and the desktop panel widget's popup, keep the phone layout.
 
 ## Moving places between devices
 
