@@ -396,6 +396,10 @@ body.editing .psub.full { margin-left: 32px; }
 .lq-cancel { flex: none; max-width: 0; margin-left: 0; opacity: 0; overflow: hidden; white-space: nowrap; color: var(--link); font-size: 16px;
              transition: max-width var(--anim) cubic-bezier(.33,1,.68,1), margin-left var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
 .lq-cancel.on { max-width: 80px; margin-left: 12px; opacity: 1; }
+/* sort chips over the list (dimmed in Edit, which always shows your own order) */
+.sort-row { display: flex; gap: 6px; padding: 0 2px 8px; flex: none; transition: opacity var(--anim); }
+.sort-chip { font-size: 13px; padding: 5px 11px; --accent: var(--link); }
+.sort-row.off { opacity: .35; pointer-events: none; }
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
               padding: 0 var(--gutter) calc(var(--bot) + 20px); display: flex; flex-direction: column; }
 #listBody { display: flex; flex-direction: column; flex: 1; }
