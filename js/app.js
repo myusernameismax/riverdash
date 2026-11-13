@@ -258,6 +258,7 @@ function noteAvail(p, d) {
 }
 // Shown but no data yet: just switched back on and still downloading (that tile spins).
 const loadingKeys = new Set();
+const placeUpdated = {};   // place key -> when its data was last brought up to date (the bottom bar)
 const waiting = (p, d, m) => !hidden(p, m) && availOf(p, m) !== false && !haveModes(d).includes(m) && loadingKeys.has(keyOf(p));
 
 // Which charts this data has (whether hidden or not).
@@ -1009,7 +1010,8 @@ async function fetchSome(list, fullKeys) {
     // gauge, known only once USGS answers) spin until then
     const full = list.map(keyOf).filter(k => (!fullKeys || fullKeys.has(k)) && !loadingKeys.has(k));
     full.forEach(k => loadingKeys.add(k));
-    ptrSync();
+    const shownKey = S.places[S.selected] ? keyOf(S.places[S.selected]) : "";
+    if (full.includes(shownKey)) render();   // the bottom bar: "Updating…"
     let r;
     // each place's readings show as soon as they're in, not after its weather / waves
     const onPart = part => {
@@ -1031,6 +1033,7 @@ async function fetchSome(list, fullKeys) {
         if (!p.light) fullAt[p.key] = Date.now();
     }
     S.updated = Math.max(S.updated || 0, r.time);
+    for (const p of r.places) if (!p.light && (p.river || p.tide)) placeUpdated[p.key] = r.time;
     return r;
 }
 // Resolves to {downloads, offline} (pull-to-refresh says "Up to date" when nothing was due).
@@ -1723,10 +1726,17 @@ function renderBody(cur) {
     morphInto($("#body"), html);
 }
 
+// The bottom bar's status is the place on screen's: "Updating…" only while it's
+// downloading (not while other places are), else when it was last brought up to date.
+function footStatus() {
+    const p = S.places[S.selected], k = p ? keyOf(p) : "";
+    if (k && loadingKeys.has(k)) return "Updating…  ·  NOAA";
+    const t = placeUpdated[k] || S.updated;
+    return S.offline ? "Offline" + (t ? "  ·  updated " + dayClock(t) : "") : t ? "Updated " + dayClock(t) + "  ·  NOAA" : "NOAA";
+}
 function renderFooter() {
     morphInto($("#ftr"), `
-        <div class="fstat">${S.loading ? "Updating…  ·  NOAA" : S.offline ? "Offline" + (S.updated ? "  ·  updated " + dayClock(S.updated) : "")
-            : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
+        <div class="fstat">${footStatus()}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
         <button class="fbtn round flist${wide() && !S.listHidden ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
@@ -2296,15 +2306,13 @@ function wire() {
     // resistance; let go past PTR_GO and it holds there with a spinning arrow
     // until the place on screen is updated (the others carry on quietly). If nothing
     // was due (still fresh in the cache) or there's no signal, it says so for a moment
-    // instead of just springing back. When the app refreshes by itself (opening it,
-    // coming back, every 15 min, opening a place), the arrow peeks out half as far and
-    // spins while the place on screen downloads; another place that isn't loading
-    // doesn't show it.
-    const PTR_GO = 64, PTR_HOLD = 44, PTR_AUTO = PTR_HOLD / 2, ptr = $("#ptr");
+    // instead of just springing back. When the app refreshes by itself, nothing shows up
+    // here: the bottom bar says "Updating…" for the place on screen.
+    const PTR_GO = 64, PTR_HOLD = 44, ptr = $("#ptr");
     // the pull turns the outer part; the spin is on the inner one (iOS Safari won't
     // animate a rotation on an element whose own rotation is set by the pull)
     ptr.innerHTML = `<span class="ptr-turn"><span class="ptr-whirl">${icon("refresh", 20)}</span></span><span class="ptr-msg"></span>`;
-    let pd = null, ptrBusy = false, ptrOff = 0, autoPtr = false, autoTimer = 0;
+    let pd = null, ptrBusy = false, ptrOff = 0, waitShown = null;
     const setPull = (px, anim) => {
         clearTimeout(ptrOff);
         scr.classList.toggle("ptr-anim", !!anim);
@@ -2313,29 +2321,11 @@ function wire() {
         scr.style.setProperty("--pull", px + "px");
         scr.style.setProperty("--pp", Math.min(1, px / PTR_GO));
     };
-    const stopAuto = () => {
-        clearTimeout(autoTimer); autoTimer = 0;
-        if (!autoPtr) return;
-        autoPtr = false;
-        scr.classList.remove("ptr-spin");
-        setPull(0, true);
-    };
-    const shownLoading = () => { const p = S.places[S.selected]; return !!p && !S.listing && loadingKeys.has(keyOf(p)); };
-    ptrSync = () => {
-        if (ptrBusy || (pd && pd.on)) return;
-        if (!shownLoading()) { stopAuto(); return; }
-        if (autoPtr || autoTimer) return;
-        // only once it's taking a moment: saved data answers instantly and shouldn't blink
-        autoTimer = setTimeout(() => {
-            autoTimer = 0;
-            if (!shownLoading() || ptrBusy || (pd && pd.on) || scr.scrollTop > 0) return;
-            autoPtr = true;
-            setPull(PTR_AUTO, true);
-            scr.classList.add("ptr-spin");
-        }, 350);
-    };
+    const shownLoading = () => { const p = S.places[S.selected]; return !!p && loadingKeys.has(keyOf(p)); };
+    // a pull that's waiting for the place on screen (already loading when pulled) lets go
+    // once it's done
+    ptrSync = () => { if (waitShown && !shownLoading()) { const f = waitShown; waitShown = null; f(); } };
     scr.addEventListener("touchstart", e => {
-        if (autoPtr && e.touches.length === 1 && scr.scrollTop <= 0) stopAuto();   // a pull takes over
         pd = !ptrBusy && !dragging && e.touches.length === 1 && scr.scrollTop <= 0 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, px: 0, on: false } : null;
     }, { passive: true });
     scr.addEventListener("touchmove", e => {
@@ -2365,6 +2355,9 @@ function wire() {
         let held = true;
         const release = res => {
             if (!held) return;
+            // the place was already loading when pulled (that download wasn't asked for
+            // again): keep spinning until it's in, then it's simply updated
+            if (shownLoading()) { waitShown = () => release({ downloads: 1 }); return; }
             held = false;
             const msg = res.offline || res.error ? "No connection" : !res.downloads ? "Data up to date" : "";
             if (msg) { ptr.querySelector(".ptr-msg").textContent = msg; scr.classList.remove("ptr-spin"); scr.classList.add("ptr-said"); }
