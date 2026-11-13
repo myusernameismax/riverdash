@@ -975,6 +975,7 @@ async function fetchSome(list, fullKeys) {
     // gauge, known only once USGS answers) spin until then
     const full = list.map(keyOf).filter(k => (!fullKeys || fullKeys.has(k)) && !loadingKeys.has(k));
     full.forEach(k => loadingKeys.add(k));
+    ptrSync();
     let r;
     try { r = await fetchPlaces(list, fullKeys); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
     finally { full.forEach(k => loadingKeys.delete(k)); }
@@ -988,12 +989,14 @@ async function fetchSome(list, fullKeys) {
     return r;
 }
 // Resolves to {downloads, offline} (pull-to-refresh says "Up to date" when nothing was due).
-async function refresh() {
+// onShown(result) runs once the place on screen is done (before the others).
+async function refresh(onShown) {
     const seq = ++fetchSeq;
     S.loading = true;
     render();
     const shown = S.places[S.selected], star = S.places[pinned()];
     const a = await fetchSome(shown ? [shown] : [], undefined);
+    if (onShown) onShown(a);
     render();
     const rest = S.places.filter(p => p !== shown);
     const b = await fetchSome(rest, new Set(star && star !== shown ? [keyOf(star)] : []));
@@ -1059,6 +1062,7 @@ const flash = { selected: false, week: false, day: false };   // one-shot fade-i
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
                             onHover: t => syncWeather(t) });
 let dragging = null;     // reorder in progress (render waits)
+let ptrSync = () => {};  // keeps the refresh spinner in step with the place on screen (set in wire)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
     const head = title || leading || trailing
@@ -1707,6 +1711,7 @@ function render() {
     renderToast();
     flash.selected = flash.week = flash.day = false;
     paint(cur);
+    ptrSync();
     if ((!S.places.length && !waitingForLink) || d) hideSplash();
 }
 
@@ -2153,11 +2158,17 @@ function wire() {
 
     // Pull down from the top to refresh. The page follows the finger with
     // resistance; let go past PTR_GO and it holds there with a spinning arrow
-    // until the refresh is done. If nothing was due (all still fresh in the cache)
-    // or there's no signal, it says so for a moment instead of just springing back.
-    const PTR_GO = 64, PTR_HOLD = 44, ptr = $("#ptr");
-    ptr.innerHTML = icon("refresh", 20) + `<span class="ptr-msg"></span>`;
-    let pd = null, ptrBusy = false, ptrOff = 0;
+    // until the place on screen is updated (the others carry on quietly). If nothing
+    // was due (still fresh in the cache) or there's no signal, it says so for a moment
+    // instead of just springing back. When the app refreshes by itself (opening it,
+    // coming back, every 15 min, opening a place), the arrow peeks out half as far and
+    // spins while the place on screen downloads; another place that isn't loading
+    // doesn't show it.
+    const PTR_GO = 64, PTR_HOLD = 44, PTR_AUTO = PTR_HOLD / 2, ptr = $("#ptr");
+    // the pull turns the outer part; the spin is on the inner one (iOS Safari won't
+    // animate a rotation on an element whose own rotation is set by the pull)
+    ptr.innerHTML = `<span class="ptr-turn"><span class="ptr-whirl">${icon("refresh", 20)}</span></span><span class="ptr-msg"></span>`;
+    let pd = null, ptrBusy = false, ptrOff = 0, autoPtr = false, autoTimer = 0;
     const setPull = (px, anim) => {
         clearTimeout(ptrOff);
         scr.classList.toggle("ptr-anim", !!anim);
@@ -2166,7 +2177,29 @@ function wire() {
         scr.style.setProperty("--pull", px + "px");
         scr.style.setProperty("--pp", Math.min(1, px / PTR_GO));
     };
+    const stopAuto = () => {
+        clearTimeout(autoTimer); autoTimer = 0;
+        if (!autoPtr) return;
+        autoPtr = false;
+        scr.classList.remove("ptr-spin");
+        setPull(0, true);
+    };
+    const shownLoading = () => { const p = S.places[S.selected]; return !!p && !S.listing && loadingKeys.has(keyOf(p)); };
+    ptrSync = () => {
+        if (ptrBusy || (pd && pd.on)) return;
+        if (!shownLoading()) { stopAuto(); return; }
+        if (autoPtr || autoTimer) return;
+        // only once it's taking a moment: saved data answers instantly and shouldn't blink
+        autoTimer = setTimeout(() => {
+            autoTimer = 0;
+            if (!shownLoading() || ptrBusy || (pd && pd.on) || scr.scrollTop > 0) return;
+            autoPtr = true;
+            setPull(PTR_AUTO, true);
+            scr.classList.add("ptr-spin");
+        }, 350);
+    };
     scr.addEventListener("touchstart", e => {
+        if (autoPtr && e.touches.length === 1 && scr.scrollTop <= 0) stopAuto();   // a pull takes over
         pd = !ptrBusy && !dragging && e.touches.length === 1 && scr.scrollTop <= 0 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, px: 0, on: false } : null;
     }, { passive: true });
     scr.addEventListener("touchmove", e => {
@@ -2193,8 +2226,11 @@ function wire() {
         setPull(PTR_HOLD, true);
         scr.classList.add("ptr-spin");
         const t0 = Date.now();
-        refresh().catch(() => ({ offline: true })).then(res => {
-            const msg = res.offline ? "No connection" : !res.downloads ? "Data up to date" : "";
+        let held = true;
+        const release = res => {
+            if (!held) return;
+            held = false;
+            const msg = res.offline || res.error ? "No connection" : !res.downloads ? "Data up to date" : "";
             if (msg) { ptr.querySelector(".ptr-msg").textContent = msg; scr.classList.remove("ptr-spin"); scr.classList.add("ptr-said"); }
             // a spin too short to see reads as a glitch: keep it up at least briefly
             setTimeout(() => {
@@ -2203,7 +2239,9 @@ function wire() {
                 setPull(0, true);
                 setTimeout(() => scr.classList.remove("ptr-said"), 320);
             }, msg ? 1100 : Math.max(0, 500 - (Date.now() - t0)));
-        });
+        };
+        // done when the place on screen is (or the whole refresh, with no places)
+        refresh(release).catch(() => ({ offline: true })).then(release);
     });
 
     // Easter egg: at the end of the page, push up once more and the page lifts like
