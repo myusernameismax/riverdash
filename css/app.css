@@ -527,21 +527,28 @@ html[data-embed] #ftr a[href^="mailto:"] { display: none; }   /* the desktop wid
    slides the pane away and back (body.list-hidden). Add / Share slide in over the
    right side only. Set by app.js (html.wide) from 760 px up, not in the desktop panel
    popup. Sideways phones keep clear of the notch (safe-area insets). */
-html.wide { --listw: clamp(320px, 36vw, 480px); --ease: cubic-bezier(.33,1,.68,1); }
-html.wide #listPage { right: auto; width: var(--listw); transform: none; opacity: 1; visibility: visible;
-                      padding-left: env(safe-area-inset-left, 0px);
+/* A sideways iPhone reserves ~47 pt on both sides; the notch needs ~30 of it on one side
+   and the rounded corners less, so 20 pt of each side's inset is used (no empty bars).
+   The pane's inset is added to its width, not taken out of the list. */
+html.wide { --listw: clamp(340px, 36vw, 480px); --ease: cubic-bezier(.33,1,.68,1);
+            --sl: max(0px, calc(env(safe-area-inset-left, 0px) - 20px)); --sr: max(0px, calc(env(safe-area-inset-right, 0px) - 20px)); }
+html.wide #listPage { right: auto; width: calc(var(--listw) + var(--sl)); transform: none; opacity: 1; visibility: visible;
+                      padding-left: var(--sl);
                       background: color-mix(in srgb, var(--text) 3%, var(--bg));
                       transition: transform var(--anim) var(--ease); }
 html.wide body.list-hidden #listPage { transform: translateX(-100%); visibility: hidden;
                                        transition: transform var(--anim) var(--ease), visibility 0s var(--anim); }
-html.wide #details { left: var(--listw); padding-right: env(safe-area-inset-right, 0px);
+html.wide #details { left: calc(var(--listw) + var(--sl)); padding-right: var(--sr);
                      transition: left var(--anim) var(--ease), transform var(--anim) var(--ease), opacity var(--anim); }
-html.wide #addPage, html.wide #movePage { left: var(--listw); }
+html.wide #addPage, html.wide #movePage { left: calc(var(--listw) + var(--sl)); }
 html.wide body.list-hidden #details, html.wide body.list-hidden #addPage, html.wide body.list-hidden #movePage { left: 0; }
-html.wide body.list-hidden #details { padding-left: env(safe-area-inset-left, 0px); }
+html.wide body.list-hidden #details { padding-left: var(--sl); }
 html.wide #hdr, html.wide #body { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
 html.wide #ftr .flist { opacity: 1; }
 html.wide #ftr .flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list pane is out */
 html.wide .prow.shown { background: color-mix(in srgb, var(--link) 12%, transparent); }   /* the place on the right */
-html.wide #toast { left: calc(var(--listw) + (100% - var(--listw)) / 2); }
+html.wide #toast { left: calc(var(--listw) + var(--sl) + (100% - var(--listw) - var(--sl)) / 2); }
+/* the pane is narrow: a name that doesn't fit next to its readings wraps to a second line (no more) */
+html.wide .pname { white-space: normal; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical;
+                   -webkit-line-clamp: 2; line-height: 1.2; }
 html.wide body.list-hidden #toast { left: 50%; }
