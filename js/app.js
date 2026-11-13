@@ -2577,7 +2577,12 @@ function checkForUpdate() {
     }).then(u => { if (u) updateReady = true; return updateReady; });
 }
 function reloadForUpdate() {
-    try { sessionStorage.setItem("rt:updated", "1"); } catch (e) { /* fine */ }
+    try {
+        sessionStorage.setItem("rt:updated", "1");
+        // come back to the same place (and list pane) after the switch
+        const p = S.places[S.selected];
+        sessionStorage.setItem("rt:resume", JSON.stringify({ key: p ? keyOf(p) : "", listHidden: S.listHidden }));
+    } catch (e) { /* fine */ }
     location.reload();
 }
 
@@ -2613,10 +2618,33 @@ savedPlaces(S.places).then(r => {
 if ("serviceWorker" in navigator && location.protocol === "https:")
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
 document.addEventListener("pointerdown", () => { touched = true; }, { capture: true, once: true });
-// just opened: if there's a new version and you haven't touched anything yet, switch now
-setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hidden) reloadForUpdate(); }), 1500);
+// Just opened: if there's a new version and you haven't touched anything yet, switch now
+// (otherwise the next time you come back after a minute away). Opened in a background
+// tab (a browser restoring its tabs after a restart): switch the moment it's first shown,
+// before it's used. That tab never "came back" from anywhere, so it used to stay old.
+setTimeout(() => checkForUpdate().then(u => {
+    if (!u || touched) return;
+    if (!document.hidden) { reloadForUpdate(); return; }
+    const onShow = () => {
+        if (document.hidden) return;
+        document.removeEventListener("visibilitychange", onShow);
+        if (!touched) reloadForUpdate();
+    };
+    document.addEventListener("visibilitychange", onShow);
+}), 1500);
 try {
-    if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
+    if (sessionStorage.getItem("rt:updated")) {
+        sessionStorage.removeItem("rt:updated");
+        const r = JSON.parse(sessionStorage.getItem("rt:resume") || "null");
+        sessionStorage.removeItem("rt:resume");
+        if (r) {
+            const i = S.places.findIndex(p => keyOf(p) === r.key);
+            if (i >= 0) S.selected = i;
+            S.listHidden = !!r.listHidden;
+        }
+        toast("Updated to the latest version", "", null);
+        render();
+    }
 } catch (e) { /* fine */ }
 
 // Opened from a share link: show what's in it, then drop it from the address bar.
