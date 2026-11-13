@@ -146,7 +146,8 @@ closed). The right side's content stays at a readable width instead of stretchin
 and Add / Share slide in over the right side only. On a sideways phone the
 pane is a bit wider, a name that doesn't fit next to its readings wraps to a second line,
 and the space iOS reserves on both sides is mostly used (just enough is kept clear for
-the notch and the rounded corners). Narrower windows, and the desktop panel widget's popup, keep the phone layout.
+the notch and the rounded corners). The bottom bar centers Share and Contact, so the
+list button sits alone at the right. Narrower windows, and the desktop panel widget's popup, keep the phone layout.
 
 ## Moving places between devices
 
