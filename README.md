@@ -15,7 +15,8 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 Like Apple Weather, the app opens on one place (the ★ one), and the **list button**
 (bottom right) zooms out to the **Places** list; tapping a place there zooms into it.
 The list has a search bar at the top: type a river, town, bay or gauge id (NOAA's,
-like VIDO3, or a USGS number, like 14162500) and the results take the list's place.
+like VIDO3, or a USGS number, like 14162500) and the results take the list's place
+(the Places title and Edit slide up out of the way, so the search bar has the top).
 It starts empty: **Add a place** opens that search. Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
 Tapping a result adds it (✓) and starts loading its data; the results stay up so several
