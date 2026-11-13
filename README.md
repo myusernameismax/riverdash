@@ -273,7 +273,8 @@ gauges 15 min, water temperature 30 min, typical flow 30 days).
     python3 -m http.server 8765
     # open http://localhost:8765 in Firefox, Responsive Design Mode (Ctrl+Shift+M), iPhone size
 
-A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget. In search
+A mouse works too: hover, drag and Esc behave like the widget; the scroll wheel zooms
+the chart only in View History (elsewhere it scrolls the page). In search
 results, the row under the pointer is tinted so it's clear which one the + adds.
 
 ## Troubleshooting
