@@ -650,6 +650,71 @@ function endSearch(keep = false) {
     S.addedKeys = [];
     if (i >= 0) { select(i); flash.selected = true; S.listing = false; }
 }
+// ── zoom between the list and a place (Apple Weather) ──
+// Tapping a row: the place's page opens out of the row, its top edge racing up and its
+// bottom edge down so both reach the screen's edges together. The list button: the page
+// shrinks back into its row (its group's row while that's closed). The page is clipped
+// to the row's rectangle (clip-path), so it's laid out once at full size.
+const ZOOM_MS = Math.round(ANIM * 2.4);
+const ZOOM_EASE = "cubic-bezier(.45,0,.15,1)";        // eases out of the row, glides, settles softly
+let zoomAnims = [];
+const canZoom = () => ANIM > 0 && !!document.body.animate && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+function rowFor(i) {
+    const row = document.querySelector(`#placesList .prow[data-i="${i}"]`);
+    if (row) return row;
+    const g = S.places[i] ? groupOf(S.places[i]).toLowerCase() : "";
+    return g ? [...document.querySelectorAll("#placesList .prow.grp")].find(x => x.dataset.g === g) || null : null;
+}
+function insetOf(el) {
+    const a = $("#app").getBoundingClientRect(), r = el.getBoundingClientRect();
+    const px = v => Math.round(v) + "px";
+    return `inset(${px(r.top - a.top)} ${px(a.right - r.right)} ${px(a.bottom - r.bottom)} ${px(r.left - a.left)} round 12px)`;
+}
+function stopZoom() {
+    zoomAnims.forEach(a => a.cancel());
+    zoomAnims = [];
+    document.body.classList.remove("zooming");
+}
+function runZoom(from, opening) {
+    const det = $("#details"), list = $("#listPage"), full = "inset(0px 0px 0px 0px round 0px)";
+    document.body.classList.add("zooming");
+    // the page starts (or ends) in the row's own tint, so the whole growing card shows
+    const color = v => { det.style.backgroundColor = v; const c = getComputedStyle(det).backgroundColor; det.style.backgroundColor = ""; return c; };
+    const card = color("var(--card)"), bg = color("var(--bg)");
+    const page = det.animate(opening
+        ? [{ clipPath: from, opacity: 0, backgroundColor: card }, { opacity: 1, offset: 0.15 }, { backgroundColor: card, offset: 0.3 }, { clipPath: full, opacity: 1, backgroundColor: bg }]
+        : [{ clipPath: full, opacity: 1, backgroundColor: bg }, { backgroundColor: card, offset: 0.7 }, { opacity: 1, offset: 0.8 }, { clipPath: from, opacity: 0, backgroundColor: card }],
+        { duration: ZOOM_MS, easing: ZOOM_EASE });
+    // the list behind sinks back a little as a place opens, and settles with a small bounce as it comes back
+    const back = list.animate(opening
+        ? [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.96)", opacity: 0.4 }]
+        : [{ transform: "scale(.96)", opacity: 0.4 }, { transform: "scale(1)", opacity: 1 }],
+        { duration: ZOOM_MS, easing: opening ? ZOOM_EASE : "cubic-bezier(.34,1.5,.64,1)" });
+    zoomAnims = [page, back];
+    page.onfinish = () => { if (zoomAnims[0] === page) stopZoom(); };
+}
+// list → a place: `change` switches the state over (which place, list closed)
+function zoomInto(row, change) {
+    stopZoom();
+    const from = row && canZoom() ? insetOf(row) : null;
+    change();
+    if (from) { flash.selected = false; document.body.classList.add("zooming"); }
+    render();
+    if (from) runZoom(from, true);
+}
+// a place → the list
+function zoomToList() {
+    stopZoom();
+    const zoom = canZoom() && S.places.length;
+    if (zoom) document.body.classList.add("zooming");
+    openList();
+    const row = zoom ? rowFor(S.selected) : null;
+    if (!row) { stopZoom(); return; }
+    // a row off screen: scroll the list so it's in view, the page shrinks into it there
+    const sc = $("#listScroll"), sr = sc.getBoundingClientRect(), r = row.getBoundingClientRect();
+    if (r.top < sr.top || r.bottom > sr.bottom) sc.scrollTop += r.top - sr.top - (sr.height - r.height) / 2;
+    runZoom(insetOf(row), false);
+}
 // Leaving the list for the river view (a place was tapped, or Back)
 function closeList() {
     if (S.lsearch) endSearch();
@@ -829,7 +894,7 @@ function goBack() {
     else if (S.moving) closeMove();
     else if (S.listing && S.lsearch) endSearch();
     else if (S.editing) { S.editing = false; S.newGroups = []; }
-    else if (S.listing) closeList();
+    else if (S.listing) zoomInto(rowFor(S.selected), closeList);
     else if (S.customizing) closeCustomize();
     else if (S.hist) S.hist = null;
     else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
@@ -1384,13 +1449,22 @@ function memberLabel(i, groupName) {
     const loc = m ? m[1].replace(/,.*$/, "").trim() : "";
     return loc ? loc[0].toUpperCase() + loc.slice(1) : p.name;
 }
+// The second line in the places list: the station names, like under the name at the top
+// of a place (a station whose charts are all switched off isn't named; ids until the
+// first download).
+function stationLine(i) {
+    const p = S.places[i], d = S.results[keyOf(p)] || {};
+    const off = ms => ms.every(m => hidden(p, m));
+    return [p.river && !off(["stage", "flow", "temp"]) ? (d.river && d.river.name) || p.river : "",
+            p.tide && !off(["tide", "surf"]) ? "Tides: " + ((d.tide && d.tide.name) || p.tide) : ""].filter(x => x).join("  ·  ");
+}
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
     return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
-        <div class="pname">${esc(o.label || p.name)}</div>
+        <div class="pmain"><div class="pname">${esc(o.label || p.name)}</div><div class="psub">${esc(stationLine(i))}</div></div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
@@ -1411,7 +1485,8 @@ function renderPlaces() {
             const open = S.openGroups.has(it.key);
             rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
                 <div class="ghead"><span class="gchev">${icon("next", 14)}</span></div>
-                <div class="pname">${esc(it.name)}<span class="gcount">${it.members.length}</span></div>
+                <div class="pmain"><div class="pname">${esc(it.name)}<span class="gcount">${it.members.length}</span></div>
+                    <div class="psub">${esc(it.members.map(i => memberLabel(i, it.name)).join("  ·  "))}</div></div>
                 <div class="gsparks">${it.members.slice(0, 4).map(i => `<canvas class="spark gs" data-spark="${i}"></canvas>`).join("")}</div>
             </div>`;
             first = false;
@@ -1842,9 +1917,9 @@ const ACTIONS = {
     resetJetty: () => updatePlace(S.selected, p => { delete p.jetty; }),
     // Tapping a place in the list zooms into it (the list keeps its spot for next time).
     select: el => {
-        select(+el.dataset.i);
-        flash.selected = true;
-        closeList();
+        const i = +el.dataset.i;
+        zoomInto(el, () => { select(i); closeList(); });
+        return "skip";
     },
     // Opening a group that runs off the bottom scrolls it into view (its name stays on screen).
     toggleGroup: el => {
@@ -1911,7 +1986,7 @@ const ACTIONS = {
     },
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
-    list: () => { openList(); return "skip"; },
+    list: () => { zoomToList(); return "skip"; },
     attach: el => { openAdd(S.selected, el.dataset.kind); return "skip"; },
     refresh: () => { refresh(); return "skip"; },
     closeAdd: () => closeAdd(),

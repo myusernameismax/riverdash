@@ -8,6 +8,7 @@
     --disabled: #a8aeb4;
     --link: #2b8fe0;
     --tint: color-mix(in srgb, var(--text) 5%, transparent);      /* section boxes */
+    --card: color-mix(in srgb, var(--text) 5%, var(--bg));        /* the same, solid (a place zooming out of its row) */
     --hover: color-mix(in srgb, var(--text) 7%, transparent);
     --hair: color-mix(in srgb, var(--text) 9%, transparent);
     --radius: 12px;
@@ -64,6 +65,11 @@ body.adding #addPage { transform: none; visibility: visible; transition: transfo
 body.listing #listPage { transform: none; opacity: 1; visibility: visible;
                          transition: transform var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
 body.listing #details { transform: scale(.94); opacity: 0; pointer-events: none; }
+/* zooming between a row and its place (app.js runZoom): the place's page on top, clipped
+   to the row and growing to the full screen (or back); the list stays put underneath */
+body.zooming #details { z-index: 2; transform: none; opacity: 1; visibility: visible; transition: none; pointer-events: none;
+                        background: var(--bg); }
+body.zooming #listPage { z-index: 1; transform: none; opacity: 1; visibility: visible; transition: none; }
 #movePage { transform: translateX(100%); visibility: hidden; background: var(--bg);
             transition: transform var(--anim) cubic-bezier(.33,1,.68,1), visibility 0s var(--anim); }
 body.moving #details { transform: translateX(-25%); opacity: 0; pointer-events: none; }
@@ -272,7 +278,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 /* places list */
 .edit-btn { display: flex; align-items: center; gap: 2px; font-size: 13px; padding: 2px 8px; border-radius: 7px; color: var(--link); font-weight: 700; }
 #placesList { position: relative; }
-.prow { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 4px 0 14px;
+.prow { position: relative; display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 4px 4px 4px 14px;
         border-radius: var(--radius); transition: background 120ms, height var(--anim) cubic-bezier(.65,0,.35,1), opacity var(--anim); }
 .prow.hide { display: none; }
 .prow::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: var(--hair); }
@@ -299,8 +305,8 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gbox .prow.member::before { left: 40px; }
 /* the box's 4px margins come out of its first and last rows, so going into Edit
    doesn't push the rows below it down */
-.gbox > .prow:first-child, .gbox > .prow:last-child { min-height: 44px; }
-.gbox > .prow:only-child { min-height: 40px; }
+.gbox > .prow:first-child, .gbox > .prow:last-child { min-height: 58px; }
+.gbox > .prow:only-child { min-height: 54px; }
 .gbox + .prow::before, .drag-ph + .prow::before, .gbox > .prow:first-child::before { display: none; }
 .gbox.lifted { background: color-mix(in srgb, var(--link) 10%, var(--bg)); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .drag-ph { border-radius: 10px; background: var(--hover); flex: none; }
@@ -315,8 +321,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
         background: var(--negative); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap;
         display: flex; align-items: center; justify-content: center; transition: width var(--anim); }
 .prow.member::before { left: 46px; }
-.pname { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pparts { display: flex; gap: 6px; font-size: var(--small); white-space: nowrap; flex: none; }
+.pmain { flex: 1; min-width: 0; }
+.pname { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.psub { font-size: var(--small); margin-top: 2px; color: color-mix(in srgb, var(--text) 55%, transparent);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.psub:empty { display: none; }
+.pparts { display: flex; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; }
 .pstar { width: 36px; height: 44px; }
 .handle { width: 40px; height: 44px; display: grid; place-items: center; opacity: .45; touch-action: none; cursor: grab; flex: none; }
 .bubble { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none;
