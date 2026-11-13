@@ -917,7 +917,7 @@ function avgText(r, t) {
     return num(v) ? "Typical flow on " + fmtMonthDay(d.getTime()) + ": " + cfs(v) : "";
 }
 function tile({ title, num, unit, detail, mode, active, accent, shape: k = null, wait = false }) {
-    const long = String(num).length >= 6 ? " long" : "";   // e.g. −19.2k: a bit smaller, so it fits
+    const long = String(num).length >= 5 ? " long" : "";   // e.g. 1,920 or −19.2k: a bit smaller, so number + unit fit
     if (wait) return `<div class="tile still wait" style="--accent:${accent}"><div class="t-title">${title}</div><span class="spinner"></span></div>`;
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
         <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>

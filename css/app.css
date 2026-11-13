@@ -284,7 +284,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gcount { font-size: 13px; opacity: .45; font-weight: 600; margin-left: 7px; }
 .gchev { display: flex; opacity: .45; transition: transform var(--anim); }
 .prow.grp.open .gchev { transform: rotate(90deg); }
-.prow.member { padding-left: 30px; }
+.prow.member { padding-left: 46px; }
 .prow.gedit { gap: 10px; cursor: default; }
 /* Edit: a group is a tinted box around its name and places (no outline, see STYLE.md) */
 .gbox { margin: 4px 6px; border-radius: 12px; background: color-mix(in srgb, var(--link) 10%, transparent); overflow: hidden; }
@@ -303,7 +303,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .pdel { position: absolute; top: 0; right: 0; bottom: 0; width: calc(-1 * var(--sx, 0px)); overflow: hidden;
         background: var(--negative); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap;
         display: flex; align-items: center; justify-content: center; transition: width var(--anim); }
-.prow.member::before { left: 30px; }
+.prow.member::before { left: 46px; }
 .pname { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pparts { display: flex; gap: 6px; font-size: var(--small); white-space: nowrap; flex: none; }
 .pstar { width: 36px; height: 44px; }
