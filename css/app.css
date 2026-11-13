@@ -288,8 +288,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.gedit { gap: 10px; cursor: default; }
 /* Edit: a group is a tinted box around its name and places (no outline, see STYLE.md) */
 .gbox { margin: 4px 6px; border-radius: 12px; background: color-mix(in srgb, var(--link) 10%, transparent); overflow: hidden; }
-.gbox .prow.member { padding-left: 14px; }
-.gbox .prow.member::before { left: 14px; }
+.gbox .prow.member { padding-left: 40px; }   /* same indent as outside Edit (the box itself is 6px in) */
+.gbox .prow.member::before { left: 40px; }
+/* the box's 4px margins come out of its first and last rows, so going into Edit
+   doesn't push the rows below it down */
+.gbox > .prow:first-child, .gbox > .prow:last-child { min-height: 44px; }
+.gbox > .prow:only-child { min-height: 40px; }
 .gbox + .prow::before, .drag-ph + .prow::before, .gbox > .prow:first-child::before { display: none; }
 .gbox.lifted { background: color-mix(in srgb, var(--link) 10%, var(--bg)); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .drag-ph { border-radius: 10px; background: var(--hover); flex: none; }
@@ -352,9 +356,10 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #q::placeholder { color: var(--text); opacity: .45; }
 #q::-webkit-search-cancel-button { -webkit-appearance: none; }
 #addScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(var(--bot) + 20px); }
-#addPage.picking #addScroll { padding-bottom: calc(var(--bot) + 84px); }   /* the last result scrolls clear of the button */
-/* floating "Add 2 rivers to list": slides up once something is added */
-#addCommit { position: absolute; left: 50%; bottom: calc(var(--bot) + 14px); z-index: 40; height: 48px; padding: 0 26px;
+#addPage.picking #addScroll { padding-bottom: calc(max(var(--bot), var(--kb, 0px)) + 100px); }   /* the last result scrolls clear of the button */
+/* floating "Add 2 Rivers To List": slides up once something is added. --kb lifts it
+   over the keyboard (the part of the page the keyboard covers, set in app.js) */
+#addCommit { position: absolute; left: 50%; bottom: calc(max(var(--bot), var(--kb, 0px)) + 30px); z-index: 40; height: 48px; padding: 0 26px;
              max-width: calc(100% - 2 * var(--gutter)); border-radius: 24px; background: var(--link); color: #fff;
              font-size: 16px; font-weight: 700; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.3);
              transform: translate(-50%, 90px); opacity: 0; pointer-events: none;

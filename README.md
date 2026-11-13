@@ -16,8 +16,8 @@ It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NO
 like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
 Tapping a result adds it (✓) and starts loading its data; the page stays open so several
-can go in at once (every gauge on a river, say). A floating **Add 2 rivers to list**
-button keeps them and shows the first one; **Back** (or the back swipe) takes them out
+can go in at once (every gauge on a river, say). A floating **Add 2 Rivers To List**
+button (above the keyboard while it's up) keeps them and shows the first one; **Back** (or the back swipe) takes them out
 again, and tapping a ✓ result takes just that one out. Adding a gauge or tide station
 to an existing place happens straight away and goes back to it.
 Places are saved on the phone only (nothing is sent anywhere but the public
@@ -90,7 +90,8 @@ after the river.
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
   selected so you can type over it; tap the name later to rename). In Edit each group
   is a tinted box around its name and its places; the name row has a deeper tint (no
-  arrow, since groups are always open in Edit). Drag a place by ≡ over a box and
+  arrow, since groups are always open in Edit), and its places are indented as in the
+  list. Edit has no stars, and the rows keep their heights going in and out of it. Drag a place by ≡ over a box and
   the gap where it'll land moves inside (the box grows around it); drag it below the
   box's end to take it out. Drag a group by its own ≡ to move it with its places.
   − on a group only ungroups (the places stay). Your own groups show even with one

@@ -593,7 +593,7 @@ function openAdd(target, kind) {
     warmSearch();
 }
 // Results tapped on the Add page are added (and start loading) straight away. The
-// floating "Add 2 rivers to list" button keeps them and shows the first one; Back
+// floating "Add 2 Rivers To List" button keeps them and shows the first one; Back
 // (or the back swipe / Esc) takes them out again.
 function closeAdd(keep = false) {
     S.adding = false;
@@ -619,12 +619,12 @@ function unAdd(keys) {
 }
 const alreadyHave = item => S.places.some(p => p[item.kind] === item.id);
 const addedNow = item => S.places.some(p => p[item.kind] === item.id && S.addedKeys.includes(keyOf(p)));
-// "Add 1 river to list", "Add 2 tide stations to list", mixed: "Add 3 places to list"
+// "Add 1 River To List", "Add 2 Tide Stations To List", mixed: "Add 3 Places To List"
 function addLabel() {
     const added = S.places.filter(p => S.addedKeys.includes(keyOf(p))), n = added.length;
     const rivers = added.filter(p => p.river).length;
-    const word = rivers && rivers < n ? "place" : rivers ? "river" : "tide station";
-    return `Add ${n} ${word}${n === 1 ? "" : "s"} to list`;
+    const word = rivers && rivers < n ? "Place" : rivers ? "River" : "Tide Station";
+    return `Add ${n} ${word}${n === 1 ? "" : "s"} To List`;
 }
 function keepAdded() {
     const n = S.addedKeys.length, first = S.places.find(p => S.addedKeys.includes(keyOf(p)));
@@ -1349,7 +1349,7 @@ function placeRow(i, o) {
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
-        <button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>
+        ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
     </div>`;
 }
@@ -2088,6 +2088,18 @@ function wire() {
     });
     $("#addBack").addEventListener("click", () => { closeAdd(); render(); });
     $("#addCommit").addEventListener("click", () => { keepAdded(); render(); });
+    // The keyboard covers the bottom of the Add page (iOS doesn't shrink the page for
+    // it), so the floating button rides on top of it: --kb = the covered height.
+    const vv = window.visualViewport;
+    if (vv) {
+        const addPage = $("#addPage");
+        const lift = () => {
+            const covered = addPage.getBoundingClientRect().bottom - (vv.offsetTop + vv.height);
+            addPage.style.setProperty("--kb", Math.max(0, Math.round(covered)) + "px");
+        };
+        vv.addEventListener("resize", lift);
+        vv.addEventListener("scroll", lift);
+    }
     $("#moveBack").addEventListener("click", () => { closeMove(); render(); });
     $("#moveBody").addEventListener("input", e => {
         if (e.target.id === "importText" && codeFrom(e.target.value)) openImport(e.target.value);
