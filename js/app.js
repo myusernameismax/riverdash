@@ -2243,7 +2243,9 @@ function wire() {
     // by accident: the swipe must be clearly sideways, the row resists once Delete is
     // fully out (UIScrollView's rubber-band curve, c = 0.55), and deleting outright
     // takes a drag of 3/4 of the row's width.
-    const DEL_W = 84, rubber = (x, dim) => (x * dim * 0.55) / (dim + 0.55 * x);
+    // (only for distances past the edge: x ≤ 0 is no stretch; the curve blows up for
+    // negative x, which once made the page leap when a pull went back past its start)
+    const DEL_W = 84, rubber = (x, dim) => x <= 0 ? 0 : (x * dim * 0.55) / (dim + 0.55 * x);
     let sw = null, swallowClick = false;
     // (kept in S.swiped too, so a re-render while it's open keeps it open)
     const setSx = (row, px) => {
@@ -2340,7 +2342,7 @@ function wire() {
             pd.on = true; pd.y += dy;
         }
         e.preventDefault();
-        pd.px = Math.max(0, rubber(e.touches[0].clientY - pd.y, scr.clientHeight));
+        pd.px = rubber(e.touches[0].clientY - pd.y, scr.clientHeight);
         setPull(pd.px);
         scr.classList.toggle("ptr-ready", pd.px >= PTR_GO);
     }, { passive: false });
@@ -2398,7 +2400,7 @@ function wire() {
         }
         e.preventDefault();
         clearTimeout(eggTimer);
-        setEgg(Math.max(0, rubber(eg.y - e.touches[0].clientY, EGG_MAX)));   // stiff: never much taller than the note
+        setEgg(rubber(eg.y - e.touches[0].clientY, EGG_MAX));   // stiff: never much taller than the note
     }, { passive: false });
     scr.addEventListener("touchend", () => {
         if (eg && eg.on) setEgg(0, true);
