@@ -21,7 +21,7 @@ Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 
 Under a place's name, each station's name (blue, with ↗) opens a map at the exact spot
-of the gauge or tide station.
+of the gauge or tide station. In search results, **Map ↗** does the same before adding.
 
 ## What's different from the widget
 
