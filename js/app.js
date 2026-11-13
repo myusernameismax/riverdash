@@ -753,6 +753,54 @@ function zoomToList() {
     if (r.top < sr.top || r.bottom > sr.bottom) sc.scrollTop += r.top - sr.top - (sr.height - r.height) / 2;
     runZoom(insetOf(row), false);
 }
+// ── dragging a place back into the list (phone upright, Apple Weather) ──
+// From the left edge, the place's page becomes a card that follows the finger: it's
+// clipped toward its row in the list (the same path as the list button's zoom, scrubbed
+// by the drag), its corners round, it takes the row's tint and its contents fade near
+// the end, while the list comes up behind it, already scrolled to the row. Let go past
+// a third of the way (or flick) and it finishes into the row; earlier, it springs back.
+const insetNums = el => {
+    const a = $("#app").getBoundingClientRect(), r = el.getBoundingClientRect();
+    return [r.top - a.top, a.right - r.right, a.bottom - r.bottom, r.left - a.left];
+};
+function startListDrag() {
+    stopZoom();
+    document.body.classList.add("zooming");
+    openList();
+    const row = rowFor(S.selected);
+    if (!row) { closeList(); render(); stopZoom(); return null; }
+    const sc = $("#listScroll"), sr = sc.getBoundingClientRect(), r = row.getBoundingClientRect();
+    if (r.top < sr.top || r.bottom > sr.bottom) sc.scrollTop += r.top - sr.top - (sr.height - r.height) / 2;
+    const det = $("#details"), list = $("#listPage");
+    const color = v => { det.style.backgroundColor = v; const c = getComputedStyle(det).backgroundColor; det.style.backgroundColor = ""; return c; };
+    return { det, list, to: insetNums(row), card: color("var(--card)"), bg: color("var(--bg)"), w: $("#app").clientWidth, p: 0 };
+}
+// p: 0 = the page as it is, 1 = shrunk into its row; shift: how far the finger has
+// pulled the card sideways beyond that (fades out as it lands)
+function listDragFrame(D, p, shift = 0) {
+    const e = 1 - Math.pow(1 - p, 2);                        // eases into the row
+    const [t, r, b, l] = D.to.map(v => v * e);
+    const sx = shift * (1 - e);
+    const radius = e < .5 ? 38 * e / .5 : 38 - 26 * (e - .5) / .5;   // a card's corners halfway, the row's (12) at the end
+    D.det.style.clipPath = `inset(${t}px ${r - sx}px ${b}px ${l + sx}px round ${radius}px)`;
+    D.det.style.opacity = String(p < .72 ? 1 : Math.max(0, 1 - (p - .72) / .28));
+    D.det.style.backgroundColor = `color-mix(in srgb, ${D.card} ${Math.round(Math.min(1, Math.max(0, (p - .2) / .45)) * 100)}%, ${D.bg})`;
+    D.list.style.transform = `scale(${.96 + .04 * e})`;
+    D.list.style.opacity = String(.4 + .6 * e);
+    D.p = p;
+}
+function endListDrag(D, done) {
+    const from = D.p, to = done ? 1 : 0, ms = Math.max(120, Math.abs(to - from) * ANIM * 2.2), t0 = performance.now();
+    const step = now => {
+        const k = Math.min(1, (now - t0) / ms), q = 1 - Math.pow(1 - k, 3);
+        listDragFrame(D, from + (to - from) * q);
+        if (k < 1) { requestAnimationFrame(step); return; }
+        for (const el of [D.det, D.list]) el.style.clipPath = el.style.opacity = el.style.backgroundColor = el.style.transform = "";
+        if (!done) { closeList(); render(); }                // springs back: the place again
+        stopZoom();
+    };
+    requestAnimationFrame(step);
+}
 // Leaving the list for the river view (a place was tapped, or Back)
 function closeList() {
     S.sortOpen = false;
@@ -2493,18 +2541,41 @@ function wire() {
         render();
     });
 
-    // swipe in from the left edge = back (like the widget's Esc / mouse back button)
+    // swipe in from the left edge = back (like the widget's Esc / mouse back button).
+    // On a place's page (phone upright, nothing on top) it drags the page into the list.
     let edge = null;
+    const canDrag = () => !wide() && !S.listing && !S.adding && !S.moving && S.places.length > 0 && ANIM > 0 && !dragging;
     document.addEventListener("touchstart", e => {
         const p = e.touches[0];
-        edge = e.touches.length === 1 && p.clientX < 24 ? { x: p.clientX, y: p.clientY } : null;
+        edge = e.touches.length === 1 && p.clientX < 24 ? { x: p.clientX, y: p.clientY, drag: canDrag(), D: null, hist: [] } : null;
     }, { passive: true });
+    document.addEventListener("touchmove", e => {
+        if (!edge || !edge.drag) return;
+        const p = e.touches[0], dx = p.clientX - edge.x, dy = p.clientY - edge.y;
+        if (!edge.D) {
+            if (Math.abs(dy) > 12 && Math.abs(dy) > dx) { edge.drag = false; return; }   // a scroll, not a swipe
+            if (dx < 10) return;
+            edge.D = startListDrag();
+            if (!edge.D) { edge.drag = false; return; }
+        }
+        e.preventDefault();
+        edge.hist.push([e.timeStamp, dx]);
+        if (edge.hist.length > 5) edge.hist.shift();
+        listDragFrame(edge.D, Math.min(1, Math.max(0, dx / (edge.D.w * 0.85))), Math.max(0, dx) * 0.35);
+    }, { passive: false });
     document.addEventListener("touchend", e => {
         if (!edge) return;
+        if (edge.D) {
+            const h = edge.hist, v = h.length > 1 ? (h[h.length - 1][1] - h[0][1]) / Math.max(1, h[h.length - 1][0] - h[0][0]) : 0;
+            endListDrag(edge.D, edge.D.p > 0.33 || v > 0.5);   // past a third, or a flick (px/ms)
+            edge = null;
+            return;
+        }
         const p = e.changedTouches[0];
-        if (p.clientX - edge.x > 70 && Math.abs(p.clientY - edge.y) < 60 && goBack()) render();
+        if (!edge.drag && p.clientX - edge.x > 70 && Math.abs(p.clientY - edge.y) < 60 && goBack()) render();
         edge = null;
     }, { passive: true });
+    document.addEventListener("touchcancel", () => { if (edge && edge.D) endListDrag(edge.D, false); edge = null; }, { passive: true });
     document.addEventListener("keydown", e => {
         if (e.key !== "Escape" || document.activeElement === q || document.activeElement === lq) return;
         if (goBack()) render(); else backAtTop();
