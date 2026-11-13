@@ -552,3 +552,10 @@ html.wide #toast { left: calc(var(--listw) + var(--sl) + (100% - var(--listw) - 
 html.wide .pname { white-space: normal; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical;
                    -webkit-line-clamp: 2; line-height: 1.2; }
 html.wide body.list-hidden #toast { left: 50%; }
+/* the bottom bar: status left, Share and Contact centered, the list button alone on the
+   right (so Contact isn't right next to it, easy to hit by mistake sideways) */
+html.wide #ftr { display: grid; grid-template-columns: 1fr auto auto 1fr; }
+html.wide #ftr .fstat { grid-column: 1; }
+html.wide #ftr [data-act=share] { grid-column: 2; }
+html.wide #ftr a.fbtn { grid-column: 3; }
+html.wide #ftr .flist { grid-column: 4; justify-self: end; }
