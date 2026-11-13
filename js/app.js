@@ -1788,7 +1788,7 @@ function renderFooter() {
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
         <button class="fbtn round flist${wide() && !S.listHidden ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
-        <div class="egg">Stop looking at your phone and go fishing!</div>`);
+        <div class="egg">Get off your computer and go fishing!</div>`);
 }
 
 // The places list page: its top row, then the list, or search results while searching.
@@ -2433,7 +2433,6 @@ function wire() {
         det.style.setProperty("--egg", Math.min(1, px / 20));
     };
     let eg = null, eggTimer = 0;
-    const EGG_MAX = 40;
     scr.addEventListener("touchstart", e => {
         eg = !ptrBusy && !dragging && e.touches.length === 1 && atEnd() ? { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false } : null;
     }, { passive: true });
@@ -2447,7 +2446,7 @@ function wire() {
         }
         e.preventDefault();
         clearTimeout(eggTimer);
-        setEgg(rubber(eg.y - e.touches[0].clientY, EGG_MAX));   // stiff: never much taller than the note
+        setEgg(rubber(eg.y - e.touches[0].clientY, scr.clientHeight));   // the same give as pull-to-refresh
     }, { passive: false });
     scr.addEventListener("touchend", () => {
         if (eg && eg.on) setEgg(0, true);

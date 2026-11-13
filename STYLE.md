@@ -43,8 +43,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   rubber band, or our own stiff ones), even when everything fits on screen.
 - Nothing jumps. Panels (Customize) glide the page first, then unfold / switch;
   closing glides back, then folds. Things loading keep their spot (a spinning tile
-  sits where the real one will be). Pull-to-refresh and the end-of-page pull are
-  stiff rubber bands that spring back.
+  sits where the real one will be). Pull-to-refresh and the end-of-page pull use
+  the same rubber band (the same give everywhere) and spring back.
 
 ## Words
 
