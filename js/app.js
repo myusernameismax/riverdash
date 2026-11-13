@@ -1618,9 +1618,25 @@ const ACTIONS = {
         pickDay(+el.dataset.start);
         if (cur !== "tide") S.chartMode = "surf";
     },
+    // Opening scrolls down to the panel; closing glides back up to the top first and
+    // only then takes the panel away (so the page doesn't jump as it gets shorter).
     customize: () => {
-        S.customizing = !S.customizing;
-        if (S.customizing) setTimeout(() => showSection("#czSec"), 30);
+        if (!S.customizing) { S.customizing = true; setTimeout(() => showSection("#czSec"), 30); return; }
+        const f = $("#scroll");
+        if (f.scrollTop <= 1 || !ANIM) { S.customizing = false; return; }
+        let done = false;
+        const close = () => {
+            if (done) return;
+            done = true;
+            f.removeEventListener("scroll", onScroll);
+            S.customizing = false;
+            render();
+        };
+        const onScroll = () => { if (f.scrollTop <= 1) close(); };
+        f.addEventListener("scroll", onScroll, { passive: true });
+        f.scrollTo({ top: 0, behavior: "smooth" });
+        setTimeout(close, 900);   // in case the glide gets interrupted
+        return "skip";
     },
     toggleTab: el => toggleTab(el.dataset.mode),
     removeStation: el => removeStation(el.dataset.kind),
@@ -1635,7 +1651,18 @@ const ACTIONS = {
         if (row) $("#scroll").scrollTop += row.getBoundingClientRect().top - top;
         return "skip";
     },
-    toggleGroup: el => { const k = el.dataset.g; if (S.openGroups.has(k)) S.openGroups.delete(k); else S.openGroups.add(k); },
+    // Opening a group that runs off the bottom scrolls it into view (its name stays on screen).
+    toggleGroup: el => {
+        const k = el.dataset.g;
+        if (S.openGroups.has(k)) { S.openGroups.delete(k); return; }
+        S.openGroups.add(k);
+        render();
+        const head = [...document.querySelectorAll("#placesList .prow.grp")].find(x => x.dataset.g === k);
+        let last = head;
+        while (last && last.nextElementSibling && last.nextElementSibling.classList.contains("member")) last = last.nextElementSibling;
+        if (head) setTimeout(() => reveal(head, last), 30);
+        return "skip";
+    },
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     share: () => { openShare(); return "skip"; },
     importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus({ preventScroll: true }); }, ANIM + 20); return "skip"; },
@@ -1699,10 +1726,17 @@ const ACTIONS = {
 // Edit mode adds the current place to the list; scroll so the whole list is in view.
 function showList() { showSection("#placesSec"); }
 function showSection(sel) {
-    const f = $("#scroll"), sec = $(sel);
-    if (!sec) return;
-    const want = Math.min(sec.offsetTop + sec.offsetHeight - f.clientHeight + 12, f.scrollHeight - f.clientHeight);
-    if (f.scrollTop < want) f.scrollTo({ top: want, behavior: ANIM ? "smooth" : "auto" });
+    const sec = $(sel);
+    if (sec) reveal(sec, sec);
+}
+// Scroll down just enough to show `last` whole, but never so far that `first` leaves
+// the top of the screen (a long list: its start stays in view, the rest is a scroll away).
+function reveal(first, last) {
+    const f = $("#scroll"), fr = f.getBoundingClientRect();
+    const need = last.getBoundingClientRect().bottom - (fr.bottom - 12);
+    const room = first.getBoundingClientRect().top - (fr.top + 8);
+    const by = Math.min(need, room, f.scrollHeight - f.clientHeight - f.scrollTop);
+    if (by > 0) f.scrollTo({ top: f.scrollTop + by, behavior: ANIM ? "smooth" : "auto" });
 }
 
 function wire() {
