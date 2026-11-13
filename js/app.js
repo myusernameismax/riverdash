@@ -2462,10 +2462,12 @@ function wire() {
     scr.addEventListener("wheel", e => {
         const fresh = e.timeStamp - lastWheel > 300;
         lastWheel = e.timeStamp;
+        // scrolling back up drops the note at once rather than waiting out its timer
+        if (e.deltaY < 0 && eggTimer) { clearTimeout(eggTimer); eggTimer = 0; setEgg(0, true); return; }
         if (!fresh || e.deltaY <= 0 || !atEnd() || ptrBusy) return;
         setEgg(28, true, EGG_COMPUTER);
         clearTimeout(eggTimer);
-        eggTimer = setTimeout(() => setEgg(0, true), 1500);
+        eggTimer = setTimeout(() => { eggTimer = 0; setEgg(0, true); }, 1500);
     }, { passive: true });
 
     // Customize panel number fields: saved when you leave the field or press Done
