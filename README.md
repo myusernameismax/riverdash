@@ -80,7 +80,14 @@ Only the inputs change from the desktop widget:
 - Opened with the **list button** at the bottom right (blue); the river view zooms out
   and the list zooms in. Big **Places** title with **Edit** on its right, the search
   bar under it (that's where places get added), then every place, the one on screen
-  lightly highlighted. Tapping one zooms into it; the list keeps its spot for next time.
+  lightly highlighted. Each row has the place's name, the readings and ★ on the right,
+  and under the name its stations (as at the top of a place: "Sandy River near Marmot",
+  "Tides: Newport"); a group row lists its places ("Vida · Coburg").
+- Tapping a row opens the place out of it: the row grows into the full page, its top
+  edge racing up and its bottom edge down so both reach the screen's edges together
+  (the list sinks back behind it). The list button does the same in reverse: the page
+  shrinks back into its row (scrolled into view first; its group's row if that's
+  closed) and the list settles with a small bounce. The list keeps its spot for next time.
 - Each mini graph is one color that says how the place is doing: green in shape, red
   not, gray with no good range set. Coastal tide stations show the jetty / surf rating
   instead (green calm, yellow caution, red sketchy).
