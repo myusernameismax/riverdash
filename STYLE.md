@@ -39,6 +39,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   past the end (UIScrollView curve, c = 0.55), destructive full swipes need a long drag.
 - Going between a place and the Places list zooms (like Apple Weather); pages on top
   (Add, Share) slide in from the right.
+- Nothing is rigid. Every scrolling page or list can be pushed and springs back (iOS's
+  rubber band, or our own stiff ones), even when everything fits on screen.
 - Nothing jumps. Panels (Customize) glide the page first, then unfold / switch;
   closing glides back, then folds. Things loading keep their spot (a spinning tile
   sits where the real one will be). Pull-to-refresh and the end-of-page pull are

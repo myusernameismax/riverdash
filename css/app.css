@@ -436,7 +436,9 @@ body.editing .psub.full { margin-left: 32px; }
 .sort-opt.on { background: color-mix(in srgb, var(--link) 16%, transparent); color: var(--link); font-weight: 600; }   /* the pick: tint, no ✓ */
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
               padding: 0 var(--gutter) calc(var(--bote) + 20px); display: flex; flex-direction: column; }
-#listBody { display: flex; flex-direction: column; flex: 1; }
+/* always a hair taller than the list's space, so it can always be scrolled: iOS's rubber
+   band works even with a few places (nothing on screen is rigid, see STYLE.md) */
+#listBody { display: flex; flex-direction: column; flex: none; min-height: calc(100% + 1px); }
 /* while the keyboard is up, the hint ("Find a river or tide station") centers in the
    space above it (iOS doesn't shrink the page for the keyboard; --kb is the part it covers) */
 #listScroll, #addScroll { transition: padding-bottom var(--anim) cubic-bezier(.33,1,.68,1); }
