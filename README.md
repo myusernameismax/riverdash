@@ -15,8 +15,10 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NOAA's,
 like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
-The Add page stays open after adding, so several can go in at once (every gauge on a
-river, say); added ones get a ✓, Back turns into **Done**, and Done shows the first one.
+Tap results to tick them (✓), so several can go in at once (every gauge on a river,
+say); a floating **Add 2 rivers to list** button adds them and shows the first one.
+Back leaves without adding. Adding a gauge or tide station to an existing place still
+adds it straight away.
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 
@@ -86,7 +88,8 @@ after the river.
 
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
   selected so you can type over it; tap the name later to rename). In Edit each group
-  is a tinted box around its name and its places. Drag a place by ≡ over a box and
+  is a tinted box around its name and its places; the name row has a deeper tint (no
+  arrow, since groups are always open in Edit). Drag a place by ≡ over a box and
   the gap where it'll land moves inside (the box grows around it); drag it below the
   box's end to take it out. Drag a group by its own ≡ to move it with its places.
   − on a group only ungroups (the places stay). Your own groups show even with one

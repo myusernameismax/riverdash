@@ -50,7 +50,8 @@ const S = {
     hist: null,              // {mode, range}: the chart shows history (Flow / Water temp)
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     newGroups: [],
-    addedKeys: [],           // places added during this visit to the Add page (it stays open for more)           // Edit → + Group: groups made but still empty (gone if left empty)
+    addedKeys: [],           // places just added from the Add page (the first one is shown)
+    picked: [],              // search results ticked on the Add page, added by the floating button           // Edit → + Group: groups made but still empty (gone if left empty)
     swiped: -1,              // place row swiped open to show Delete
     // share / import page
     moving: "",              // "share" | "import" | ""
@@ -584,6 +585,7 @@ function openAdd(target, kind) {
     S.editing = false;
     S.adding = true;
     S.addedKeys = [];
+    S.picked = [];
     const p = S.places[target];
     const q = $("#q");
     q.value = p ? p.name : "";       // attaching: start with the place's name
@@ -592,15 +594,43 @@ function openAdd(target, kind) {
     if (q.value) runSearch(q.value);
     warmSearch();
 }
-// Done / Back: shows the first place added this visit (if any).
+// Back (nothing ticked is added), or after the floating Add button: shows the
+// first place just added (if any).
 function closeAdd() {
     S.adding = false;
+    S.picked = [];
     $("#q").blur();
     const i = S.places.findIndex(p => S.addedKeys.includes(keyOf(p)));
     S.addedKeys = [];
     if (i >= 0) { select(i); flash.selected = true; }
 }
 const alreadyHave = item => S.places.some(p => p[item.kind] === item.id);
+const isPicked = item => S.picked.some(x => x.kind === item.kind && x.id === item.id);
+function togglePick(item) {
+    S.picked = isPicked(item) ? S.picked.filter(x => !(x.kind === item.kind && x.id === item.id)) : [...S.picked, item];
+}
+// "Add 1 river to list", "Add 2 tide stations to list", mixed: "Add 3 places to list"
+function pickLabel() {
+    const n = S.picked.length, kinds = new Set(S.picked.map(x => x.kind));
+    const word = kinds.size > 1 ? "place" : kinds.has("tide") ? "tide station" : "river";
+    return `Add ${n} ${word}${n === 1 ? "" : "s"} to list`;
+}
+function addPicked() {
+    const items = S.picked.filter(x => !alreadyHave(x));
+    if (!items.length) { S.picked = []; return; }
+    const list = S.places.map(p => ({ ...p }));
+    const added = items.map(item => {
+        const p = { name: shortName(item.name) };
+        p[item.kind] = item.id;
+        if (item.kind === "river") p.rv = shortName(item.name);
+        list.push(p);
+        return p;
+    });
+    savePlaces(list);
+    S.addedKeys = added.map(keyOf);
+    closeAdd();
+    toast("Added " + (added.length === 1 ? added[0].name : added.length + " places"), "", null);
+}
 function addResult(item) {
     const list = S.places.map(p => ({ ...p }));
     let i;
@@ -612,16 +642,9 @@ function addResult(item) {
         // turns them on); a tide station on its own shows them
         if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
     } else {
-        // a new place: the Add page stays open with its results (now ✓), so several can
-        // be added in a row (e.g. every gauge on a river); Done shows the first one
-        const p = { name: shortName(item.name) };
-        p[item.kind] = item.id;
-        if (item.kind === "river") p.rv = shortName(item.name);
-        list.push(p);
-        i = list.length - 1;
-        savePlaces(list);
-        S.addedKeys.push(keyOf(p));
-        toast("Added " + p.name, "", null);
+        // a new place: results are ticked instead (several at once, e.g. every gauge on
+        // a river) and the floating button adds them all (addPicked)
+        togglePick(item);
         return;
     }
     savePlaces(list);
@@ -1362,7 +1385,6 @@ function renderPlaces() {
     };
     const head = (name, n, first) => `<div class="prow grp gedit${first ? " first" : ""}" data-key="g:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">
         <button class="bubble neg" data-act="ungroup" data-g="${esc(name.toLowerCase())}">−</button>
-        <span class="gchev">${icon("next", 14)}</span>
         <input class="gname" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
             data-g="${esc(name.toLowerCase())}" value="${esc(name)}">
         <span class="gcount">${n || ""}</span>
@@ -1421,7 +1443,10 @@ function renderFooter() {
 
 function renderAdd() {
     const rivers = S.attachKind !== "tide", tides = S.attachKind !== "river";
-    $("#addBack").lastChild.nodeValue = S.addedKeys.length ? "Done" : "Back";
+    const commit = $("#addCommit"), picks = S.attachTo < 0 && S.picked.length > 0;
+    commit.classList.toggle("on", picks);
+    if (picks) commit.textContent = pickLabel();
+    $("#addPage").classList.toggle("picking", picks);
     $("#addTitle").textContent = S.attachTo < 0 ? "Add a place"
         : (S.attachKind === "tide" ? "Tides for " : "River gauge for ") + placeName(S.attachTo);
     $("#q").placeholder = tides && rivers ? "River, town, bay or gauge id" : tides ? "Search tide stations" : "Search river gauges";
@@ -1437,12 +1462,12 @@ function renderAdd() {
             if (!g.show || !g.hits.length) continue;
             html += `<div class="rtitle" style="color:${g.color}">${g.title}</div>`;
             html += g.hits.map(h => {
-                const have = alreadyHave(h);
-                return `<div class="hit${have ? " have" : ""}" style="--accent:${g.color}" data-act="${have ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
+                const have = alreadyHave(h), picked = !have && isPicked(h);
+                return `<div class="hit${have ? " have" : ""}${picked ? " picked" : ""}" style="--accent:${g.color}" data-act="${have ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
                         <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : ""].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
                     ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">Map<span class="hmap-arrow">↗</span></a>` : ""}
-                    <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have ? "✓" : "+"}</span>
+                    <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have || picked ? "✓" : "+"}</span>
                 </div>`;
             }).join("");
         }
@@ -1451,7 +1476,7 @@ function renderAdd() {
     } else {
         html = `<div class="placeholder">${icon(qlen < 2 ? "search" : "empty", 44, "ph-icon")}
             <div class="ph-text">${qlen < 2 ? "Find a river or tide station" : "No matches"}</div>
-            <div class="ph-expl">${esc(S.searchError || (qlen < 2 ? "Try “Rogue”, “Newport OR”, “Hood Canal” or a gauge id like SNDO3." : "Try fewer words, or the town nearest the gauge."))}</div></div>`;
+            <div class="ph-expl">${esc(S.searchError || (qlen < 2 ? "Try “Rogue”, “Newport OR”, “Coos Bay” or a gauge id like SNDO3." : "Try fewer words, or the town nearest the gauge."))}</div></div>`;
     }
     morphInto($("#addBody"), html);
 }
@@ -1459,7 +1484,7 @@ function renderAdd() {
 function renderToast() {
     const t = S.toast, el = $("#toast");
     el.classList.toggle("on", t.shown);
-    el.classList.toggle("above-footer", !S.adding);
+    el.classList.toggle("above-footer", !S.adding || (S.attachTo < 0 && S.picked.length > 0));   // above the footer / the Add button
     if (t.shown) {
         $("#toastText").textContent = t.text;
         const a = $("#toastAct");
@@ -2056,6 +2081,7 @@ function wire() {
         if (e.key === "Escape") { closeAdd(); render(); }
     });
     $("#addBack").addEventListener("click", () => { closeAdd(); render(); });
+    $("#addCommit").addEventListener("click", () => { addPicked(); render(); });
     $("#moveBack").addEventListener("click", () => { closeMove(); render(); });
     $("#moveBody").addEventListener("input", e => {
         if (e.target.id === "importText" && codeFrom(e.target.value)) openImport(e.target.value);
