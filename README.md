@@ -285,8 +285,12 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   phone (instant, works with no signal) and checks GitHub for a new version in the
   background with a few tiny requests. A new version is downloaded whole, then the
   app switches to it: right away if you just opened it and haven't touched anything,
-  otherwise the next time you come back after a minute away. A short "Updated to the
-  latest version" note shows; your places are kept.
+  otherwise the next time you come back after a minute away. A computer often keeps the
+  tab open and on screen for days, so while it's open the app also checks every 30 min
+  (and when the window gets the focus back after 10), and switches once nothing's been
+  touched for 2 min and nothing's half done (Edit, a search, Customize, Share / Add). A
+  short "Updated to the latest version" note shows; your places are kept, and the app
+  comes back on the same place.
 - **Opening screen:** the app logo with "Getting the latest from NOAA…" until the
   place on screen has something to show (saved data counts, so normally it's only a
   blink). After 8 s it says "Slow connection · still loading…"; after the refresh

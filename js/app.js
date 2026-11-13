@@ -2577,9 +2577,33 @@ function checkForUpdate() {
     }).then(u => { if (u) updateReady = true; return updateReady; });
 }
 function reloadForUpdate() {
-    try { sessionStorage.setItem("rt:updated", "1"); } catch (e) { /* fine */ }
+    try {
+        sessionStorage.setItem("rt:updated", "1");
+        // come back to the same place (and list pane) after the switch
+        const p = S.places[S.selected];
+        sessionStorage.setItem("rt:resume", JSON.stringify({ key: p ? keyOf(p) : "", listHidden: S.listHidden }));
+    } catch (e) { /* fine */ }
     location.reload();
 }
+// A computer often keeps the tab open and on screen for days, so "when you come back"
+// never comes: while it's open, check every 30 min (and when the window gets the focus
+// back after 10), and switch to a new version once nothing's been touched for 2 min
+// and nothing's half done (Edit, a search, Customize, Share / Add).
+let lastCheck = Date.now(), lastInput = Date.now();
+for (const t of ["pointerdown", "keydown", "wheel", "touchstart"])
+    document.addEventListener(t, () => { lastInput = Date.now(); }, { capture: true, passive: true });
+function checkSometimes(gap) {
+    if (document.hidden || Date.now() - lastCheck < gap) return;
+    lastCheck = Date.now();
+    checkForUpdate();
+}
+const busy = () => S.adding || !!S.moving || S.editing || S.customizing || S.lsearch || !!dragging;
+setInterval(() => {
+    if (document.hidden) return;
+    checkSometimes(30 * 60000);
+    if (updateReady && Date.now() - lastInput > 2 * 60000 && !busy()) reloadForUpdate();
+}, 60000);
+window.addEventListener("focus", () => checkSometimes(10 * 60000));
 
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
@@ -2616,7 +2640,18 @@ document.addEventListener("pointerdown", () => { touched = true; }, { capture: t
 // just opened: if there's a new version and you haven't touched anything yet, switch now
 setTimeout(() => checkForUpdate().then(u => { if (u && !touched && !document.hidden) reloadForUpdate(); }), 1500);
 try {
-    if (sessionStorage.getItem("rt:updated")) { sessionStorage.removeItem("rt:updated"); toast("Updated to the latest version", "", null); render(); }
+    if (sessionStorage.getItem("rt:updated")) {
+        sessionStorage.removeItem("rt:updated");
+        const r = JSON.parse(sessionStorage.getItem("rt:resume") || "null");
+        sessionStorage.removeItem("rt:resume");
+        if (r) {
+            const i = S.places.findIndex(p => keyOf(p) === r.key);
+            if (i >= 0) S.selected = i;
+            S.listHidden = !!r.listHidden;
+        }
+        toast("Updated to the latest version", "", null);
+        render();
+    }
 } catch (e) { /* fine */ }
 
 // Opened from a share link: show what's in it, then drop it from the address bar.
