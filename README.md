@@ -59,10 +59,15 @@ number of gauges, and each gauge's mini graph side by side on the right (up to 4
 it; its places show where they are ("Vida", "Above Coburg") when they're all named
 after the river.
 
-- **Customize → Group** changes it: another name makes or joins a group (any places,
-  e.g. "Coast"); blank keeps the place out of its river's group. Typing the river's
-  name again makes it automatic.
-- Edit mode stays one flat list (reorder, remove); a group sits where its first place is.
+- **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
+  selected so you can type over it; tap the name later to rename). Drag places in and
+  out with ≡: dropped right under a group's name or above one of its places = in it;
+  anywhere else, including below its last place, = out. Drag a group by its own ≡
+  to move it with its places. − on a group
+  only ungroups (the places stay). Your own groups show even with one place; an empty
+  new group is gone after Done. Dragging a place out of its river's group keeps it
+  out; dragging it back in makes it automatic again.
+- In Edit, groups are always open; a group sits where its first place is.
   Places with the same name show where they are there too ("McKenzie · Vida").
 - Groups travel with share links.
 

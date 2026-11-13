@@ -48,6 +48,7 @@ const S = {
     editing: false,
     customizing: false,      // the "Customize" panel for the shown place
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
+    newGroups: [],           // Edit → + Group: groups made but still empty (gone if left empty)
     swiped: -1,              // place row swiped open to show Delete
     // share / import page
     moving: "",              // "share" | "import" | ""
@@ -416,12 +417,45 @@ function pin(i) {
     setPinned(i);
     toast("★ " + placeName(i) + " opens first", "", null);
 }
-// Customize → Group. Same as the automatic river name = automatic again.
-function setGroup(i, value) {
-    const list = S.places.map(p => ({ ...p })), p = list[i], v = value.trim();
-    if (!p) return;
+// Put a place in group `name` ("" = in no group). The automatic river group's own
+// name = automatic again; leaving an automatic group is remembered as "".
+function groupTo(p, name) {
     const auto = autoRiver(p);
-    if (v.toLowerCase() === auto.toLowerCase()) delete p.group; else p.group = v;
+    if (name && name.toLowerCase() === auto.toLowerCase()) delete p.group;
+    else if (name) p.group = name;
+    else if (auto) p.group = "";
+    else delete p.group;
+}
+// Edit → a group's name field: renames it (for all its places); empty = no change.
+function renameGroup(key, value) {
+    const v = value.trim();
+    if (!v) return;
+    const ng = S.newGroups.findIndex(n => n.toLowerCase() === key);
+    if (ng >= 0) { S.newGroups[ng] = v; return; }
+    const list = S.places.map(p => ({ ...p }));
+    list.forEach(p => { if (groupOf(p).toLowerCase() === key) groupTo(p, v); });
+    S.places = list;
+    save("rt:places", list);
+}
+// Edit → − on a group: its places stay, just out of the group.
+function ungroup(key) {
+    S.newGroups = S.newGroups.filter(n => n.toLowerCase() !== key);
+    const list = S.places.map(p => ({ ...p }));
+    list.forEach(p => { if (groupOf(p).toLowerCase() === key) groupTo(p, ""); });
+    S.places = list;
+    save("rt:places", list);
+}
+// After a drag in Edit: the places in their new order (old indexes), and the
+// dragged place's new group (undefined = unchanged). Pinned / selected follow.
+function reorder(order, moved, groupName) {
+    if (order.length !== S.places.length) return;
+    const list = order.map(i => ({ ...S.places[i] }));
+    if (groupName !== undefined) {
+        groupTo(list[order.indexOf(moved)], groupName);
+        if (groupName) S.newGroups = S.newGroups.filter(n => n.toLowerCase() !== groupName.toLowerCase());
+    }
+    setPinned(order.indexOf(pinned()));
+    S.selected = order.indexOf(S.selected);
     S.places = list;
     save("rt:places", list);
 }
@@ -444,17 +478,6 @@ function remove(i) {
     save("rt:places", list);
     if (list.length < 2) S.editing = false;
     toast("Removed " + gone.name, "Undo", undoRemove);
-}
-// Move a place to a new spot in the list; the pinned and selected places follow it.
-function move(from, to) {
-    if (from === to) return;
-    const list = S.places.slice();
-    list.splice(to, 0, list.splice(from, 1)[0]);
-    const f = k => k === from ? to : from < k && k <= to ? k - 1 : to <= k && k < from ? k + 1 : k;
-    setPinned(f(pinned()));
-    S.selected = f(S.selected);
-    S.places = list;
-    save("rt:places", list);
 }
 function undoRemove() {
     const u = S.undoData;
@@ -1128,9 +1151,6 @@ function renderCustomize(cur) {
         <div class="cz-head">Name</div>
         <input class="cz-name" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
             data-set="name" value="${esc(p.name)}" data-key="${esc(p.name)}">
-        <div class="cz-head">Group</div>
-        <input class="cz-name cz-group" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
-            data-set="group" value="${esc(groupOf(p))}" placeholder="None">
         <div class="cz-head">Show</div>
         <div class="cz-chips">${chips}</div>
         ${ranges ? `<div class="cz-head">Good range</div>${ranges}
@@ -1146,9 +1166,10 @@ function renderCustomize(cur) {
 
 // ── river groups ────────────────────────────────────────────────────
 // Places on the same river ("McKenzie River near Vida", "… at Coburg") group
-// automatically in the places list. Customize → Group overrides it: another name
-// makes or joins a group (any places, e.g. "Coast"), blank keeps the place out.
-// place.rv remembers the river's name; place.group is the override.
+// automatically in the places list (2+ places). Edit → + Group makes your own group
+// (e.g. "Coast"), and dragging places in and out of it is how they join or leave;
+// your own groups show even with one place. place.rv remembers the river's name;
+// place.group is the override ("" = kept out of its river's group).
 function autoRiver(p) {
     if (!p || !p.river) return "";
     if (p.rv) return p.rv;
@@ -1158,12 +1179,15 @@ function autoRiver(p) {
 const groupOf = p => (p.group !== undefined ? p.group : autoRiver(p)).trim();
 // The list in order: single places, and groups (2+ places) where their first place is.
 function listItems() {
-    const count = {};
-    S.places.forEach(p => { const g = groupOf(p).toLowerCase(); if (g) count[g] = (count[g] || 0) + 1; });
+    const count = {}, own = {};
+    S.places.forEach(p => {
+        const g = groupOf(p).toLowerCase();
+        if (g) { count[g] = (count[g] || 0) + 1; if (p.group) own[g] = true; }
+    });
     const out = [], seen = {};
     S.places.forEach((p, i) => {
         const g = groupOf(p), k = g.toLowerCase();
-        if (!k || count[k] < 2) { out.push({ i }); return; }
+        if (!k || (count[k] < 2 && !own[k])) { out.push({ i }); return; }
         if (!seen[k]) { seen[k] = { key: k, name: g, members: [] }; out.push(seen[k]); }
         seen[k].members.push(i);
     });
@@ -1182,7 +1206,7 @@ function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
     return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
-                 data-key="${esc(keyOf(p))}" ${S.editing ? "" : `data-act="select"`} data-i="${i}">
+                 data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
@@ -1215,16 +1239,33 @@ function renderPlaces() {
             trailing: `<button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button><button class="edit-btn" data-act="edit">Edit</button>`,
             body: `<div id="placesList">${rows}</div>` });
     }
-    // Edit mode: one flat list. Places with the same name (e.g. three "McKenzie")
-    // also show where they are, so you can tell which one you're removing.
+    // Edit mode: every place with its ≡ handle, groups as folders (always open) with
+    // their own handle, a name field and − (ungroup). Drag a place under a group's
+    // name or between its places to put it in; drag it out to take it out.
+    // Places with the same name (e.g. three "McKenzie") also show where they are.
     const named = {};
     S.places.forEach(p => { const k = p.name.toLowerCase(); named[k] = (named[k] || 0) + 1; });
-    const rows = S.places.map((p, i) => {
-        const loc = named[p.name.toLowerCase()] > 1 ? memberLabel(i, p.name) : "";
-        return placeRow(i, { first: i === 0, label: loc && loc !== p.name ? p.name + " · " + loc : p.name });
-    }).join("");
+    const label = i => {
+        const p = S.places[i], loc = named[p.name.toLowerCase()] > 1 ? memberLabel(i, p.name) : "";
+        return loc && loc !== p.name ? p.name + " · " + loc : p.name;
+    };
+    const head = (name, n, first) => `<div class="prow grp gedit${first ? " first" : ""}" data-key="g:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">
+        <button class="bubble neg" data-act="ungroup" data-g="${esc(name.toLowerCase())}">−</button>
+        <span class="gchev">${icon("next", 14)}</span>
+        <input class="gname" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
+            data-g="${esc(name.toLowerCase())}" value="${esc(name)}">
+        <span class="gcount">${n || ""}</span>
+        <div class="handle" data-g="${esc(name.toLowerCase())}">${icon("handle", 20)}</div>
+    </div>`;
+    let rows = "", first = true;
+    for (const name of S.newGroups) { rows += head(name, 0, first); first = false; }
+    for (const it of listItems()) {
+        if (it.members === undefined) { rows += placeRow(it.i, { first, label: label(it.i) }); first = false; continue; }
+        rows += head(it.name, it.members.length, first); first = false;
+        for (const i of it.members) rows += placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) });
+    }
     return section({ id: "placesSec", title: "All places", pad: 0, gap: 0,
-        trailing: `<button class="edit-btn on" data-act="edit">Done</button>`,
+        trailing: `<button class="edit-btn" data-act="newGroup">${icon("plus", 12)}Group</button><button class="edit-btn on" data-act="edit">Done</button>`,
         body: `<div id="placesList">${rows}</div>` });
 }
 
@@ -1478,8 +1519,12 @@ function bindHourly(cv) {
 // The lifted row follows the finger; the rows it passes slide out of its way.
 function startDrag(e, handle) {
     e.preventDefault();
-    const list = $("#placesList"), rows = [...list.children], from = +handle.dataset.i, row = rows[from];
+    const list = $("#placesList"), row = handle.closest(".prow");
     if (!row || dragging) return;
+    // a group moves as one: its places fold under its name while it's dragged
+    if (row.classList.contains("gedit"))
+        [...list.children].forEach(x => { if (x.dataset.gm && x.dataset.gm === row.dataset.g) x.classList.add("hide"); });
+    const rows = [...list.children].filter(x => !x.classList.contains("hide")), from = rows.indexOf(row);
     const r = row.getBoundingClientRect();
     dragging = { from, to: from, row, rows, list, grab: e.clientY - r.top, y: e.clientY, h: r.height, pending: false };
     handle.setPointerCapture(e.pointerId);
@@ -1522,7 +1567,7 @@ function startDrag(e, handle) {
         setTimeout(() => {
             D.rows.forEach(x => { x.style.transition = "none"; x.style.transform = ""; });
             dragging = null;
-            move(D.from, D.to);
+            dropInEdit(D);
             render();
             requestAnimationFrame(() => D.rows.forEach(x => { x.style.transition = ""; }));
         }, Math.max(1, ANIM * 0.8));
@@ -1530,6 +1575,28 @@ function startDrag(e, handle) {
     handle.addEventListener("pointermove", moveH);
     handle.addEventListener("pointerup", up);
     handle.addEventListener("pointercancel", up);
+}
+
+// Where a drag in Edit ended: the new order, and for a place, its group: right under
+// a group's name or above one of its places = in that group; anywhere else (also
+// below a group's last place) = in no group.
+function dropInEdit(D) {
+    if (D.to === D.from) return;
+    const seq = D.rows.slice();
+    seq.splice(D.from, 1); seq.splice(D.to, 0, D.row);
+    const isHead = el => el.classList.contains("gedit"), all = [...D.list.children];
+    const order = [];
+    for (const el of seq) {
+        if (!isHead(el)) { order.push(+el.dataset.i); continue; }
+        if (el === D.row) all.forEach(m => { if (!isHead(m) && m.dataset.gm === el.dataset.g) order.push(+m.dataset.i); });
+    }
+    if (isHead(D.row)) { reorder(order); return; }
+    const k = seq.indexOf(D.row), prev = seq[k - 1], next = seq[k + 1], was = D.row.dataset.gm || "";
+    const gOf = el => el && !isHead(el) ? el.dataset.gm || "" : "";
+    const g = prev && isHead(prev) ? prev.dataset.g : gOf(next);
+    if (g === was) { reorder(order); return; }
+    const head = g && all.find(el => isHead(el) && el.dataset.g === g);
+    reorder(order, +D.row.dataset.i, head ? head.dataset.name : "");
 }
 
 // ════════════ events ════════════
@@ -1583,8 +1650,20 @@ const ACTIONS = {
     importReplace: () => applyImport(true),
     edit: () => {
         S.editing = !S.editing;
+        S.newGroups = [];
         if (S.editing) setTimeout(showList, ANIM + 20);
     },
+    newGroup: () => {
+        let name = "New group", n = 2;
+        const taken = new Set(S.places.map(p => groupOf(p).toLowerCase()).concat(S.newGroups.map(g => g.toLowerCase())));
+        while (taken.has(name.toLowerCase())) name = "New group " + n++;
+        S.newGroups.unshift(name);
+        render();
+        const f = document.querySelector(`.gname[data-g="${name.toLowerCase()}"]`);
+        if (f) { f.focus(); f.select(); }
+        return "skip";
+    },
+    ungroup: el => ungroup(el.dataset.g),
     // Tapping an already-added result in search takes it back out (with Undo):
     // the station from its place if the place has another one, else the whole place.
     unHit: el => {
@@ -1792,15 +1871,15 @@ function wire() {
     // Customize panel number fields: saved when you leave the field or press Done
     $("#body").addEventListener("change", e => {
         const el = e.target;
+        if (el.matches && el.matches(".gname")) { renameGroup(el.dataset.g, el.value); render(); return; }
         if (!el.matches || !el.matches(".cz-in, .cz-name")) return;
         if (el.dataset.set === "name") rename(S.selected, el.value);
-        else if (el.dataset.set === "group") setGroup(S.selected, el.value);
         else if (el.dataset.set === "ideal") setIdeal(el.dataset.mode, +el.dataset.side, el.value);
         else if (el.dataset.set === "jetty") setJetty(el.dataset.k, el.value);
         render();
     });
     $("#body").addEventListener("keydown", e => {
-        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name")) { e.preventDefault(); e.target.blur(); }
+        if (e.key === "Enter" && e.target.matches && e.target.matches(".cz-in, .cz-name, .gname")) { e.preventDefault(); e.target.blur(); }
     });
 
     // search

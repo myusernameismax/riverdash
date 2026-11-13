@@ -264,6 +264,11 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gchev { display: flex; opacity: .45; transition: transform var(--anim); }
 .prow.grp.open .gchev { transform: rotate(90deg); }
 .prow.member { padding-left: 30px; }
+.prow.gedit { gap: 10px; cursor: default; }
+.prow.gedit .gchev { transform: rotate(90deg); margin: 0 -4px 0 -2px; }   /* always open in Edit */
+.gname { flex: 1; min-width: 0; height: 34px; margin-left: -6px; padding: 0 6px; border: 0; outline: none; border-radius: 8px;
+         background: transparent; font-size: 16px; font-weight: 700; }
+.gname:focus { background: var(--hover); }
 /* swipe left to delete: the row's contents slide over, a red Delete grows from the right */
 .prow > :not(.pdel) { transform: translateX(var(--sx, 0px)); transition: transform var(--anim); }
 .prow.dragx > :not(.pdel), .prow.dragx .pdel { transition: none; }
