@@ -57,6 +57,7 @@ const S = {
     swiped: -1,              // place row swiped open to show Delete
     sort: load("rt:sort", "mine"),   // places list order: "mine" (as arranged in Edit) | "az" | "views"
     sortOpen: false,         // its menu is out
+    listHidden: false,       // wide screens: the list pane slid away (the list button brings it back)
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
@@ -634,6 +635,7 @@ function unAdd(keys) {
 // them out again.
 function openList(search = false) {
     S.listing = !wide();
+    if (wide() && S.listHidden) toggleListPane(true);
     S.editing = false; S.newGroups = []; S.swiped = -1;
     S.attachTo = -1; S.attachKind = "";
     render();
@@ -661,10 +663,19 @@ function endSearch(keep = false) {
 // desktop panel widget's popup is narrow, so it keeps the phone layout.
 const wideMQ = matchMedia("(min-width: 760px)");
 const wide = () => wideMQ.matches && !document.documentElement.dataset.embed;
-const listShown = () => S.listing || wide();   // the places list is on screen
+const listShown = () => S.listing || (wide() && !S.listHidden);   // the places list is on screen
 function applyWide() {
     document.documentElement.classList.toggle("wide", wide());
-    if (wide()) S.listing = false;   // the list is always there
+    document.body.classList.toggle("list-hidden", wide() && S.listHidden);
+    if (wide()) S.listing = false;   // the list is a pane there, not a page
+}
+// The list button on a wide screen: slide the list pane away or back. The place gets
+// the room; its chart is redrawn at the new width once the slide is done.
+function toggleListPane(show = S.listHidden) {
+    S.listHidden = !show;
+    if (!show) { S.sortOpen = false; if (S.lsearch) endSearch(); }
+    render();
+    setTimeout(() => paint(), ANIM + 40);
 }
 wideMQ.addEventListener("change", () => render());
 // ── zoom between the list and a place (Apple Weather) ──
@@ -1616,7 +1627,7 @@ function stationLine(i) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${listShown() && wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pmain"><div class="pname">${esc(o.label || placeLabel(i))}</div></div>
@@ -1712,7 +1723,7 @@ function renderFooter() {
             : S.updated ? "Updated " + dayClock(S.updated) + "  ·  NOAA" : "NOAA"}</div>
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
-        <button class="fbtn round flist" data-act="list" aria-label="Places">${icon("list", 24)}</button>
+        <button class="fbtn round flist${wide() && !S.listHidden ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
         <div class="egg">Stop looking at your phone and go fishing!</div>`);
 }
 
@@ -2146,7 +2157,7 @@ const ACTIONS = {
     },
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
-    list: () => { zoomToList(); return "skip"; },
+    list: () => { if (wide()) toggleListPane(); else zoomToList(); return "skip"; },
     sortMenu: () => { S.sortOpen = !S.sortOpen; },
     sort: el => {
         S.sortOpen = false;
