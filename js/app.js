@@ -626,7 +626,7 @@ function unAdd(keys) {
 }
 // The places list. Typing in its search shows results instead of the list; tapping a
 // result adds it right away (✓, starts loading), several can go in, and the floating
-// "Add 2 Rivers To List" button keeps them and opens the first. Cancel / Back takes
+// "Add 2 Rivers To List" button keeps them and goes back to the list, scrolled to them. Cancel / Back takes
 // them out again.
 function openList(search = false) {
     S.listing = true;
@@ -650,9 +650,7 @@ function endSearch(keep = false) {
     S.lsearch = false;
     S.searchResults = []; S.searchError = ""; S.searching = false; S.searchSeq++;
     if (!keep) unAdd(S.addedKeys);
-    const i = S.places.findIndex(p => S.addedKeys.includes(keyOf(p)));
     S.addedKeys = [];
-    if (i >= 0) { select(i); flash.selected = true; S.listing = false; }
 }
 // ── zoom between the list and a place (Apple Weather) ──
 // Tapping a row: the place's page opens out of the row, its top edge racing up and its
@@ -741,10 +739,22 @@ function addLabel() {
     const word = rivers && rivers < n ? "Place" : rivers ? "River" : "Tide Station";
     return `Add ${n} ${word}${n === 1 ? "" : "s"} To List`;
 }
+// From the places list's search: back to the list, scrolled to the new places (their
+// groups opened), which light up for a moment.
 function keepAdded() {
-    const n = S.addedKeys.length, first = S.places.find(p => S.addedKeys.includes(keyOf(p)));
-    if (S.listing) endSearch(true); else closeAdd(true);
-    if (first) toast("Added " + (n === 1 ? first.name : n + " places"), "", null);
+    const keys = [...S.addedKeys], n = keys.length, first = S.places.find(p => keys.includes(keyOf(p)));
+    if (first) toast("Added " + (n === 1 ? placeLabel(S.places.indexOf(first)) : n + " places"), "", null);
+    if (!S.listing) { closeAdd(true); return; }
+    endSearch(true);
+    for (const p of S.places) if (keys.includes(keyOf(p)) && groupOf(p)) S.openGroups.add(groupOf(p).toLowerCase());
+    render();
+    const rows = [...document.querySelectorAll("#placesList .prow[data-i]")].filter(r => keys.includes(r.dataset.key));
+    if (!rows.length) return;
+    // after the title slides back and the search's padding goes (they change the list's height)
+    setTimeout(() => reveal(rows[0], rows[rows.length - 1], $("#listScroll")), ANIM + 40);
+    const tint = getComputedStyle(document.documentElement).getPropertyValue("--link").trim() || "#2b8fe0";
+    rows.forEach(r => r.animate([{ backgroundColor: `color-mix(in srgb, ${tint} 22%, transparent)` }, { backgroundColor: "transparent" }],
+        { duration: 1600, delay: ANIM + 200, easing: "ease-in", fill: "backwards" }));
 }
 function addResult(item) {
     const list = S.places.map(p => ({ ...p }));
@@ -2271,7 +2281,7 @@ function wire() {
         if (e.key === "Escape") { endSearch(); render(); }
     });
     $("#lqCancel").addEventListener("click", () => { endSearch(); render(); });
-    $("#listCommit").addEventListener("click", () => { keepAdded(); render(); });
+    $("#listCommit").addEventListener("click", () => keepAdded());
 
     // search
     const q = $("#q");
