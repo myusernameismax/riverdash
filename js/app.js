@@ -1386,7 +1386,7 @@ function renderBody(cur) {
     if (dragging) { dragging.pending = true; return; }
     let html = "";
     if (!S.places.length) {
-        html += `<div class="placeholder">${wxIcon(63, true, 56)}<div class="ph-text">No places yet</div>
+        html += `<div class="placeholder"><img class="ph-logo" src="icons/icon-192.png" alt=""><div class="ph-text">No places yet</div>
             <div class="ph-expl">Add a river gauge or a tide station.</div>
             <button class="ph-btn" data-act="add">${icon("plus", 16)}Add a place</button>
             <button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import</button></div>`;

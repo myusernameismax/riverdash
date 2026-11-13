@@ -321,6 +321,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
                gap: 6px; padding: 20px; flex: 1; }
 .ph-icon { opacity: .4; }
+.ph-logo { width: 72px; height: 72px; border-radius: 16px; margin-bottom: 6px; }   /* the app icon, as on the splash */
 .ph-text { font-size: 18px; font-weight: 600; opacity: .8; }
 .ph-expl { font-size: 13px; opacity: .6; max-width: 280px; }
 .ph-btn { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 14px; border-radius: 10px; background: var(--tint); font-weight: 600; }
