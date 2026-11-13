@@ -15,7 +15,7 @@ export function cleanPlace(p) {
     if (!p || typeof p !== "object") return null;
     const out = {};
     const name = typeof p.name === "string" ? p.name.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 60) : "";
-    if (typeof p.river === "string" && /^[A-Za-z0-9]{3,12}$/.test(p.river)) out.river = p.river.toUpperCase();
+    if (typeof p.river === "string" && /^[A-Za-z0-9]{3,15}$/.test(p.river)) out.river = p.river.toUpperCase();
     if (typeof p.tide === "string" && /^[A-Za-z0-9]{4,12}$/.test(p.tide)) out.tide = p.tide;
     if (!out.river && !out.tide) return null;
     out.name = name || out.river || out.tide;

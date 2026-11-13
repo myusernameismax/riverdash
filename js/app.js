@@ -87,6 +87,10 @@ const tideWord = e => e.type === "H" ? "High" : "Low";
 const categoryColor = c => c === "action" ? LOOK.actionColor : c === "minor" ? LOOK.minorColor
     : c === "moderate" ? LOOK.moderateColor : c === "major" ? LOOK.majorColor : "var(--text)";
 const flooding = r => !!r && ["action", "minor", "moderate", "major"].includes(r.category);
+// flow that's part of the gauge's own readings (so it has a chart), vs. a borrowed USGS number
+const nativeFlow = r => r.flowNative ?? r.flowNote === "NOAA";
+// a few USGS gauges measure flow only
+const hasStage = r => has(r.stage) || r.series.some(p => p[1] !== null);
 const shortName = n => n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0].replace(/ River$/, "").trim();
 const dayLabel = ms => fmtDay(ms) + " " + fmtMonthDay(ms);
 
@@ -111,7 +115,7 @@ function interp(pts, t, col) {
 const FLOOD = [["major", "Major flooding"], ["moderate", "Moderate flooding"], ["minor", "Minor flooding"], ["action", "Action stage"]];
 function projectRiver(r, now) {
     if (!r || !r.time || now - r.time < MEASURED_FOR) return r;
-    const line = [[r.time, r.stage, r.flowNote === "NOAA" ? r.flow : null]].concat(r.forecast);
+    const line = [[r.time, r.stage, nativeFlow(r) ? r.flow : null]].concat(r.forecast);
     const stage = interp(line, now, 1);
     if (stage === null) return { ...r, stale: true };          // past the forecast: last measurement, marked old
     const flow = interp(line, now, 2), known = r.series.concat(r.forecast);
@@ -240,7 +244,7 @@ const waiting = (p, d, m) => !hidden(p, m) && availOf(p, m) !== false && !haveMo
 // Which charts this data has (whether hidden or not).
 function haveModes(d) {
     const r = d ? d.river : null, t = d ? d.tide : null;
-    return Object.keys(MODES).filter(m => (m === "tide" && !!t) || (m === "stage" && !!r)
+    return Object.keys(MODES).filter(m => (m === "tide" && !!t) || (m === "stage" && !!r && hasStage(r))
         || (m === "surf" && !!d && !!d.surf && d.surf.hours.length > 1)
         || (m === "flow" && !!r && r.series.some(p => p[2] !== null))
         || (m === "temp" && !!r && !!r.temp && r.temp.series.length > 1));
@@ -940,11 +944,11 @@ function renderTiles(cur) {
     const { d, r, t, mode, place: p } = cur;
     if (!d) return "";
     const T = {};   // by tab, so a tile that's still downloading keeps its place
-    if (r && !hidden(p, "stage")) T.stage = tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
+    if (r && hasStage(r) && !hidden(p, "stage")) T.stage = tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) });
-    if (r && has(r.flow) && !hidden(p, "flow")) T.flow = tile({ title: "FLOW", accent: LOOK.flowColor, mode: r.flowNote === "NOAA" ? "flow" : "", active: mode === "flow",
+    if (r && has(r.flow) && !hidden(p, "flow")) T.flow = tile({ title: "FLOW", accent: LOOK.flowColor, mode: nativeFlow(r) ? "flow" : "", active: mode === "flow",
         num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: r.flowNote === "NOAA" ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) });
+        detail: nativeFlow(r) ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) });
     if (r && r.temp && !hidden(p, "temp")) T.temp = tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
         num: Math.round(r.temp.value).toString(), unit: " °F " + arrow(r.temp.trend, 0.3),
         detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) });
@@ -1193,7 +1197,7 @@ function customizePanel(cur) {
         <div class="cz-note">The line turns green inside the range and red outside. Leave a side blank for no limit.</div>` : ""}
         ${jetty}
         <div class="cz-head">Stations</div>
-        ${station("river", "River", cur.r && cur.r.name)}
+        ${station("river", "River", cur.r && cur.r.name + (cur.r.usgs ? " · USGS " + cur.r.usgs : ""))}
         ${station("tide", "Tides", cur.t && cur.t.name)}
         ${both ? "" : `<div class="cz-note">To remove the last station, remove the place under Edit.</div>`}`;
     return section({ id: "czSec", title: "Customize · " + p.name, pad: 10, gap: 6,
@@ -1365,7 +1369,7 @@ function renderAdd() {
                 const have = alreadyHave(h);
                 return `<div class="hit${have ? " have" : ""}" style="--accent:${g.color}" data-act="${have ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
-                        <div class="hit-sub">${esc([h.state, h.id].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
+                        <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : ""].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
                     ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">${icon("map", 24)}</a>` : ""}
                     <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have ? "✓" : "+"}</span>
                 </div>`;

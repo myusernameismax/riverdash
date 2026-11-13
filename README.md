@@ -15,7 +15,9 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 Under a place's name, each station's name (with a pin) opens a map at the exact spot of
 the gauge or tide station.
 
-It starts empty: tap **+ Add** and search for a river, town, bay or gauge id.
+It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NOAA's,
+like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
+flood stages) and, where NOAA has none, straight from USGS.
 The Add page stays open after adding, so several can go in at once (every gauge on a
 river, say); added ones get a ✓, Back turns into **Done**, and Done shows the first one.
 Places are saved on the phone only (nothing is sent anywhere but the public
@@ -188,9 +190,10 @@ sea grid cell to the tide station, not a buoy reading.
 | `js/icons.js` | Weather and button icons |
 | `js/share.js` | Share links: packs/unpacks places into the link, checks imported ones |
 | `js/qr.js` | QR code maker (written for this app, no outside code) |
-| `data/gauges.json`, `data/tides.json` | Station lists for search, shipped so search is instant |
+| `data/gauges.json`, `data/tides.json` | Station lists for search, shipped so search is instant (NOAA gauges carry their USGS number, so searching 14162500 finds the McKenzie near Vida) |
+| `data/usgs.json` | USGS gauges NOAA doesn't carry (only shipped; refresh with the tool) |
 | `sw.js` | Lets the app open with no signal (shows the last data) |
-| `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new ones itself when they're old) |
+| `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new NOAA lists itself when they're old). Looks up which USGS gauge each NOAA gauge is; `tools/noaa-usgs-ids.json` keeps those so reruns are quick |
 
 Downloads are cached on the phone for the same times as the widget (river
 history 3 h, tides 6 h, waves 3 h, weather 1 h, current readings 5 min).
@@ -248,6 +251,7 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 | River height, flow, forecast (the whole one, about 7 days, including what NOAA's site calls the trend), flood stages | NOAA National Water Prediction Service |
 | Tides (predictions, live level where there's a sensor) | NOAA CO-OPS Tides & Currents |
 | Flow when NOAA has none | USGS Water Data |
+| Gauges NOAA doesn't carry (about half of USGS's real-time gauges, mostly creeks): height and flow every 15 min, last 2 days; no forecast or flood stages | USGS Water Data |
 | Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
 | Typical (median) flow for each calendar date (over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |

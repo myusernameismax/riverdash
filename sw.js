@@ -8,7 +8,7 @@
 const SHELL = "rivertides-shell-v4";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/config.js", "js/data.js", "js/chart.js",
                "js/icons.js", "js/fmt.js", "js/morph.js", "js/qr.js", "js/share.js", "manifest.webmanifest", "icons/apple-touch-icon.png",
-               "icons/icon-192.png", "icons/icon-512.png", "data/gauges.json", "data/tides.json"];
+               "icons/icon-192.png", "icons/icon-512.png", "data/gauges.json", "data/tides.json", "data/usgs.json"];
 
 self.addEventListener("install", e => {
     // cache: "reload" skips the browser's own cache, so this is really the latest

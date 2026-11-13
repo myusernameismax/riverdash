@@ -3,13 +3,15 @@
 //   fetchPlaces(places) -> {places: [...], time: ms}
 //   search(text)        -> {rivers: [...], tides: [...], error?}
 //
-// A place is {name, river: "<NWPS gauge id>", tide: "<CO-OPS station id>"};
-// river and tide are each optional.
+// A place is {name, river: "<NWPS gauge id or USGS site number>", tide: "<CO-OPS station id>"};
+// river and tide are each optional. NOAA gauge ids always have letters (VIDO3), USGS
+// site numbers are all digits (14162500): gauges NOAA doesn't carry come from USGS.
 //
 // Sources (all free, no key, all allow requests straight from a browser):
 //   River stage/flow/forecast/flood levels: NOAA National Water Prediction Service
 //   Tides: NOAA CO-OPS (Tides & Currents)
 //   Flow fallback when NOAA has none (e.g. tidal Willamette at Portland): USGS
+//   Gauges NOAA doesn't carry (about half of USGS's, mostly creeks): USGS Water Data
 //   Swell + wind forecast for coastal tide stations: Open-Meteo (marine + weather)
 //   7-day weather for every place: Open-Meteo (weather)
 //
@@ -287,14 +289,60 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
         id: lid, name: g.name || lid, time: t,
         lat: g.latitude, lon: g.longitude,
         stage, stageTrend: trend(1, stage),
-        flow, flowTime, flowNote,
-        flowTrend: hasFlowSeries ? trend(2, flow) : null,
+        flow, flowTime, flowNote, flowNative: flowNote === "NOAA",   // native: flow is part of the gauge's own series (it has a chart)
+        flowTrend: hasFlowSeries ? trend(2, flow) : null, usgs: g.usgsId || "",
         category: cat[0], categoryLabel: cat[1], flood,
         forecastPeak: peak ? { time: peak[0], stage: peak[1], flow: peak[2] } : null,
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
         forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
         temp,                      // {value °F, time, trend (3 h), series} or null
         averages,                  // {"MM-DD": typical (median) cfs for that calendar date} or null
+    };
+}
+
+// A USGS-only gauge, in the same shape as river(): height and flow every 15 min for
+// 2 days, water temperature and typical flow like NOAA gauges get. USGS publishes no
+// forecast or flood stages, so those parts are empty (the app leaves them out).
+export const isUsgs = id => /^\d{8,15}$/.test(String(id || "").trim());
+async function usgsRiver(site, full = true, need = { series: true, flow: true, temp: true }) {
+    site = site.trim();
+    const row = (await usgsGauges().catch(() => [])).find(r => r[0] === site);
+    let pts = [];
+    if (need.series) {
+        const d = await cached(`usgs-iv-${site}.json`, 15 * MIN, () => get(USGS_CONT, {
+            f: "json", monitoring_location_id: `USGS-${site}`, parameter_code: "00060,00065", time: "P2D",
+            skipGeometry: "true", properties: "time,value,parameter_code", limit: 3000 }, 40));
+        const byTime = new Map();
+        for (const f of d.features || []) {
+            const p = f.properties, t = ms(p.time), v = parseFloat(p.value);
+            if (!isFinite(t) || !isFinite(v) || v <= -999) continue;
+            const r = byTime.get(t) || [t, null, null];
+            if (p.parameter_code === "00065") r[1] = round(v, 2); else if (p.parameter_code === "00060") r[2] = Math.round(v);
+            byTime.set(t, r);
+        }
+        pts = [...byTime.values()].sort((a, b) => a[0] - b[0]);
+    }
+    if (!row && need.series && !pts.length) throw new Error(`No USGS gauge ${site}`);
+    const last = col => { for (let i = pts.length - 1; i >= 0; i--) if (pts[i][col] !== null) return pts[i]; return null; };
+    const ls = last(1), lf = last(2), t = pts.length ? pts[pts.length - 1][0] : null;
+    const flow = lf ? lf[2] : null;
+    const trend = (col, p) => {
+        if (!p) return null;
+        const b = valueNear(pts, p[0] - 3 * HOUR * 1000, col);
+        return b === null ? null : round(p[col] - b, 2);
+    };
+    let temp = null, averages = null;
+    if (full) [temp, averages] = await Promise.all([
+        need.temp ? usgsTemp(site).catch(() => null) : null,
+        flow !== null && need.flow ? usgsAverages(site).catch(() => null) : null,
+    ]);
+    return {
+        id: site, name: row ? row[1] : "USGS " + site, time: t,
+        lat: row ? row[3] : null, lon: row ? row[4] : null,
+        stage: ls ? ls[1] : null, stageTrend: trend(1, ls),
+        flow, flowTime: lf ? lf[0] : t, flowNote: "USGS", flowNative: true, flowTrend: trend(2, lf),
+        category: "", categoryLabel: "", flood: {}, forecastPeak: null,
+        series: thin(pts), forecast: [], temp, averages, usgs: site,
     };
 }
 
@@ -333,12 +381,19 @@ async function allGaugesLive() {
 }
 let gaugeList = null;
 function allGauges() {
-    return gaugeList || (gaugeList = cached("all-gauges-v2.json", 180 * DAY, () =>
+    return gaugeList || (gaugeList = cached("all-gauges-v3.json", 180 * DAY, () =>
         shippedList("data/gauges.json", 180, allGaugesLive))
         .catch(e => { gaugeList = null; throw e; }));
 }
+// USGS gauges NOAA doesn't carry, as [site, name, state, lat, lon]: shipped only
+// (data/usgs.json, from tools/update-station-lists.py), saved offline with the app.
+let usgsRowsP = null;
+function usgsGauges() {
+    return usgsRowsP || (usgsRowsP = fetch("data/usgs.json").then(r => { if (!r.ok) throw new Error(`HTTP Error ${r.status}`); return r.json(); })
+        .then(j => j.rows).catch(e => { usgsRowsP = null; throw e; }));
+}
 // Start loading the lists before the first keystroke.
-export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); }
+export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); usgsGauges().catch(() => {}); }
 
 // ---------------------------------------------------------------- tides
 
@@ -578,7 +633,7 @@ async function place(p, full = true) {
     const off = m => Array.isArray(p.hide) && p.hide.includes(m);
     const need = { series: !off("stage") || !off("flow"), flow: !off("flow"), temp: !off("temp") && full };
     const tasks = [];
-    if (p.river) tasks.push(river(p.river, full, need).then(r => {
+    if (p.river) tasks.push((isUsgs(p.river) ? usgsRiver : river)(p.river, full, need).then(r => {
         out.river = r;
         if (need.series) out.asked.push("stage", "flow");
         if (need.temp) out.asked.push("temp");
@@ -626,10 +681,19 @@ const indexes = new WeakMap();
 function indexOf(rows) {
     let ix = indexes.get(rows);
     if (!ix) {
-        ix = rows.map(r => (`${r[0]} ${r[1]} ${r[2]}`.toLowerCase().match(/[a-z0-9]+/g) || []));
+        ix = rows.map(r => (`${r[0]} ${r[1]} ${r[2]} ${r[5] || ""}`.toLowerCase().match(/[a-z0-9]+/g) || []));
         indexes.set(rows, ix);
     }
     return ix;
+}
+
+// River gauges for search: NOAA's (with forecasts) and the USGS ones NOAA doesn't
+// carry, as one list (kept, so its search index is built once).
+let riverCache = null;
+async function riverRows() {
+    const [a, b] = await Promise.all([allGauges(), usgsGauges().catch(() => [])]);
+    if (!riverCache || riverCache.a !== a || riverCache.b !== b) riverCache = { a, b, rows: a.concat(b) };
+    return riverCache.rows;
 }
 
 export async function search(text) {
@@ -640,15 +704,15 @@ export async function search(text) {
         // every search word starts some word of "id name state"
         rows.forEach((r, i) => {
             if (words.every(w => ix[i].some(h => h.startsWith(w))))
-                out.push({ kind, id: r[0], name: r[1].trim(), state: r[2], lat: r[3], lon: r[4] });
+                out.push({ kind, id: r[0], name: r[1].trim(), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : "") });
         });
         // names that start with the first word (or exact ids) first
-        const k = r => [r.id.toLowerCase() !== words[0] ? 1 : 0, r.name.toLowerCase().startsWith(words[0]) ? 0 : 1];
+        const k = r => [r.id.toLowerCase() !== words[0] && r.usgs !== words[0] ? 1 : 0, r.name.toLowerCase().startsWith(words[0]) ? 0 : 1];
         out.sort((a, b) => { const ka = k(a), kb = k(b); return ka[0] - kb[0] || ka[1] - kb[1]; });
         return out.slice(0, 20);
     };
     const out = {};
-    for (const [key, kind, rows] of [["rivers", "river", allGauges], ["tides", "tide", tideStations]]) {
+    for (const [key, kind, rows] of [["rivers", "river", riverRows], ["tides", "tide", tideStations]]) {
         try { out[key] = hits(await rows(), kind); }
         catch (e) { out[key] = []; out.error = `${title(kind)} search failed: ${e.message}`; }
     }
