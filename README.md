@@ -17,7 +17,7 @@ like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with foreca
 flood stages) and, where NOAA has none, straight from USGS.
 Tapping a result adds it (✓) and starts loading its data; the page stays open so several
 can go in at once (every gauge on a river, say). A floating **Add 2 Rivers To List**
-button (above the keyboard while it's up) keeps them and shows the first one; **Back** (or the back swipe) takes them out
+button (1/5 of the way up the screen, in thumb reach; above the keyboard while it's up) keeps them and shows the first one; **Back** (or the back swipe) takes them out
 again, and tapping a ✓ result takes just that one out. Adding a gauge or tide station
 to an existing place happens straight away and goes back to it.
 Places are saved on the phone only (nothing is sent anywhere but the public
