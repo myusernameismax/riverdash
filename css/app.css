@@ -81,6 +81,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hsub { font-size: var(--small); color: color-mix(in srgb, var(--text) 60%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .hmap { color: var(--link); text-decoration: none; border-radius: 5px; }   /* blue = opens something (the map) */
 .hmap-arrow { margin-left: 2px; font-size: .9em; }
+.hmap-arrow.lead { margin: 0 2px 0 0; }
 .hmap:active { background: var(--hover); }
 .hwx { display: flex; align-items: center; gap: 6px; flex: none; padding-top: 1px; }
 .hwx-t { display: flex; flex-direction: column; line-height: 1.05; }
