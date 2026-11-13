@@ -70,7 +70,6 @@ const UI = {
     back: `<path d="M20 5L9 16l11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
     next: `<path d="M12 5l11 11-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
     handle: `<path d="M7 11h18M7 16h18M7 21h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`,
-    map: `<path d="M16 29s-9-8.6-9-15a9 9 0 0 1 18 0c0 6.4-9 15-9 15z" fill="#ea4335"/><circle cx="16" cy="14" r="3.4" fill="#fff"/>`,
     search: `<circle cx="14" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M20 20l7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
     empty: `<circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 23.5l15-15" stroke="currentColor" stroke-width="2"/>`,
     rain: `<path d="M16 4c4 6 8 10.5 8 15a8 8 0 0 1-16 0c0-4.5 4-9 8-15z" fill="currentColor"/>`,

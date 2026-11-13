@@ -1441,7 +1441,7 @@ function renderAdd() {
                 return `<div class="hit${have ? " have" : ""}" style="--accent:${g.color}" data-act="${have ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
                         <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : ""].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
-                    ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">${icon("map", 24)}</a>` : ""}
+                    ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">Map<span class="hmap-arrow">↗</span></a>` : ""}
                     <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have ? "✓" : "+"}</span>
                 </div>`;
             }).join("");

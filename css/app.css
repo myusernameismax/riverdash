@@ -359,8 +359,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hit-main { flex: 1; min-width: 0; }
 .hit-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hit-sub { font-size: var(--small); opacity: .5; }
-.maplink { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 8px; }
-.maplink:active { transform: scale(.85); }
+.maplink { display: flex; align-items: center; height: 34px; padding: 0 8px; flex: none; border-radius: 8px;
+           color: var(--link); text-decoration: none; font-size: 13px; font-weight: 600; }   /* like the station names under a place */
+.maplink:active { background: var(--hover); }
 
 /* ── toast ─────────────────────────────────────────────────────────── */
 #toast { position: absolute; left: 50%; bottom: calc(var(--bot) + 18px); z-index: 50; display: flex; align-items: center; gap: 14px;
