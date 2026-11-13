@@ -72,9 +72,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hshape { flex: none; font-size: 14px; font-weight: 700; }
 .hname h1 { min-width: 0; margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hsub { font-size: var(--small); opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.hmap { color: inherit; text-decoration: none; border-radius: 5px; }
-.hmap .ic { display: inline-block; vertical-align: -2px; margin-right: 2px; }
+.hsub { font-size: var(--small); color: color-mix(in srgb, var(--text) 60%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.hmap { color: var(--link); text-decoration: none; border-radius: 5px; }   /* blue = opens something (the map) */
+.hmap-arrow { margin-left: 2px; font-size: .9em; }
 .hmap:active { background: var(--hover); }
 .hwx { display: flex; align-items: center; gap: 6px; flex: none; padding-top: 1px; }
 .hwx-t { display: flex; flex-direction: column; line-height: 1.05; }

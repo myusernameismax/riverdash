@@ -20,8 +20,8 @@ river, say); added ones get a ✓, Back turns into **Done**, and Done shows the 
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 
-Under a place's name, each station's name (with a pin) opens a map at the exact spot of
-the gauge or tide station.
+Under a place's name, each station's name (blue, with ↗) opens a map at the exact spot
+of the gauge or tide station.
 
 ## What's different from the widget
 

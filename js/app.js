@@ -917,7 +917,7 @@ function renderHeader(cur) {
     const off = ms => ms.every(m => hidden(place, m));
     // each station's name opens a map at the exact spot of the gauge / tide station
     const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
-        ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener">${icon("map", 12)}${esc(label)}</a>`
+        ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener">${esc(label)}<span class="hmap-arrow">↗</span></a>`
         : esc(label);
     const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
         .filter(s => s).join("  ·  ");
