@@ -346,8 +346,9 @@ water yourself before going out on rocks or a jetty.
 "Flow Tides"), which forwards to Max. It's hidden in the desktop widget.
 
 Easter egg: scroll to the end of the page, then keep pushing: the page lifts like a
-rubber band (the same give as pull-to-refresh) over a small note ("Get off your
-computer and go fishing!"), and springs back when you let go.
+rubber band (the same give as pull-to-refresh) over a small note, and springs back when
+you let go. A finger gets "Stop looking at your phone and go fishing!", a scroll wheel
+"Get off your computer and go fishing!".
 
 ## Security
 
