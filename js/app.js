@@ -2519,6 +2519,26 @@ function wire() {
     });
 
     window.addEventListener("resize", () => paint());
+    // Charts are drawn at their size when painted. Turning the phone (or the list pane
+    // sliding in or out, which animates) changes that size after the resize event, so
+    // they're redrawn whenever the place's or the list's width actually changes
+    // (otherwise the old drawing is stretched, text and all).
+    if (window.ResizeObserver) {
+        let queued = false;
+        const widths = new Map();
+        const ro = new ResizeObserver(entries => {
+            let changed = false;
+            for (const e of entries) {
+                const w = Math.round(e.contentRect.width);
+                if (widths.get(e.target) !== w) { widths.set(e.target, w); changed = true; }
+            }
+            if (!changed || queued) return;
+            queued = true;
+            requestAnimationFrame(() => { queued = false; paint(); });
+        });
+        ro.observe($("#body"));
+        ro.observe($("#listBody"));
+    }
 
     // leaving and coming back
     let hiddenAt = 0;
