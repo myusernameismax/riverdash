@@ -555,7 +555,14 @@ html.wide #details { left: calc(var(--listw) + var(--sl)); padding-right: var(--
 html.wide #addPage, html.wide #movePage { left: calc(var(--listw) + var(--sl)); }
 html.wide body.list-hidden #details, html.wide body.list-hidden #addPage, html.wide body.list-hidden #movePage { left: 0; }
 html.wide body.list-hidden #details { padding-left: var(--sl); }
-html.wide #hdr, html.wide #body { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+/* the place fills the right side: the chart grows taller with the width (it reads its
+   size when drawn), and the four tiles sit in one row once there's room */
+html.wide #hdr, html.wide #body { padding-left: 24px; padding-right: 24px; }
+html.wide #body { container-type: inline-size; }
+html.wide .big-chart, html.wide .chart-empty { height: clamp(140px, 28cqw, 52vh) !important; }
+@container (min-width: 700px) {
+    .tiles.n4, .tiles.n5, .tiles.n6 { grid-auto-flow: column; grid-template-columns: none; }
+}
 html.wide .ftr .flist { opacity: 1; }
 html.wide .ftr .flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list pane is out */
 html.wide .prow.shown { background: color-mix(in srgb, var(--link) 12%, transparent); }   /* the place on the right */

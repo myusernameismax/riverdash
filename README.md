@@ -143,8 +143,9 @@ list starts as a pane on the left (about a third of the window) and the place yo
 fills the right, with no zoom. The **list button** (bottom right, tinted while the pane
 is out) slides the pane away so the place, and its chart, get the whole width, and
 brings it back. Searching for a place (Add a place) brings it back too. The place on the right is tinted in the list (its folder's row, when that's
-closed). The right side's content stays at a readable width instead of stretching,
-and Add / Share slide in over the right side only. On a sideways phone the
+closed). The place fills the right side: the tiles stretch across (all four in one row once
+there's room) and the chart grows taller with the width. Add / Share slide in over the
+right side only. On a sideways phone the
 pane is a bit wider, a name that doesn't fit next to its readings wraps to a second line,
 and the space iOS reserves on both sides is mostly used (just enough is kept clear for
 the notch and the rounded corners). The bottom bar centers Share and Contact, so the
