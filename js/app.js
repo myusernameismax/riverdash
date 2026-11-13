@@ -1162,7 +1162,7 @@ const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOp
 let dragging = null;     // reorder in progress (render waits)
 let ptrSync = () => {};
 // the Easter egg's note: a scroll wheel (a computer) or a finger (a phone) pushed past the end
-const EGG_COMPUTER = "Get off your computer and go fishing!", EGG_PHONE = "Stop looking at your phone and go fishing!";
+const EGG_COMPUTER = "Get off your computer and go fishing!", EGG_PHONE = "Get off your phone and go fishing!";
 let eggText = EGG_PHONE;  // keeps the refresh spinner in step with the place on screen (set in wire)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
