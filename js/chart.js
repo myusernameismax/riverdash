@@ -11,7 +11,7 @@
 // On a computer: hover, scroll to zoom, drag to pan, double-click.
 // Zoom never goes past the data already downloaded.
 
-import { fmtTime, fmtDay, sameDay } from "./fmt.js";
+import { fmtTime, fmtDay, fmtMonthDay, sameDay } from "./fmt.js";
 
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -47,6 +47,8 @@ export class Chart {
 
     // data: {series, forecast, color, decimals, nowValue, threshold, thresholdLabel, markers, unit, homeT0, homeT1,
     //        ideal: {lo, hi, good, bad}}  (lo / hi may be NaN = no bound on that side)
+    // History charts also: typical: [[ms, v]] (a faint dashed line), dates: true (daily
+    // values: label dates, not times), noNow: true (no "now" line), history: true (dates in the readout).
     // viewKey changes reset the zoom; hoverKey changes clear the reading bar
     // (so switching Height → Flow → Tide keeps the bar on the same time).
     set(cv, g, viewKey, hoverKey = viewKey) {
@@ -211,7 +213,7 @@ export class Chart {
         if (!cv || !cv.isConnected) return;
         const [ctx, width, height] = sizeCanvas(cv);
         const g = this.g, minimal = this.minimal, lineWidth = this.lineWidth;
-        const past = clean(g.series), fut = clean(g.forecast);
+        const past = clean(g.series), fut = clean(g.forecast), typ = minimal ? [] : clean(g.typical);
         const all = past.concat(fut);
         if (all.length < 2) return;
 
@@ -231,6 +233,7 @@ export class Chart {
             }
         }
         if (!isFinite(v0)) return;
+        for (const p of typ) if (p[0] >= t0 && p[0] <= t1) { v0 = Math.min(v0, p[1]); v1 = Math.max(v1, p[1]); }
         // Show the threshold only if it's within reach of the data.
         const thr = g.threshold;
         const span0 = Math.max(v1 - v0, 0.5);
@@ -242,7 +245,7 @@ export class Chart {
         const pad = Math.max((v1 - v0) * 0.12, 0.1);
         v0 -= pad; v1 += pad;
 
-        const fmt = v => v.toFixed(decimals);
+        const fmt = v => decimals === 0 ? Math.round(v).toLocaleString("en-US").replace(/^-/, "−") : v.toFixed(decimals);   // 12,300 cfs
         const left = minimal ? lineWidth : Math.max(ctx.measureText(fmt(v1)).width, ctx.measureText(fmt(v0)).width) + 6;
         const top = minimal ? lineWidth + 2 : px + 4;
         const bottom = minimal ? height - lineWidth - 1 : height - px - 6;
@@ -260,9 +263,10 @@ export class Chart {
             ctx.fillText(fmt(v0 + pad), left - 4, Y(v0 + pad));
             ctx.textBaseline = "top";
             const long = t1 - t0 > 30 * 3600000;
-            const tl = t => long ? fmtDay(t) : sameDay(t, now) ? fmtTime(t, "h A") : fmtDay(t) + " " + fmtTime(t, "h A");
+            const tl = t => g.dates ? dateLabel(t, t1 - t0 > 300 * 86400000)
+                : long ? fmtDay(t) : sameDay(t, now) ? fmtTime(t, "h A") : fmtDay(t) + " " + fmtTime(t, "h A");
             // end labels, unless "now" (drawn below) would overlap them
-            const nowX = now > t0 && now < t1 ? X(now) : NaN, gap = w => ctx.measureText("now").width / 2 + w + 8;
+            const nowX = now > t0 && now < t1 && !g.noNow ? X(now) : NaN, gap = w => ctx.measureText("now").width / 2 + w + 8;
             const l0 = tl(t0), l1 = tl(t1);
             if (!(nowX - left < gap(ctx.measureText(l0).width))) { ctx.textAlign = "left"; ctx.fillText(l0, left, bottom + 4); }
             if (!(right - nowX < gap(ctx.measureText(l1).width))) { ctx.textAlign = "right"; ctx.fillText(l1, right, bottom + 4); }
@@ -305,9 +309,14 @@ export class Chart {
             stroke(past, 1, []);
         }
         if (fut.length > 1) stroke(past.length ? [past[past.length - 1]].concat(fut) : fut, 0.8, [4, 3]);
+        // typical (history): faint dashed, under nothing else
+        if (typ.length > 1) {
+            path(typ); ctx.globalAlpha = 0.45; ctx.strokeStyle = text; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+            ctx.stroke(); ctx.setLineDash([]);
+        }
 
         // now line + dot
-        if (now > t0 && now < t1) {
+        if (now > t0 && now < t1 && !g.noNow) {
             ctx.globalAlpha = 0.35; ctx.strokeStyle = text; ctx.lineWidth = 1; ctx.setLineDash([1, 3]);
             ctx.beginPath(); ctx.moveTo(X(now), top); ctx.lineTo(X(now), bottom); ctx.stroke(); ctx.setLineDash([]);
             if (!minimal) {
@@ -352,8 +361,11 @@ export class Chart {
                 ctx.globalAlpha = 1; ctx.fillStyle = color;
                 ctx.beginPath(); ctx.arc(x, y, lineWidth + 2, 0, 2 * Math.PI); ctx.fill();
 
-                const when = (sameDay(t, now) ? "" : fmtDay(t) + " ") + fmtTime(t, "h:mm A");
-                const label = fmt(v) + unit + "  ·  " + when + (past.length && t > past[past.length - 1][0] && fut.length ? " (forecast)" : "");
+                const when = g.dates ? dateLabel(t, !sameYear(t, now), true)
+                    : (g.history ? fmtMonthDay(t) + " " : sameDay(t, now) ? "" : fmtDay(t) + " ") + fmtTime(t, "h:mm A");
+                const tv = typ.length ? valueOn(typ, t) : NaN;
+                const label = fmt(v) + unit + "  ·  " + when + (isNaN(tv) ? "" : "  ·  typical " + fmt(tv))
+                    + (past.length && t > past[past.length - 1][0] && fut.length ? " (forecast)" : "");
                 const w = ctx.measureText(label).width + 10, h = px + 8;
                 const bx = Math.min(Math.max(x - w / 2, left), right - w);
                 const by = y - h - 8 < 0 ? y + 8 : y - h - 8;
@@ -366,6 +378,20 @@ export class Chart {
             }
         }
     }
+}
+
+// History labels: "Oct 12", or "Nov 2021" for long spans; full: "Oct 12, 2025".
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function dateLabel(t, year, full = false) {
+    const d = new Date(t);
+    return full ? fmtMonthDay(t) + (year ? ", " + d.getFullYear() : "") : year ? MON[d.getMonth()] + " " + d.getFullYear() : fmtMonthDay(t);
+}
+const sameYear = (a, b) => new Date(a).getFullYear() === new Date(b).getFullYear();
+// the point of a step series (typical: one value per day) nearest t
+function valueOn(pts, t) {
+    let best = null;
+    for (const p of pts) if (!best || Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+    return best && Math.abs(best[0] - t) <= 86400000 ? best[1] : NaN;
 }
 
 // Sparkline into a canvas (places list).

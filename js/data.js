@@ -197,9 +197,10 @@ async function usgsTemp(site) {
 // Typical flow for each calendar day: the median of that date's daily flows over every
 // year the gauge has (USGS statistics; the median, so flood years don't inflate it).
 // {"11-11": cfs, ...}; refreshed monthly.
-async function usgsAverages(site) {
-    return cached(`usgs-median-${site}.json`, 30 * DAY, async () => {
-        const url = "https://waterservices.usgs.gov/nwis/stat/?format=rdb&statReportType=daily&statTypeCd=median&parameterCd=00060&sites=" + encodeURIComponent(site);
+// param: 00060 flow (cfs), 00010 water temperature (°C as USGS keeps it).
+async function usgsAverages(site, param = "00060") {
+    return cached(param === "00060" ? `usgs-median-${site}.json` : `usgs-median-${param}-${site}.json`, 30 * DAY, async () => {
+        const url = `https://waterservices.usgs.gov/nwis/stat/?format=rdb&statReportType=daily&statTypeCd=median&parameterCd=${param}&sites=` + encodeURIComponent(site);
         const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
         let text;
         try {
@@ -233,6 +234,35 @@ async function usgsFlowSeries(site) {
         .filter(p => isFinite(p[0]) && isFinite(p[1]) && p[1] > -999999).sort((a, b) => a[0] - b[0])
         .map(p => [p[0], Math.round(p[1])]);
 }
+// History (only when someone opens it): flow or water temperature at a USGS gauge over
+// a range, plus the typical value for each date (the same medians as "Typical flow").
+// 1w: the 15-minute readings; longer: USGS's daily averages (dated at local noon).
+// -> {series: [[ms, v]], typical: [[ms, v]]}; temperature in °F.
+const USGS_DAILY = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items";
+const HIST_SPAN = { "1w": "P7D", "1m": "P30D", "3m": "P90D", "1y": "P1Y", "5y": "P5Y" };
+export async function history(site, kind, range) {
+    const param = kind === "temp" ? "00010" : "00060", iv = range === "1w";
+    const d = await cached(`usgs-hist-${site}-${param}-${range}.json`, iv ? 15 * MIN : 6 * HOUR, () =>
+        get(iv ? USGS_CONT : USGS_DAILY, { f: "json", monitoring_location_id: `USGS-${site}`, parameter_code: param,
+            ...(iv ? {} : { statistic_id: "00003" }), time: HIST_SPAN[range], skipGeometry: "true",
+            properties: "time,value", limit: iv ? 3000 : 5000 }, 60));
+    const when = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], m[2] - 1, +m[3], 12).getTime() : ms(s); };
+    const conv = v => kind === "temp" ? round(v * 9 / 5 + 32, 1) : Math.round(v);
+    const series = (d.features || []).map(f => [when(f.properties.time), parseFloat(f.properties.value)])
+        .filter(p => isFinite(p[0]) && isFinite(p[1]) && p[1] > -999).sort((a, b) => a[0] - b[0])
+        .map(p => [p[0], conv(p[1])]);
+    let typical = [];
+    const med = await usgsAverages(site, param).catch(() => null);
+    if (med && series.length) {
+        const day = new Date(series[0][0]); day.setHours(12, 0, 0, 0);
+        for (; day.getTime() <= series[series.length - 1][0] + DAY * 1000; day.setDate(day.getDate() + 1)) {
+            const v = med[pad2(day.getMonth() + 1) + "-" + pad2(day.getDate())];
+            if (isFinite(v)) typical.push([day.getTime(), conv(v)]);
+        }
+    }
+    return { series, typical };
+}
+
 // Latest USGS discharge: real-time (00060) if recent, else tidally filtered daily (72137).
 async function usgsFlow(site) {
     const d = await cached(`usgs-${site}.json`, 30 * MIN, () => get(USGS_LATEST, {

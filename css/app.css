@@ -156,6 +156,13 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .chart-empty { height: 70px; display: grid; place-items: center; font-size: 13px; opacity: .6; }
 .chart-label { text-align: center; font-size: var(--small); opacity: .55; }
 .chart-peak { text-align: center; font-size: var(--small); opacity: .8; }
+.hist-link { align-self: center; color: var(--link); opacity: 1; padding: 2px 6px; border-radius: 6px; white-space: pre; }
+.hist-link #chartAvg { color: var(--text); opacity: .8; }
+.hist-link:active { background: var(--hover); }
+.hist-chips { display: flex; justify-content: center; gap: 4px; margin-bottom: 4px; }
+.hist-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--hover); opacity: .75; }
+.hist-chip.on { background: color-mix(in srgb, var(--accent) 24%, transparent); opacity: 1; }
+.hist-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* tide table */
 .tides { display: flex; }

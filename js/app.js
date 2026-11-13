@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -47,6 +47,7 @@ const S = {
     // edit mode, toast
     editing: false,
     customizing: false,      // the "Customize" panel for the shown place
+    hist: null,              // {mode, range}: the chart shows history (Flow / Water temp)
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     newGroups: [],
     addedKeys: [],           // places added during this visit to the Add page (it stays open for more)           // Edit → + Group: groups made but still empty (gone if left empty)
@@ -422,7 +423,7 @@ function savePlaces(list) {
 function select(i, keepScroll = false) {
     if (i === S.selected) return;
     S.selected = i;
-    S.chartMode = ""; S.focusDay = -1; S.hourHover = -1; S.nowOpen = false; S.customizing = false;
+    S.chartMode = ""; S.focusDay = -1; S.hourHover = -1; S.nowOpen = false; S.customizing = false; S.hist = null;
     flash.selected = true;
     if (!keepScroll) $("#scroll").scrollTop = 0;
     setTimeout(freshenShown);
@@ -763,6 +764,7 @@ function goBack() {
     else if (S.moving) closeMove();
     else if (S.customizing) closeCustomize();
     else if (S.editing) S.editing = false;
+    else if (S.hist) S.hist = null;
     else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
     else if (S.places.length && S.selected !== pinned()) select(pinned());
     else return false;
@@ -774,6 +776,7 @@ function backAtTop() { if (embedded()) console.info("flowtides:close"); }
 // Picking a day shows that day. A reading bar on another day moves to the same
 // time of day on the picked one (and picks that hour in the day's weather).
 function pickDay(start) {
+    S.hist = null;
     S.focusDay = S.focusDay === start ? -1 : start;
     S.hourHover = -1;
     const t = bigChart.hoverT;
@@ -789,7 +792,7 @@ function pickDay(start) {
 function resetView() {
     if (S.moving === "share") S.moving = "";
     S.adding = false; S.editing = false; S.toast.shown = false; S.nowOpen = false; S.customizing = false;
-    S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1;
+    S.selected = pinned(); S.chartMode = ""; S.focusDay = -1; S.hourHover = -1; S.hist = null;
     bigChart.hoverT = bigChart.pinT = NaN;
     $("#q").blur();
     $("#scroll").scrollTop = 0;
@@ -978,8 +981,47 @@ function renderTiles(cur) {
     return `<div class="tiles n${out.length}">${out.join("")}</div>`;
 }
 
+// ── history (Flow / Water temp at a USGS gauge) ────────────────────
+// "History ↗" under the chart turns it into a longer view: range chips (1 wk … 5 yr),
+// the river's line (good range colors kept) and a faint dashed typical line for each
+// date. Done, the back swipe, another tab or place go back. Only downloaded when opened.
+const HIST_RANGES = [["1w", "1 wk"], ["1m", "1 mo"], ["3m", "3 mo"], ["1y", "1 yr"], ["5y", "5 yr"]];
+const histData = {};   // "site|mode|range" -> {loading} | {data} | {error}
+function histSite(cur) {
+    const r = cur.r;
+    if (!r || !r.usgs || cur.mode === "stage") return "";
+    return cur.mode === "temp" ? (r.temp ? r.usgs : "") : cur.mode === "flow" && has(r.flow) ? r.usgs : "";
+}
+const clearHistErrors = () => { for (const k in histData) if (histData[k].error) delete histData[k]; };
+function loadHistory(key, site, mode, range) {
+    histData[key] = { loading: true };
+    history(site, mode, range).then(data => { histData[key] = { data }; }, () => { histData[key] = { error: true }; }).then(render);
+}
+function renderHistory(cur) {
+    const { r, mode, place: p } = cur, site = r.usgs, range = S.hist.range, key = site + "|" + mode + "|" + range;
+    if (!histData[key]) loadHistory(key, site, mode, range);
+    const h = histData[key];
+    const temp = mode === "temp", color = temp ? LOOK.tempColor : LOOK.flowColor;
+    const chips = HIST_RANGES.map(([k, l]) => `<button class="hist-chip${k === range ? " on" : ""}" data-act="histRange" data-r="${k}">${l}</button>`).join("");
+    let body;
+    if (h.data && h.data.series.length > 1) {
+        cur.g = { series: h.data.series, forecast: [], typical: h.data.typical, color, decimals: temp ? 1 : 0,
+                  unit: temp ? " °F" : " cfs", ideal: temp ? null : idealOf(p, "flow"), markers: [], threshold: NaN,
+                  nowValue: NaN, dates: range !== "1w", noNow: range !== "1w", history: true };
+        body = `<canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>`;
+    } else {
+        cur.g = null;
+        body = `<div class="chart-empty" style="height:${LOOK.chartHeight}px">${h.loading ? `<span class="spinner"></span>`
+            : h.error ? "Couldn't get the history" : "No history for this range"}</div>`;
+    }
+    const what = (temp ? "Water temperature · °F" : "Flow · cfs") + (range === "1w" ? "" : " · daily averages") + " · USGS";
+    return section({ pad: 9, body: `<div class="hist-chips" style="--accent:${color}">${chips}</div>${body}
+        <div class="hist-foot"><span class="chart-label">${esc(what)}</span><button class="edit-btn on" data-act="historyDone">Done</button></div>` });
+}
+
 function renderChart(cur) {
     const { d, r, mode } = cur;
+    if (d && S.hist && S.hist.mode === mode && S.focusDay < 0 && histSite(cur)) return renderHistory(cur);
     const g = bigGraph(d, mode, cur.place);
     cur.g = g;
     if (!d) return "";
@@ -993,10 +1035,13 @@ function renderChart(cur) {
         : mode === "temp" ? "Water temperature · °F · USGS, measured" : "Height · ft") + rng;
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
+    const hist = S.focusDay < 0 && histSite(cur);
+    const under = hist ? `<button class="chart-peak hist-link" data-act="history">${avg ? `<span id="chartAvg">${esc(avg)}</span>  ·  ` : ""}History ↗</button>`
+        : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
         <div class="chart-label">${esc(what + day)}</div>
-        ${avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : ""}` });
+        ${under}` });
 }
 
 function renderTides(cur) {
@@ -1453,7 +1498,8 @@ function paint(cur = lastCur) {
     lastCur = cur;
     const cv = $("#bigChart");
     // the reading bar stays put across tabs and picked days; only another place clears it
-    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay, String(S.selected));
+    const hk = S.hist ? "|h|" + S.hist.range : "";
+    if (cv && cur.g) bigChart.set(cv, cur.g, S.selected + "|" + cur.mode + "|" + S.focusDay + hk, S.hist ? "h" + S.selected + hk : String(S.selected));
     else bigChart.cv = null;
     document.querySelectorAll("canvas[data-spark]").forEach(c => drawSpark(c, listSpark(+c.dataset.spark), 1.25, LOOK.fillOpacity));
     paintHourly(cur);
@@ -1464,6 +1510,7 @@ function paint(cur = lastCur) {
 //   week view: the day under the bar is highlighted (not opened)
 //   day view:  the hour under the bar is picked, and picking an hour moves the bar
 function syncWeather(t) {
+    if (S.hist) return;   // history dates aren't this week's weather
     const ok = !isNaN(t) && !!$("#bigChart");
     const av = $("#chartAvg");
     if (av && lastCur && lastCur.r) { const s = avgText(lastCur.r, t); if (s) av.textContent = s; }
@@ -1665,7 +1712,11 @@ function dropInEdit(D) {
 
 // ════════════ events ════════════
 const ACTIONS = {
-    mode: el => { S.chartMode = el.dataset.mode; },
+    mode: el => { S.chartMode = el.dataset.mode; S.hist = null; },
+    // a failed download gets tried again when history is opened or a range picked
+    history: () => { clearHistErrors(); if (lastCur) S.hist = { mode: lastCur.mode, range: "1m" }; },
+    histRange: el => { clearHistErrors(); S.hist = { ...S.hist, range: el.dataset.r }; },
+    historyDone: () => { S.hist = null; },
     day: el => {
         if (!el.dataset.start) return;
         const wasDay = S.focusDay >= 0;
