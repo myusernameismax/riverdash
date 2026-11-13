@@ -621,16 +621,14 @@ function addResult(item) {
         i = list.length - 1;
         savePlaces(list);
         S.addedKeys.push(keyOf(p));
-        if (i !== pinned()) toast("Added " + p.name, "Open first", () => pin(i)); else toast("Added " + p.name, "", null);
+        toast("Added " + p.name, "", null);
         return;
     }
     savePlaces(list);
     select(i);
     flash.selected = true;
     closeAdd();
-    if (S.attachTo >= 0) toast("Added " + (item.kind === "tide" ? "tides" : "river gauge") + " to " + list[i].name, "", null);
-    else if (i !== pinned()) toast("Added " + list[i].name, "Open first", () => pin(i));
-    else toast("Added " + list[i].name, "", null);
+    toast("Added " + (item.kind === "tide" ? "tides" : "river gauge") + " to " + list[i].name, "", null);
 }
 
 // ── share / import ──────────────────────────────────────────────────
