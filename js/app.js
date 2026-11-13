@@ -1545,7 +1545,7 @@ function moveViews(before, after) {
     delete VIEWS[a];
     save("rt:views", VIEWS);
 }
-const SORTS = [["mine", "My order"], ["az", "A–Z"], ["views", "Most viewed"]];
+const SORTS = [["mine", "Custom order"], ["az", "A–Z"], ["views", "Most viewed"]];
 const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
 // The list's items in the picked order. Groups stay together: A–Z by the group's (or
 // place's) name, then A–Z inside; Most viewed by the group's total, then inside. Ties
@@ -2018,7 +2018,7 @@ function startDrag(e, handle) {
 // After a drag in Edit, the list on screen is the new order; a dragged place's
 // group is the box it ended up in (none if outside every box).
 // Dragging while the list is sorted A–Z / Most viewed starts your own order from what's
-// on screen: that order (with the move) becomes "My order".
+// on screen: that order (with the move) becomes "Custom order".
 function dropInEdit(D) {
     if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
     const order = [...D.list.querySelectorAll(".prow[data-i]")].map(x => +x.dataset.i);
