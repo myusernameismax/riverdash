@@ -45,8 +45,8 @@ Only the inputs change from the desktop widget:
 | Hover a weather day | Tap it (the day view shows all of it). |
 | Hover a *Jetty / surf* day | Tap it. The picked row also shows the biggest swell and the calm window. |
 | Hover the hourly graph | Drag a finger along it, or tap an hour. |
-| Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. |
-| (Back, one step at a time) | Closes what's on top (add page, share, the list's search, Edit, the Places list, Customize), then a picked day goes back to the week, then another place goes back to the ★ place. On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
+| Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. On a place's page (phone upright), the swipe drags the page into the Places list, like Apple Weather: it becomes a card that follows your finger and shrinks toward its row while the list comes up behind; let go past a third of the way (or flick) and it lands in its row, earlier and it springs back. |
+| (Back, one step at a time) | Closes what's on top (add page, share, the list's search, Edit, the Places list, Customize), then a picked day goes back to the week, then another place goes back to the ★ place (on the phone, a swipe on a place's page goes to the list instead, see above). On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
