@@ -243,7 +243,9 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
   Then it downloads the place on screen first, in full, then all the others together
   (4 at a time): the ★ place in full, the rest only what the places list shows. A
   place's weather, water temperature and typical flow download when you open it (if
-  older than 15 min). With 21 places: the shown place is current in ~2 s, all in ~6 s,
+  older than 15 min); while it does, a tile it may still get (Water for a just-added
+  gauge, say) spins in its spot, and is gone if the gauge turns out not to have it.
+  The USGS extras download alongside the river history, not after it. With 21 places: the shown place is current in ~2 s, all in ~6 s,
   with 62 downloads instead of 104.
 - **Busy servers** (HTTP 429/5xx, e.g. a weather 503) get one quiet retry. Places
   within 10 km share one weather forecast; if weather can't be downloaded, the

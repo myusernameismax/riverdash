@@ -816,8 +816,13 @@ function mergeResult(p) {
 }
 async function fetchSome(list, fullKeys) {
     if (!list.length) return { offline: false };
+    // places getting everything: tiles they might still get (e.g. Water for a just-added
+    // gauge, known only once USGS answers) spin until then
+    const full = list.map(keyOf).filter(k => (!fullKeys || fullKeys.has(k)) && !loadingKeys.has(k));
+    full.forEach(k => loadingKeys.add(k));
     let r;
     try { r = await fetchPlaces(list, fullKeys); } catch (e) { return { error: "Couldn't get data: " + e.message }; }
+    finally { full.forEach(k => loadingKeys.delete(k)); }
     for (const p of r.places) {
         S.results[p.key] = mergeResult(p);
         const pl = list.find(q => keyOf(q) === p.key);
@@ -854,6 +859,7 @@ function freshenShown() {
     if (!p || Date.now() - (fullAt[keyOf(p)] || 0) < 15 * 60000) return;
     fullAt[keyOf(p)] = Date.now();                    // don't ask twice while it loads
     fetchSome([p], undefined).then(() => render());
+    render();                                         // its maybe-coming tiles spin meanwhile
 }
 // Each river gauge's river name (for groups), saved with the place once known.
 function rememberRivers() {

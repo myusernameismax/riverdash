@@ -286,6 +286,12 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
     lid = lid.trim().toUpperCase();
     const g = await cached(`gauge-${lid}.json`, need.series ? 5 * MIN : 30 * DAY, () => get(`${NWPS}/gauges/${encodeURIComponent(lid)}`));
     if (!("lid" in g)) throw new Error(g.message || `No NOAA gauge ${lid}`);
+    // the USGS extras start right away, alongside the history (USGS can take a while);
+    // a failed temperature download is undefined (vs. null = this gauge has no sensor)
+    const extras = g.usgsId && full ? Promise.all([
+        need.temp ? usgsTemp(g.usgsId).catch(() => undefined) : null,
+        need.flow ? usgsAverages(g.usgsId).catch(() => null) : null,
+    ]) : Promise.resolve([null, null]);
     const sf = need.series ? await cached(`stageflow-${lid}.json`, 3 * HOUR, () => stageflow(lid)) : { observed: [], forecast: [] };
     const obs = (g.status || {}).observed || {};
     const k = (obs.secondaryUnit || "").toLowerCase() === "kcfs" ? 1000 : 1;
@@ -315,13 +321,10 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
         } catch (e) { /* no flow then */ }
     }
     // extras from the USGS gauge; a failure just leaves them out
-    let temp = null, averages = null;
-    if (g.usgsId && full) {
-        [temp, averages] = await Promise.all([
-            need.temp ? usgsTemp(g.usgsId).catch(() => null) : null,
-            flow !== null && need.flow ? usgsAverages(g.usgsId).catch(() => null) : null,
-        ]);
-    }
+    let [temp, averages] = await extras;
+    const tempTried = temp !== undefined;
+    temp = temp || null;
+    if (flow === null) averages = null;
 
     const trend = (col, nowVal) => {
         if (nowVal === null || !t) return null;
@@ -347,6 +350,7 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
         forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
         temp,                      // {value °F, time, trend (3 h), series} or null
+        tempTried,                 // false: the temperature download failed (try again later)
         averages,                  // {"MM-DD": typical (median) cfs for that calendar date} or null
     };
 }
@@ -384,16 +388,18 @@ async function usgsRiver(site, full = true, need = { series: true, flow: true, t
     };
     let temp = null, averages = null;
     if (full) [temp, averages] = await Promise.all([
-        need.temp ? usgsTemp(site).catch(() => null) : null,
+        need.temp ? usgsTemp(site).catch(() => undefined) : null,
         flow !== null && need.flow ? usgsAverages(site).catch(() => null) : null,
     ]);
+    const tempTried = temp !== undefined;
+    temp = temp || null;
     return {
         id: site, name: row ? row[1] : "USGS " + site, time: t,
         lat: row ? row[3] : null, lon: row ? row[4] : null,
         stage: ls ? ls[1] : null, stageTrend: trend(1, ls),
         flow, flowTime: lf ? lf[0] : t, flowNote: "USGS", flowNative: true, flowTrend: trend(2, lf),
         category: "", categoryLabel: "", flood: {}, forecastPeak: null,
-        series: thin(pts), forecast: [], temp, averages, usgs: site,
+        series: thin(pts), forecast: [], temp, tempTried, averages, usgs: site,
     };
 }
 
@@ -687,7 +693,7 @@ async function place(p, full = true) {
     if (p.river) tasks.push((isUsgs(p.river) ? usgsRiver : river)(p.river, full, need).then(r => {
         out.river = r;
         if (need.series) out.asked.push("stage", "flow");
-        if (need.temp) out.asked.push("temp");
+        if (need.temp && r.tempTried !== false) out.asked.push("temp");   // a failed download doesn't mean "no sensor"
     }, e => { out.errors.push(`River ${p.river}: ${e.message}`); }));
     if (p.tide && !off("tide")) tasks.push(tide(p.tide).then(t => { out.tide = t; out.asked.push("tide"); },
         e => { out.errors.push(`Tide ${p.tide}: ${e.message}`); }));
