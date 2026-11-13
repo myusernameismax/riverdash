@@ -2569,7 +2569,17 @@ document.documentElement.style.setProperty("--anim", ANIM + "ms");
 splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
 splashSlow = setTimeout(() => splashText("Slow connection · still loading…"), 8000);
 setTimeout(hideSplash, 30000);                        // never stuck behind it
-if (navigator.standalone === true) document.documentElement.classList.add("ios-app");
+if (navigator.standalone === true) {
+    document.documentElement.classList.add("ios-app");
+    // #app is the full screen tall (100vh), but iOS only draws the page down to
+    // innerHeight (a status bar's height short, upright): measure the strip it leaves
+    // out (--cut) so the bottom bars keep their buttons above it.
+    const cut = () => document.documentElement.style.setProperty("--cut",
+        Math.max(0, Math.round($("#app").getBoundingClientRect().height - window.innerHeight)) + "px");
+    cut();
+    window.addEventListener("resize", cut);
+    window.addEventListener("orientationchange", () => setTimeout(cut, 300));
+}
 wire();
 render();
 // Show the last saved readings straight away (no waiting on a weak signal), then update.
