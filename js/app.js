@@ -733,7 +733,7 @@ function hideToast() { S.toast.shown = false; S.undoData = null; render(); }
 function goBack() {
     if (S.adding) closeAdd();
     else if (S.moving) closeMove();
-    else if (S.customizing) S.customizing = false;
+    else if (S.customizing) closeCustomize();
     else if (S.editing) S.editing = false;
     else if (S.focusDay >= 0) { S.focusDay = -1; S.hourHover = -1; flash.week = true; }
     else if (S.places.length && S.selected !== pinned()) select(pinned());
@@ -1117,9 +1117,26 @@ function numField(attrs, value, unit, mode = "decimal") {
     return `<span class="cz-num"><input class="cz-in" type="text" inputmode="${mode}" enterkeyhint="done" autocomplete="off"
         placeholder="–" value="${esc(v)}" data-key="${esc(v)}" ${attrs}>${unit ? `<span class="cz-u">${unit}</span>` : ""}</span>`;
 }
+// Customize opens at the top of the place, between the name and the tiles: it
+// unfolds downward (and folds back up) instead of the page jumping to it.
+let czEntering = false, czLeaving = false;
+function openCustomize() {
+    czEntering = true; czLeaving = false; S.customizing = true;
+    render();
+    requestAnimationFrame(() => requestAnimationFrame(() => { czEntering = false; render(); }));
+}
+function closeCustomize() {
+    if (!S.customizing) return;
+    S.customizing = false; czLeaving = true;
+    setTimeout(() => { czLeaving = false; render(); }, Math.max(1, ANIM * 1.4) + 40);
+}
 function renderCustomize(cur) {
+    const html = customizePanel(cur);
+    return html ? `<div class="czwrap${S.customizing && !czEntering ? " open" : ""}"><div>${html}</div></div>` : "";
+}
+function customizePanel(cur) {
     const p = cur.place, d = cur.d;
-    if (!S.customizing || !p || !d) return "";
+    if (!(S.customizing || czLeaving) || !p || !d) return "";
     // what the data has, plus switched-off ones the station has (or might: never checked)
     const got = haveModes(d);
     const have = Object.keys(MODES).filter(m => got.includes(m) || (availOf(p, m) !== false && (hidden(p, m) || waiting(p, d, m))));
@@ -1287,12 +1304,12 @@ function renderBody(cur) {
         if (errs.length) sel += `<div class="errors">${errs.map(esc).join("<br>")}</div>`;
         if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest from NOAA…</div>`;
         if (flooding(cur.r)) sel += `<div class="flood" style="--accent:${categoryColor(cur.r.category)}">⚠ ${esc(cur.r.categoryLabel)}</div>`;
+        sel += renderCustomize(cur);
         sel += renderTiles(cur);
         sel += renderChart(cur);
         sel += renderWeather(cur);
         sel += renderTides(cur);
         sel += renderSurf(cur);
-        sel += renderCustomize(cur);
         html += `<div class="selected${flash.selected ? " fadein-slow" : ""}">${sel}</div>`;
     }
     html += renderPlaces();
@@ -1620,9 +1637,9 @@ const ACTIONS = {
     },
     // Opening scrolls down to the panel; closing glides back up to the top first and
     // only then takes the panel away (so the page doesn't jump as it gets shorter).
+    // From anywhere on the page: glide up to the top first, then unfold / fold.
     customize: () => {
-        if (!S.customizing) { S.customizing = true; setTimeout(() => showSection("#czSec"), 30); return; }
-        glideThen(0, () => { S.customizing = false; });
+        glideThen(0, () => { if (S.customizing) closeCustomize(); else openCustomize(); });
         return "skip";
     },
     toggleTab: el => toggleTab(el.dataset.mode),

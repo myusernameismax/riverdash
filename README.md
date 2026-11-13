@@ -99,7 +99,8 @@ jetty limits). The readings themselves aren't in it; they download fresh.
 
 ## Customize a place
 
-Tap the **sliders** button left of the place's name at the top:
+Tap the **sliders** button left of the place's name. The panel unfolds right under the
+name, above the tiles (from further down, the page glides up first); Done folds it away:
 
 - Adding tides to a river place starts with **Waves** (and the jetty / surf rating)
   off; turn it on under Show. A tide station on its own shows them.

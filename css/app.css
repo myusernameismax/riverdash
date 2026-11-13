@@ -100,6 +100,12 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #body { padding: 4px var(--gutter) 20px; display: flex; flex-direction: column; gap: 20px; }
 .selected { display: flex; flex-direction: column; gap: 20px; }
 .selected:empty { display: none; }
+/* Customize unfolds from under the name; closed it takes no room (cancels the 20px gap) */
+.czwrap { display: grid; grid-template-rows: 0fr; opacity: 0; margin-bottom: -20px;
+          transition: grid-template-rows calc(var(--anim) * 1.4) ease-out, opacity calc(var(--anim) * 1.4) ease-out,
+                      margin-bottom calc(var(--anim) * 1.4) ease-out; }
+.czwrap.open { grid-template-rows: 1fr; opacity: 1; margin-bottom: 0; }
+.czwrap > div { overflow: hidden; min-height: 0; }
 
 .fadein { animation: fade var(--anim) cubic-bezier(.33,1,.68,1); }
 .fadein-slow { animation: fadeSlow calc(var(--anim) * 1.5) cubic-bezier(.33,1,.68,1); }
