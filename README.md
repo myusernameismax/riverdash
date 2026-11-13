@@ -79,10 +79,11 @@ Only the inputs change from the desktop widget:
 
 - Opened with the **list button** at the bottom right (blue); the river view zooms out
   and the list zooms in. Big **Places** title with **Edit** on its right, the search
-  bar under it (that's where places get added), then every place, the one on screen
-  lightly highlighted. Each row has the place's name, the readings and ★ on the right,
-  and under the name its stations (as at the top of a place: "Sandy River near Marmot",
-  "Tides: Newport"); a group row lists its places ("Vida · Coburg").
+  bar under it (that's where places get added), then every place (none highlighted:
+  the list is its own page now). Each row has the place's name, the readings and ★ on
+  the right, and under the name its stations in full (as at the top of a place: "Sandy
+  River near Marmot", "Tides: Newport"), wrapping across the whole row, under the
+  readings too, when they're long; a group row lists its places ("Vida · Coburg").
 - Tapping a row opens the place out of it: the row grows into the full page, its top
   edge racing up and its bottom edge down so both reach the screen's edges together
   (the list sinks back behind it). The list button does the same in reverse: the page
@@ -111,8 +112,8 @@ after the river.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
-- In Edit, **+ Group** and **Done** sit where Edit was, the search bar dims in place
-  (nothing moves), and the place on screen isn't highlighted. Opening a group that runs off the screen scrolls it
+- In Edit, **+ Group** and **Done** sit where Edit was and the search bar dims in place;
+  nothing moves (long station names wrap the same way in both). Opening a group that runs off the screen scrolls it
   into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
