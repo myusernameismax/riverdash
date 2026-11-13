@@ -353,7 +353,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #q::-webkit-search-cancel-button { -webkit-appearance: none; }
 #addScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(var(--bot) + 20px); }
 #addPage.picking #addScroll { padding-bottom: calc(var(--bot) + 84px); }   /* the last result scrolls clear of the button */
-/* floating "Add 2 rivers to list": slides up once something is ticked */
+/* floating "Add 2 rivers to list": slides up once something is added */
 #addCommit { position: absolute; left: 50%; bottom: calc(var(--bot) + 14px); z-index: 40; height: 48px; padding: 0 26px;
              max-width: calc(100% - 2 * var(--gutter)); border-radius: 24px; background: var(--link); color: #fff;
              font-size: 16px; font-weight: 700; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.3);
@@ -365,7 +365,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hit { display: flex; align-items: center; gap: 10px; padding: 7px 6px 7px 8px; border-radius: 10px; transition: background 120ms; cursor: pointer; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .hit.have { cursor: pointer; }
-.hit.picked { background: color-mix(in srgb, var(--accent) 18%, transparent); }   /* ticked, waiting for the Add button */
+.hit.picked { background: color-mix(in srgb, var(--accent) 18%, transparent); }   /* added this visit (Back takes it out) */
 .hit.have .hit-name { opacity: .5; white-space: normal; }   /* added: the full name, on two lines if needed */
 .hit-main { flex: 1; min-width: 0; }
 .hit-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

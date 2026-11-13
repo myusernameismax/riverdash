@@ -15,10 +15,11 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NOAA's,
 like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
-Tap results to tick them (✓), so several can go in at once (every gauge on a river,
-say); a floating **Add 2 rivers to list** button adds them and shows the first one.
-Back leaves without adding. Adding a gauge or tide station to an existing place still
-adds it straight away.
+Tapping a result adds it (✓) and starts loading its data; the page stays open so several
+can go in at once (every gauge on a river, say). A floating **Add 2 rivers to list**
+button keeps them and shows the first one; **Back** (or the back swipe) takes them out
+again, and tapping a ✓ result takes just that one out. Adding a gauge or tide station
+to an existing place happens straight away and goes back to it.
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 
