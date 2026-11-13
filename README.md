@@ -135,14 +135,16 @@ rivers share a name.
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
 
-## On a computer (wide windows)
+## On a computer, or a phone turned sideways (wide windows)
 
-In a window 760 px wide or more, the Places list stays on the left (about a third of
-the window) and the place you click fills the right; there's no list button and no
-zoom. The place on the right is tinted in the list (its folder's row, when that's
+In a window 760 px wide or more (a computer, or an iPhone turned sideways), the Places
+list starts as a pane on the left (about a third of the window) and the place you click
+fills the right, with no zoom. The **list button** (bottom right, tinted while the pane
+is out) slides the pane away so the place, and its chart, get the whole width, and
+brings it back. Searching for a place (Add a place) brings it back too. The place on the right is tinted in the list (its folder's row, when that's
 closed). The right side's content stays at a readable width instead of stretching,
-and Add / Share slide in over the right side only. Narrower windows, and the desktop
-panel widget's popup, keep the phone layout.
+and Add / Share slide in over the right side only. A sideways phone keeps clear of the
+notch. Narrower windows, and the desktop panel widget's popup, keep the phone layout.
 
 ## Moving places between devices
 
