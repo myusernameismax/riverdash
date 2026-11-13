@@ -1655,6 +1655,7 @@ const ACTIONS = {
     edit: () => {
         S.editing = !S.editing;
         S.newGroups = [];
+        if (S.editing) setTimeout(showList, ANIM + 20);
     },
     newGroup: () => {
         let name = "New group", n = 2;
@@ -1696,6 +1697,7 @@ const ACTIONS = {
 };
 
 // Edit mode adds the current place to the list; scroll so the whole list is in view.
+function showList() { showSection("#placesSec"); }
 function showSection(sel) {
     const f = $("#scroll"), sec = $(sel);
     if (!sec) return;

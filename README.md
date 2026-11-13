@@ -67,7 +67,7 @@ after the river.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
-- Edit doesn't move the page, and the place on screen isn't highlighted there.
+- Edit scrolls the list into view; the place on screen isn't highlighted there.
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
 
