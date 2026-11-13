@@ -55,6 +55,7 @@ const S = {
     newGroups: [],           // Edit → + Group: groups made but still empty (gone if left empty)
     addedKeys: [],           // places added in this search (Cancel / Back takes them out)
     swiped: -1,              // place row swiped open to show Delete
+    sort: load("rt:sort", "mine"),   // places list order: "mine" (as arranged in Edit) | "az" | "views"
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
@@ -543,11 +544,13 @@ function removeStation(kind, i = S.selected) {
     const before = JSON.parse(JSON.stringify(p)), old = S.results[keyOf(p)];
     updatePlace(i, q => { delete q[kind]; });
     const q = S.places[i];
+    moveViews(before, q);
     // show what's left right away instead of a spinner
     if (old && !S.results[keyOf(q)]) S.results[keyOf(q)] = kind === "tide" ? { ...old, key: keyOf(q), tide: null, surf: null } : { ...old, key: keyOf(q), river: null };
     toast("Removed " + (kind === "tide" ? "tide station" : "river gauge") + " from " + q.name, "Undo", () => {
         if (!S.places[i]) return;
         const list = S.places.slice();
+        moveViews(list[i], before);
         list[i] = before;
         savePlaces(list);
     });
@@ -761,11 +764,13 @@ function addResult(item) {
     let i;
     if (S.attachTo >= 0 && S.attachTo < list.length) {
         i = S.attachTo;
+        const was = { ...list[i] };
         list[i][item.kind] = item.id;
         if (item.kind === "river") { list[i].rv = shortName(item.name); if (item.state) list[i].st = item.state; }
         // tides added to a river place: waves / jetty rating start hidden (Customize → Show
         // turns them on); a tide station on its own shows them
         if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
+        moveViews(was, list[i]);
     } else {
         // a new place, added (and loading) right away; the Add page stays open so several
         // can go in (e.g. every gauge on a river). Back takes them out again.
@@ -1518,6 +1523,63 @@ function memberLabel(i, groupName) {
     const loc = m ? m[1].replace(/,.*$/, "").trim() : "";
     return loc ? loc[0].toUpperCase() + loc.slice(1) : p.name;
 }
+// ── sorting the places list ──
+// How often each place was opened from the list, kept on the phone only (a number per
+// place, by its first station so adding the other one keeps the count).
+const viewKey = p => p && p.river ? "r:" + p.river : p && p.tide ? "t:" + p.tide : "";
+const VIEWS = load("rt:views", {});
+const viewsOf = i => VIEWS[viewKey(S.places[i])] || 0;
+function noteView(i) {
+    const k = viewKey(S.places[i]);
+    if (!k) return;
+    VIEWS[k] = (VIEWS[k] || 0) + 1;
+    save("rt:views", VIEWS);
+}
+function moveViews(before, after) {
+    const a = viewKey(before), b = viewKey(after);
+    if (!a || !b || a === b || !VIEWS[a]) return;
+    VIEWS[b] = (VIEWS[b] || 0) + VIEWS[a];
+    delete VIEWS[a];
+    save("rt:views", VIEWS);
+}
+const SORTS = [["mine", "My order"], ["az", "A–Z"], ["views", "Most viewed"]];
+const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+// The list's items in the picked order. Groups stay together: A–Z by the group's (or
+// place's) name, then A–Z inside; Most viewed by the group's total, then inside. Ties
+// keep your own order.
+function sortedItems() {
+    const items = listItems();
+    if (S.sort !== "az" && S.sort !== "views") return items;
+    const az = S.sort === "az";
+    const name = it => it.members ? it.name : placeLabel(it.i);
+    const score = it => it.members ? it.members.reduce((t, i) => t + viewsOf(i), 0) : viewsOf(it.i);
+    const out = items.map((it, k) => ({ ...it, k }));
+    out.sort((a, b) => (az ? byName(name(a), name(b)) : score(b) - score(a)) || a.k - b.k);
+    for (const it of out) {
+        if (!it.members) continue;
+        const m = it.members.map((i, k) => ({ i, k }));
+        m.sort((x, y) => (az ? byName(memberLabel(x.i, it.name), memberLabel(y.i, it.name)) : viewsOf(y.i) - viewsOf(x.i)) || x.k - y.k);
+        it.members = m.map(x => x.i);
+    }
+    return out;
+}
+// Changing the order: rows glide from where they were to their new spots.
+function glideRows(change) {
+    const rows = () => [...document.querySelectorAll("#placesList .prow")].map(r => [r.dataset.key || "g:" + r.dataset.g, r]);
+    const before = new Map(rows().map(([k, r]) => [k, r.getBoundingClientRect().top]));
+    change();
+    render();
+    if (!ANIM) return;
+    for (const [k, r] of rows()) {
+        const t = before.get(k), dy = t === undefined ? 0 : t - r.getBoundingClientRect().top;
+        if (Math.abs(dy) > 1) r.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: ANIM * 1.6, easing: "cubic-bezier(.33,1,.68,1)" });
+    }
+}
+function sortChips() {
+    const cur = S.sort;
+    return `<div class="sort-row${S.editing ? " off" : ""}">${SORTS.map(([k, l]) =>
+        `<button class="hist-chip sort-chip${k === cur ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>`;
+}
 // The second line in the places list: the station names, like under the name at the top
 // of a place (a station whose charts are all switched off isn't named; ids until the
 // first download).
@@ -1546,7 +1608,7 @@ function renderPlaces() {
     // The place on screen stays in the list (lightly highlighted), so places compare easily.
     if (!S.editing) {   // grouped, folders open/close; Edit mode below shows every place
         let rows = "", first = true;
-        for (const it of listItems()) {
+        for (const it of sortedItems()) {
             if (it.members === undefined) {
                 rows += placeRow(it.i, { first });
                 first = false;
@@ -1561,7 +1623,7 @@ function renderPlaces() {
             first = false;
             if (open) for (const i of it.members) rows += placeRow(i, { member: true, label: memberLabel(i, it.name) });
         }
-        return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
+        return sortChips() + section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
     }
     // Edit mode: every place with its ≡ handle; each group is a tinted box (always
     // open) with its name field, − (ungroup) and its own ≡. Drag places into and
@@ -1583,13 +1645,13 @@ function renderPlaces() {
     const box = (name, inner) => `<div class="gbox" data-key="gb:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">${inner}</div>`;
     let rows = "", first = true;
     for (const name of S.newGroups) { rows += box(name, head(name, 0, true)); first = false; }
-    for (const it of listItems()) {
+    for (const it of sortedItems()) {   // in the order on screen, so nothing moves going into Edit
         if (it.members === undefined) { rows += placeRow(it.i, { first, label: label(it.i) }); first = false; continue; }
         rows += box(it.name, head(it.name, it.members.length, true) +
             it.members.map(i => placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) })).join(""));
         first = false;
     }
-    return section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
+    return sortChips() + section({ id: "placesSec", pad: 0, gap: 0, body: `<div id="placesList">${rows}</div>` });
 }
 
 function renderBody(cur) {
@@ -1947,7 +2009,10 @@ function startDrag(e, handle) {
 
 // After a drag in Edit, the list on screen is the new order; a dragged place's
 // group is the box it ended up in (none if outside every box).
+// Dragging while the list is sorted A–Z / Most viewed starts your own order from what's
+// on screen: that order (with the move) becomes "My order".
 function dropInEdit(D) {
+    if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
     const order = [...D.list.querySelectorAll(".prow[data-i]")].map(x => +x.dataset.i);
     if (D.isBox) { reorder(order); return; }
     const box = D.row.parentNode.closest(".gbox"), was = D.row.dataset.gm || "";
@@ -1988,6 +2053,7 @@ const ACTIONS = {
     // Tapping a place in the list zooms into it (the list keeps its spot for next time).
     select: el => {
         const i = +el.dataset.i;
+        noteView(i);
         zoomInto(el, () => { select(i); closeList(); });
         return "skip";
     },
@@ -2057,6 +2123,11 @@ const ACTIONS = {
     nowToggle: () => { S.nowOpen = !S.nowOpen; },
     add: () => { openList(true); return "skip"; },          // "Add a place" (no places yet): the list's search
     list: () => { zoomToList(); return "skip"; },
+    sort: el => {
+        if (S.editing || el.dataset.s === S.sort) return "skip";
+        glideRows(() => { S.sort = el.dataset.s; save("rt:sort", S.sort); });
+        return "skip";
+    },
     attach: el => { openAdd(S.selected, el.dataset.kind); return "skip"; },
     refresh: () => { refresh(); return "skip"; },
     closeAdd: () => closeAdd(),
