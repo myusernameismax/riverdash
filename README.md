@@ -101,6 +101,11 @@ number of gauges, and each gauge's mini graph side by side on the right (up to 4
 (green in shape, red not, gray no range). Tap the group to open
 it; its places show where they are ("Vida", "Above Coburg") when they're all named
 after the river.
+Rivers with the same name in different states stay apart: the Deschutes gauges at
+Moody and Madras group as **Deschutes (OR)**, and one near Rainier, WA shows as
+**Deschutes (WA)**. The state comes from NOAA's name where it has one ("Deschutes
+River (OR)") and otherwise from the station list, and is only shown when two places'
+rivers share a name.
 
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
   selected so you can type over it; tap the name later to rename). In Edit each group
