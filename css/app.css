@@ -394,6 +394,10 @@ body.editing .psub.full { margin-left: 32px; }
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
               padding: 0 var(--gutter) calc(var(--bot) + 20px); display: flex; flex-direction: column; }
 #listBody { display: flex; flex-direction: column; flex: 1; }
+/* while the keyboard is up, the hint ("Find a river or tide station") centers in the
+   space above it (iOS doesn't shrink the page for the keyboard; --kb is the part it covers) */
+#listScroll, #addScroll { transition: padding-bottom var(--anim) cubic-bezier(.33,1,.68,1); }
+#listPage.searching #listScroll { padding-bottom: calc(max(var(--bot), var(--kb, 0px)) + 20px); }
 #listPage.picking #listScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
 #ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
 
@@ -409,7 +413,7 @@ body.editing .psub.full { margin-left: 32px; }
 #q { flex: 1; min-width: 0; border: 0; outline: none; background: none; font-size: 16px; height: 100%; padding: 0; }
 #q::placeholder { color: var(--text); opacity: .45; }
 #q::-webkit-search-cancel-button { -webkit-appearance: none; }
-#addScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(var(--bot) + 20px); }
+#addScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(max(var(--bot), var(--kb, 0px)) + 20px); }
 #addPage.picking #addScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
 /* floating "Add 2 Rivers To List" (places list and Add page): slides up once something
    is added. Its middle sits 1/5 of the way up the screen, where a thumb rests (about the

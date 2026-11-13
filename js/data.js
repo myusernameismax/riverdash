@@ -753,6 +753,14 @@ async function riverRows() {
     return riverCache.rows;
 }
 
+// The state of each river gauge in `ids` (from the station lists), for telling apart
+// rivers with the same name ("Deschutes" in Oregon and in Washington).
+export async function gaugeStates(ids) {
+    const want = new Set(ids), out = {};
+    for (const r of await riverRows()) if (want.has(r[0]) && r[2]) out[r[0]] = r[2];
+    return out;
+}
+
 export async function search(text) {
     const words = text.toLowerCase().match(/[a-z0-9]+/g) || [];
     if (!words.length) return { rivers: [], tides: [] };

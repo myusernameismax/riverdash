@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -102,7 +102,11 @@ const flooding = r => !!r && ["action", "minor", "moderate", "major"].includes(r
 const nativeFlow = r => r.flowNative ?? r.flowNote === "NOAA";
 // a few USGS gauges measure flow only
 const hasStage = r => has(r.stage) || r.series.some(p => p[1] !== null);
-const shortName = n => n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0].replace(/ River$/, "").trim();
+// "Deschutes River (OR) at Moody" → "Deschutes (OR)", "McKenzie River near Vida" → "McKenzie"
+const tidyRiver = n => n.replace(/\s+River(?=\s*\(|\s*$)/i, "").trim();
+const shortName = n => tidyRiver(n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0]);
+// "Deschutes (OR)" → ["Deschutes", "OR"]
+const splitState = n => { const m = n.match(/^(.*?)\s*\(([^)]*)\)\s*$/); return m ? [m[1].trim(), m[2].trim()] : [n.trim(), ""]; };
 const dayLabel = ms => fmtDay(ms) + " " + fmtMonthDay(ms);
 
 // ── as of now ───────────────────────────────────────────────────────
@@ -748,7 +752,7 @@ function addResult(item) {
     if (S.attachTo >= 0 && S.attachTo < list.length) {
         i = S.attachTo;
         list[i][item.kind] = item.id;
-        if (item.kind === "river") list[i].rv = shortName(item.name);
+        if (item.kind === "river") { list[i].rv = shortName(item.name); if (item.state) list[i].st = item.state; }
         // tides added to a river place: waves / jetty rating start hidden (Customize → Show
         // turns them on); a tide station on its own shows them
         if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
@@ -757,7 +761,7 @@ function addResult(item) {
         // can go in (e.g. every gauge on a river). Back takes them out again.
         const p = { name: shortName(item.name) };
         p[item.kind] = item.id;
-        if (item.kind === "river") p.rv = shortName(item.name);
+        if (item.kind === "river") { p.rv = shortName(item.name); if (item.state) p.st = item.state; }
         list.push(p);
         savePlaces(list);
         S.addedKeys.push(keyOf(p));
@@ -1013,6 +1017,7 @@ function rememberRivers() {
         return { ...p, rv: shortName(d.river.name) };
     });
     if (changed) { S.places = list; save("rt:places", list); }
+    fillStates();
 }
 // The last readings, kept where they load instantly at startup (before anything else).
 function saveSnapshot() {
@@ -1424,11 +1429,42 @@ function customizePanel(cur) {
 // (e.g. "Coast"), and dragging places in and out of it is how they join or leave;
 // your own groups show even with one place. place.rv remembers the river's name;
 // place.group is the override ("" = kept out of its river's group).
-function autoRiver(p) {
-    if (!p || !p.river) return "";
-    if (p.rv) return p.rv;
+// Rivers with the same name in different states stay apart: NOAA marks some ("Deschutes
+// River (OR)"), and place.st (the gauge's state, from the station list) marks the rest
+// when another place's river shares the name: "Deschutes (OR)" and "Deschutes (WA)".
+function riverOf(p) {   // [name, state] or null
+    if (!p || !p.river) return null;
     const d = S.results[keyOf(p)];
-    return d && d.river && d.river.name ? shortName(d.river.name) : "";
+    const raw = p.rv || (d && d.river && d.river.name ? shortName(d.river.name) : "");
+    if (!raw) return null;
+    const [name, st] = splitState(tidyRiver(raw));
+    return [name, st || p.st || "", !!st];
+}
+function autoRiver(p) {
+    const r = riverOf(p);
+    if (!r) return "";
+    const [name, st, marked] = r, k = name.toLowerCase();
+    const clash = !!st && S.places.some(q => { const o = q !== p && riverOf(q); return o && o[0].toLowerCase() === k && o[1] && o[1] !== st; });
+    return marked || clash ? `${name} (${st})` : name;
+}
+const sameRiverName = (a, b) => splitState(tidyRiver(a))[0].toLowerCase() === splitState(tidyRiver(b))[0].toLowerCase();
+// A place on its own named just like its river shows the river's full name ("Deschutes (WA)").
+function placeLabel(i) {
+    const p = S.places[i], r = autoRiver(p);
+    return r && r !== p.name && sameRiverName(p.name, r) ? r : p.name;
+}
+// Places added before the state was kept get it from the station list.
+let statesAsked = false;
+function fillStates() {
+    const need = S.places.filter(p => p.river && !p.st).map(p => p.river);
+    if (!need.length || statesAsked) return;
+    statesAsked = true;
+    gaugeStates(need).then(st => {
+        if (!Object.keys(st).length) return;
+        S.places = S.places.map(p => p.river && !p.st && st[p.river] ? { ...p, st: st[p.river] } : p);
+        save("rt:places", S.places);
+        render();
+    }).catch(() => {}).finally(() => { statesAsked = false; });
 }
 const groupOf = p => (p.group !== undefined ? p.group : autoRiver(p)).trim();
 // The list in order: single places, and groups (river groups with 2+ places, your own
@@ -1451,7 +1487,7 @@ function listItems() {
 // Inside a group, a place named just like the group shows where it is instead ("Vida").
 function memberLabel(i, groupName) {
     const p = S.places[i];
-    if (p.name.toLowerCase() !== groupName.toLowerCase()) return p.name;
+    if (!sameRiverName(p.name, groupName)) return p.name;
     const d = S.results[keyOf(p)], n = d && d.river ? d.river.name : "";
     const m = n.match(/ (?:near|nr|at) (.+)$/) || n.match(/ ((?:above|below|abv|blw) .+)$/);
     const loc = m ? m[1].replace(/,.*$/, "").trim() : "";
@@ -1472,7 +1508,7 @@ function placeRow(i, o) {
     return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
-        <div class="pmain"><div class="pname">${esc(o.label || p.name)}</div></div>
+        <div class="pmain"><div class="pname">${esc(o.label || placeLabel(i))}</div></div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
@@ -1511,7 +1547,7 @@ function renderPlaces() {
     S.places.forEach(p => { const k = p.name.toLowerCase(); named[k] = (named[k] || 0) + 1; });
     const label = i => {
         const p = S.places[i], loc = named[p.name.toLowerCase()] > 1 ? memberLabel(i, p.name) : "";
-        return loc && loc !== p.name ? p.name + " · " + loc : p.name;
+        return loc && loc !== p.name ? p.name + " · " + loc : placeLabel(i);
     };
     const head = (name, n, first) => `<div class="prow grp gedit${first ? " first" : ""}" data-key="g:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">
         <button class="bubble neg" data-act="ungroup" data-g="${esc(name.toLowerCase())}">−</button>
