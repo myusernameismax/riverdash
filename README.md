@@ -55,6 +55,8 @@ Only the inputs change from the desktop widget:
   Sandy; the median, so flood years don't inflate it). It follows the reading bar's
   day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
+- Flows of 10,000 cfs or more show as 12.3k in the tiles and the list so they fit;
+  the chart shows them in full.
 
 ## Places list and groups
 
@@ -255,7 +257,7 @@ A mouse works too: hover, scroll-to-zoom, drag and Esc behave like the widget.
 |---|---|
 | River height, flow, forecast (the whole one, about 7 days, including what NOAA's site calls the trend), flood stages | NOAA National Water Prediction Service |
 | Tides (predictions, live level where there's a sensor) | NOAA CO-OPS Tides & Currents |
-| Flow when NOAA has none | USGS Water Data |
+| Flow when NOAA has none (e.g. the tidal Willamette at Portland, which runs backwards on a rising tide): the last 2 days, or only the latest number at gauges without a real-time series (the Flow tab then says "No flow history at this gauge") | USGS Water Data |
 | Gauges NOAA doesn't carry (about half of USGS's real-time gauges, mostly creeks): height and flow every 15 min, last 2 days; no forecast or flood stages | USGS Water Data |
 | Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
 | Typical (median) flow for each calendar date (over all years) | USGS statistics service |

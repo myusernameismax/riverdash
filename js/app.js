@@ -71,9 +71,15 @@ const dataFor = i => i >= 0 && i < S.places.length ? project(S.results[keyOf(S.p
 const placeName = i => (S.places[i] || {}).name || "?";
 const has = v => v !== null && v !== undefined;
 const ft = v => has(v) ? v.toFixed(1) + " ft" : "–";
-const commas = n => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const commas = n => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",").replace(/^-/, "−");
 const cfs = v => has(v) ? commas(v) + " cfs" : "–";
-const cfsShort = v => !has(v) ? "–" : (v >= 10000 ? Math.round(v / 1000) + "k" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : Math.round(v)) + " cfs";
+const cfsShort = v => {   // tidal rivers can run backwards: −19k
+    if (!has(v)) return "–";
+    const a = Math.abs(v), s = v < 0 ? "−" : "";
+    return s + (a >= 10000 ? Math.round(a / 1000) + "k" : a >= 1000 ? (a / 1000).toFixed(1) + "k" : Math.round(a)) + " cfs";
+};
+// Tile number: in full up to 9,999; bigger flows as 12.3k / 192k so they fit the tile.
+const cfsTile = v => Math.abs(v) < 10000 ? commas(v) : (v < 0 ? "−" : "") + (Math.abs(v) >= 100000 ? Math.round(Math.abs(v) / 1000) : (Math.abs(v) / 1000).toFixed(1)) + "k";
 const arrow = (d, eps) => !has(d) ? "" : d > eps ? "↑" : d < -eps ? "↓" : "→";
 const clock = ms => fmtTime(ms, "h:mm A");
 const clockShort = ms => fmtTime(ms, "h:mma").replace(/m$/, "");
@@ -82,7 +88,8 @@ function ago(ms) {
     const m = Math.round((Date.now() - ms) / 60000);
     return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
 }
-const change = (d, unit, dec) => !has(d) ? "" : (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d).toFixed(dec) + unit + " in 3 h";
+const change = (d, unit, dec) => !has(d) ? "" : (d > 0 ? "+" : d < 0 ? "−" : "±")
+    + (dec === 0 ? cfsTile(Math.abs(d)) : Math.abs(d).toFixed(dec)) + unit + " in 3 h";
 const tideWord = e => e.type === "H" ? "High" : "Low";
 const categoryColor = c => c === "action" ? LOOK.actionColor : c === "minor" ? LOOK.minorColor
     : c === "moderate" ? LOOK.moderateColor : c === "major" ? LOOK.majorColor : "var(--text)";
@@ -246,7 +253,7 @@ function haveModes(d) {
     const r = d ? d.river : null, t = d ? d.tide : null;
     return Object.keys(MODES).filter(m => (m === "tide" && !!t) || (m === "stage" && !!r && hasStage(r))
         || (m === "surf" && !!d && !!d.surf && d.surf.hours.length > 1)
-        || (m === "flow" && !!r && r.series.some(p => p[2] !== null))
+        || (m === "flow" && !!r && (r.series.some(p => p[2] !== null) || has(r.flow)))
         || (m === "temp" && !!r && !!r.temp && r.temp.series.length > 1));
 }
 // Which graph to draw (skipping the place's hidden ones).
@@ -293,7 +300,9 @@ function graph(d, mode, p) {
                  markers: [], threshold: NaN, homeT0: now - 2 * DAY_MS, homeT1: w1 };
     if (r && (mode === "stage" || mode === "flow")) {
         const c = mode === "flow" ? 2 : 1;
-        return { series: r.series.map(x => [x[0], x[c]]), forecast: r.forecast.map(x => [x[0], x[c]]),
+        // flow NOAA doesn't have: USGS's own 2 days (no forecast), or nothing to draw
+        const own = c === 1 || r.series.some(x => x[2] !== null);
+        return { series: own ? r.series.map(x => [x[0], x[c]]) : r.flowSeries || [], forecast: own ? r.forecast.map(x => [x[0], x[c]]) : [],
                  color: c === 2 ? LOOK.flowColor : LOOK.stageColor, decimals: c === 2 ? 0 : 1, markers: [],
                  nowValue: !r.predicted ? NaN : c === 2 ? (r.flowPredicted ? r.flow : NaN) : r.stage,
                  ideal: idealOf(p, mode),
@@ -798,7 +807,8 @@ function mergeResult(p) {
     if (!old || !p.light) return p;
     // the list's part only: keep what the details page had
     const out = { ...p, weather: old.weather, light: old.light };
-    if (p.river && old.river) out.river = { ...p.river, temp: old.river.temp, averages: old.river.averages };
+    if (p.river && old.river) out.river = { ...p.river, temp: old.river.temp, averages: old.river.averages,
+                                            flowSeries: p.river.flowSeries || old.river.flowSeries };
     return out;
 }
 async function fetchSome(list, fullKeys) {
@@ -900,10 +910,11 @@ function avgText(r, t) {
     return num(v) ? "Typical flow on " + fmtMonthDay(d.getTime()) + ": " + cfs(v) : "";
 }
 function tile({ title, num, unit, detail, mode, active, accent, shape: k = null, wait = false }) {
+    const long = String(num).length >= 6 ? " long" : "";   // e.g. −19.2k: a bit smaller, so it fits
     if (wait) return `<div class="tile still wait" style="--accent:${accent}"><div class="t-title">${title}</div><span class="spinner"></span></div>`;
     return `<button class="tile${active ? " active" : ""}${mode ? "" : " still"}" ${mode ? `data-act="mode" data-mode="${mode}"` : ""} style="--accent:${accent}">
         <div class="t-title">${title}${k === null ? "" : `<span class="t-shape" style="color:${shapeColor(k)}">${shapeWord(k)}</span>`}</div>
-        <div class="t-val"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
+        <div class="t-val${long}"><b>${esc(num)}</b><span class="u">${esc(unit)}</span></div>
         ${detail ? `<div class="t-det">${esc(detail)}</div>` : ""}
     </button>`;
 }
@@ -946,9 +957,11 @@ function renderTiles(cur) {
     const T = {};   // by tab, so a tile that's still downloading keeps its place
     if (r && hasStage(r) && !hidden(p, "stage")) T.stage = tile({ title: "HEIGHT", accent: LOOK.stageColor, mode: "stage", active: mode === "stage",
         num: has(r.stage) ? r.stage.toFixed(1) : "–", unit: " ft " + arrow(r.stageTrend, 0.05), detail: riverDetail(r, change(r.stageTrend, " ft", 2)) });
-    if (r && has(r.flow) && !hidden(p, "flow")) T.flow = tile({ title: "FLOW", accent: LOOK.flowColor, mode: nativeFlow(r) ? "flow" : "", active: mode === "flow",
-        num: commas(r.flow), unit: " cfs " + arrow(r.flowTrend, r.flow * 0.02),
-        detail: nativeFlow(r) ? riverDetail(r, change(r.flowTrend, " cfs", 0)) : r.flowNote + ", " + ago(r.flowTime) });
+    if (r && has(r.flow) && !hidden(p, "flow")) T.flow = tile({ title: "FLOW", accent: LOOK.flowColor, mode: "flow", active: mode === "flow",
+        num: cfsTile(r.flow), unit: " cfs " + arrow(r.flowTrend, Math.abs(r.flow) * 0.02),
+        detail: nativeFlow(r) ? riverDetail(r, change(r.flowTrend, " cfs", 0))
+              : r.flowSeries ? (Date.now() - r.flowTime > MEASURED_FOR ? "Measured " + ago(r.flowTime) : change(r.flowTrend, " cfs", 0))
+              : r.flowNote + ", " + ago(r.flowTime) });
     if (r && r.temp && !hidden(p, "temp")) T.temp = tile({ title: "WATER", accent: LOOK.tempColor, mode: "temp", active: mode === "temp",
         num: Math.round(r.temp.value).toString(), unit: " °F " + arrow(r.temp.trend, 0.3),
         detail: Date.now() - r.temp.time > MEASURED_FOR ? "Measured " + ago(r.temp.time) : change(r.temp.trend, " °F", 1) });
@@ -969,7 +982,12 @@ function renderChart(cur) {
     const { d, r, mode } = cur;
     const g = bigGraph(d, mode, cur.place);
     cur.g = g;
-    if (!d || g.series.length <= 1) return "";
+    if (!d) return "";
+    // a gauge with only its latest flow (no history to draw): say so where the chart goes
+    if (g.series.length <= 1 && mode === "flow" && r && has(r.flow))
+        return section({ pad: 9, body: `<div class="chart-empty">No flow history at this gauge</div>
+            <div class="chart-label">${esc("Latest " + commas(r.flow) + " cfs · " + r.flowNote + " · " + ago(r.flowTime))}</div>` });
+    if (g.series.length <= 1) return "";
     const b = g.ideal, rng = !b ? "" : " · good " + (isNaN(b.lo) ? "below " + b.hi : isNaN(b.hi) ? "above " + b.lo : b.lo + "–" + b.hi);
     const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs"
         : mode === "temp" ? "Water temperature · °F · USGS, measured" : "Height · ft") + rng;

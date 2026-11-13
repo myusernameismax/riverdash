@@ -143,7 +143,8 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .tile:not(.still):active { transform: scale(.97); }
 .tile.still { cursor: default; }
 .t-title { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .2px; }
-.t-val { white-space: nowrap; margin-top: 1px; }
+.t-val { white-space: nowrap; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
+.t-val.long b { font-size: 18px; }
 .t-val b { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
 .t-val .u { font-size: 13px; font-weight: 600; opacity: .85; }
 .t-det { font-size: 11.5px; opacity: .7; margin-top: 1px; }
@@ -152,6 +153,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .big-chart { display: block; width: 100%; touch-action: pan-y; }
 .tile.wait { display: flex; flex-direction: column; }
 .tile.wait .spinner { width: 16px; height: 16px; border-width: 2px; margin: 8px 0 0 2px; }
+.chart-empty { height: 70px; display: grid; place-items: center; font-size: 13px; opacity: .6; }
 .chart-label { text-align: center; font-size: var(--small); opacity: .55; }
 .chart-peak { text-align: center; font-size: var(--small); opacity: .8; }
 
@@ -338,7 +340,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hit { display: flex; align-items: center; gap: 10px; padding: 7px 6px 7px 8px; border-radius: 10px; transition: background 120ms; cursor: pointer; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .hit.have { cursor: pointer; }
-.hit.have .hit-name { opacity: .5; }
+.hit.have .hit-name { opacity: .5; white-space: normal; }   /* added: the full name, on two lines if needed */
 .hit-main { flex: 1; min-width: 0; }
 .hit-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hit-sub { font-size: var(--small); opacity: .5; }

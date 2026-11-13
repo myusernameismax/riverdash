@@ -224,6 +224,15 @@ async function usgsAverages(site) {
     });
 }
 
+// USGS discharge (00060) every 15 min for the last 2 days as [[ms, cfs]] ([] if none).
+async function usgsFlowSeries(site) {
+    const d = await cached(`usgs-q-${site}.json`, 15 * MIN, () => get(USGS_CONT, {
+        f: "json", monitoring_location_id: `USGS-${site}`, parameter_code: "00060", time: "P2D",
+        skipGeometry: "true", properties: "time,value", limit: 2000 }, 40));
+    return (d.features || []).map(f => [ms(f.properties.time), parseFloat(f.properties.value)])
+        .filter(p => isFinite(p[0]) && isFinite(p[1]) && p[1] > -999999).sort((a, b) => a[0] - b[0])
+        .map(p => [p[0], Math.round(p[1])]);
+}
 // Latest USGS discharge: real-time (00060) if recent, else tidally filtered daily (72137).
 async function usgsFlow(site) {
     const d = await cached(`usgs-${site}.json`, 30 * MIN, () => get(USGS_LATEST, {
@@ -257,12 +266,22 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
     if (t && (!series.length || t > series[series.length - 1][0])) series.push([t, stage, flow]);
     if (!t && series.length) [t, stage, flow] = series[series.length - 1];  // status empty but history exists
 
-    let flowNote = "NOAA", flowTime = t;
+    let flowNote = "NOAA", flowTime = t, flowSeries = null, usgsTrend = null;
     const hasFlowSeries = series.some(p => p[2] !== null);
+    // No flow from NOAA (e.g. tidal Willamette at Portland): USGS's last 2 days if it has
+    // them (the details page; the list only needs the latest), else its latest number.
     if (flow === null && g.usgsId && need.flow) {
         try {
-            const u = await usgsFlow(g.usgsId);
-            if (u) [flow, flowTime, flowNote] = u;
+            const s = full ? await usgsFlowSeries(g.usgsId) : [];
+            if (s.length > 1) {
+                [flowTime, flow] = s[s.length - 1];
+                flowNote = "USGS"; flowSeries = thin(s);
+                const b = valueNear(s, flowTime - 3 * HOUR * 1000, 1);
+                usgsTrend = b === null ? null : flow - b;
+            } else {
+                const u = await usgsFlow(g.usgsId);
+                if (u) [flow, flowTime, flowNote] = u;
+            }
         } catch (e) { /* no flow then */ }
     }
     // extras from the USGS gauge; a failure just leaves them out
@@ -291,7 +310,8 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
         lat: g.latitude, lon: g.longitude,
         stage, stageTrend: trend(1, stage),
         flow, flowTime, flowNote, flowNative: flowNote === "NOAA",   // native: flow is part of the gauge's own series (it has a chart)
-        flowTrend: hasFlowSeries ? trend(2, flow) : null, usgs: g.usgsId || "",
+        flowTrend: hasFlowSeries ? trend(2, flow) : usgsTrend, usgs: g.usgsId || "",
+        flowSeries,                // [[ms, cfs]] from USGS when NOAA has no flow, or null
         category: cat[0], categoryLabel: cat[1], flood,
         forecastPeak: peak ? { time: peak[0], stage: peak[1], flow: peak[2] } : null,
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
