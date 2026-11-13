@@ -1100,8 +1100,10 @@ async function runSearch(text) {
 
 // ════════════ rendering ════════════
 const flash = { selected: false, week: false, day: false };   // one-shot fade-ins
+// The mouse wheel zooms the big chart only in View History (a long range worth zooming
+// into); otherwise it scrolls the page past the chart. Pinch zoom works everywhere.
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
-                            onHover: t => syncWeather(t) });
+                            onHover: t => syncWeather(t), wheelZoom: () => !!S.hist });
 let dragging = null;     // reorder in progress (render waits)
 let ptrSync = () => {};  // keeps the refresh spinner in step with the place on screen (set in wire)
 

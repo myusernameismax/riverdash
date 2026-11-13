@@ -35,6 +35,9 @@ export class Chart {
         this.lineWidth = opts.lineWidth || 2;
         this.fillOpacity = opts.fillOpacity ?? 0.18;
         this.minSpanHours = opts.minSpanHours || 2;
+        // wheelZoom(): whether a mouse wheel zooms / pans the chart right now; when it
+        // doesn't, the wheel scrolls the page as usual (default: always zooms)
+        this.wheelZoom = opts.wheelZoom || (() => true);
         this.viewKey = null;
         this.view0 = NaN; this.view1 = NaN;   // current view; NaN = home
         this.hoverKey = null;
@@ -193,7 +196,7 @@ export class Chart {
         cv.addEventListener("dblclick", () => { this.pinT = NaN; this.resetView(); this.setHoverT(NaN); });
         cv.addEventListener("wheel", e => {
             const v = this.view();
-            if (!v) return;
+            if (!v || !this.wheelZoom()) return;   // not zooming: the page scrolls
             e.preventDefault();
             const p = local(e), dy = e.deltaY, dx = e.deltaX;
             if (Math.abs(dx) > Math.abs(dy)) {
