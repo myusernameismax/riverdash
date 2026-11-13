@@ -83,7 +83,7 @@ Only the inputs change from the desktop widget:
   the list is its own page now). Each row has the place's name, the readings and ★ on
   the right, and under the name its stations in full (as at the top of a place: "Sandy
   River near Marmot", "Tides: Newport"), wrapping across the whole row, under the
-  readings too, when they're long; a group row lists its places ("Vida · Coburg").
+  readings too, when they're long. A group's row is one thin line: its name and count.
 - Tapping a row opens the place out of it: the row grows into the full page, its top
   edge racing up and its bottom edge down so both reach the screen's edges together
   (the list sinks back behind it). The list button does the same in reverse: the page

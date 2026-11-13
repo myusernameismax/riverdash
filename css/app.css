@@ -294,7 +294,10 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .ghead { width: 36px; flex: none; display: flex; align-items: center; justify-content: center; }
 .gsparks { display: flex; gap: 6px; flex: none; padding-right: 10px; }
 .spark.gs { width: 28px; }
-.prow.grp { cursor: pointer; }
+.prow.grp { cursor: pointer; min-height: 48px; padding-top: 2px; padding-bottom: 2px; }   /* a group's name: one thin line */
+/* in Edit the same height (the box's 4px top margin comes out of it), so nothing moves */
+.gbox > .prow.grp.gedit { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+.prow.gedit .handle { height: 40px; }
 .prow.grp:active { background: var(--hover); }
 .gcount { font-size: 13px; opacity: .45; font-weight: 600; margin-left: 7px; }
 .gchev { display: flex; opacity: .45; transition: transform var(--anim); }
