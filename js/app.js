@@ -1160,7 +1160,10 @@ const flash = { selected: false, week: false, day: false };   // one-shot fade-i
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
                             onHover: t => syncWeather(t), wheelZoom: () => !!S.hist });
 let dragging = null;     // reorder in progress (render waits)
-let ptrSync = () => {};  // keeps the refresh spinner in step with the place on screen (set in wire)
+let ptrSync = () => {};
+// the Easter egg's note: a scroll wheel (a computer) or a finger (a phone) pushed past the end
+const EGG_COMPUTER = "Get off your computer and go fishing!", EGG_PHONE = "Get off your phone and go fishing!";
+let eggText = EGG_PHONE;  // keeps the refresh spinner in step with the place on screen (set in wire)
 
 function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, body = "", cls = "", id = "" }) {
     const head = title || leading || trailing
@@ -1198,8 +1201,9 @@ function renderHeader(cur) {
     const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
         ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener"><span class="hmap-arrow lead">↗</span>${esc(label)}</a>`
         : esc(label);
+    // one line per station (a river gauge and a tide station stack), each its own map link
     const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
-        .filter(s => s).join("  ·  ");
+        .filter(s => s).map(s => `<div class="hsub-l">${s}</div>`).join("");
     const n = d && d.weather ? d.weather.now : null;
     const wx = LOOK.showWeather && n && has(n.temp)
         ? `<button class="hwx" data-act="nowToggle">${wxIcon(n.code, n.day, 34)}<span class="hwx-t"><span class="hwx-temp">${n.temp}°</span><span class="hwx-word">${esc(wxWord(n.code))}</span></span></button>`
@@ -1788,7 +1792,7 @@ function renderFooter() {
         ${S.places.length ? `<button class="fbtn round" data-act="share" aria-label="Share places">${icon("share", 16)}</button>` : ""}
         <a class="fbtn" href="mailto:flowtidessupport@gmail.com?subject=Flow%20Tides">${icon("mail", 15)}Contact</a>
         <button class="fbtn round flist${wide() && !S.listHidden ? " on" : ""}" data-act="list" aria-label="Places">${icon("list", 24)}</button>
-        <div class="egg">Get off your computer and go fishing!</div>`);
+        <div class="egg">${eggText}</div>`);
 }
 
 // The places list page: its top row, then the list, or search results while searching.
@@ -2426,7 +2430,8 @@ function wire() {
     // A wheel turn past the end does the same for a moment.
     const det = $("#details");
     const atEnd = () => scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 2;
-    const setEgg = (px, anim) => {
+    const setEgg = (px, anim, text) => {
+        if (text && text !== eggText) { eggText = text; const n = document.querySelector("#ftr .egg"); if (n) n.textContent = text; }
         setPull(-px, anim);
         det.classList.toggle("egg-anim", !!anim);
         det.style.setProperty("--egg-px", px + "px");
@@ -2443,6 +2448,7 @@ function wire() {
             if (Math.max(Math.abs(dx), Math.abs(up)) < 6) return;
             if (up <= Math.abs(dx) || !atEnd()) { eg = null; return; }
             eg.on = true; eg.y -= up;
+            setEgg(0, false, EGG_PHONE);
         }
         e.preventDefault();
         clearTimeout(eggTimer);
@@ -2457,7 +2463,7 @@ function wire() {
         const fresh = e.timeStamp - lastWheel > 300;
         lastWheel = e.timeStamp;
         if (!fresh || e.deltaY <= 0 || !atEnd() || ptrBusy) return;
-        setEgg(28, true);
+        setEgg(28, true, EGG_COMPUTER);
         clearTimeout(eggTimer);
         eggTimer = setTimeout(() => setEgg(0, true), 1500);
     }, { passive: true });

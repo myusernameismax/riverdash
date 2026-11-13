@@ -90,7 +90,8 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .hshape { flex: none; font-size: 14px; font-weight: 700; }
 .hname h1 { min-width: 0; margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hsub { font-size: var(--small); color: color-mix(in srgb, var(--text) 60%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.hsub { font-size: var(--small); color: color-mix(in srgb, var(--text) 60%, transparent); margin-top: 1px; }
+.hsub-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* one station per line */
 .hmap { color: var(--link); text-decoration: none; border-radius: 5px; }   /* blue = opens something (the map) */
 .hmap-arrow { margin-left: 2px; font-size: .9em; }
 .hmap-arrow.lead { margin: 0 2px 0 0; }

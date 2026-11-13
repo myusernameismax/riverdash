@@ -27,8 +27,8 @@ to an existing place happens straight away and goes back to it.
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 
-Under a place's name, each station's name (blue, with ↗ in front so it shows even when a long
-name is cut off) opens a map at the exact spot
+Under a place's name, each station's name (one per line, blue, with ↗ in front so it shows
+even when a long name is cut off) opens a map at the exact spot
 of the gauge or tide station. In search results, **Map ↗** does the same before adding.
 
 ## What's different from the widget
@@ -346,8 +346,9 @@ water yourself before going out on rocks or a jetty.
 "Flow Tides"), which forwards to Max. It's hidden in the desktop widget.
 
 Easter egg: scroll to the end of the page, then keep pushing: the page lifts like a
-rubber band (the same give as pull-to-refresh) over a small note ("Get off your
-computer and go fishing!"), and springs back when you let go.
+rubber band (the same give as pull-to-refresh) over a small note, and springs back when
+you let go. A finger gets "Get off your phone and go fishing!", a scroll wheel
+"Get off your computer and go fishing!".
 
 ## Security
 
