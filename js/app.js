@@ -1555,8 +1555,7 @@ function renderPlaces() {
             const open = S.openGroups.has(it.key);
             rows += `<div class="prow grp${first ? " first" : ""}${open ? " open" : ""}" data-act="toggleGroup" data-g="${esc(it.key)}">
                 <div class="ghead"><span class="gchev">${icon("next", 14)}</span></div>
-                <div class="pmain"><div class="pname">${esc(it.name)}<span class="gcount">${it.members.length}</span></div>
-                    <div class="psub">${esc(it.members.map(i => memberLabel(i, it.name)).join("  ·  "))}</div></div>
+                <div class="pmain"><div class="pname">${esc(it.name)}<span class="gcount">${it.members.length}</span></div></div>
                 <div class="gsparks">${it.members.slice(0, 4).map(i => `<canvas class="spark gs" data-spark="${i}"></canvas>`).join("")}</div>
             </div>`;
             first = false;
