@@ -397,15 +397,18 @@ body.editing .psub.full { margin-left: 32px; }
              transition: max-width var(--anim) cubic-bezier(.33,1,.68,1), margin-left var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
 .lq-cancel.on { max-width: 80px; margin-left: 12px; opacity: 1; }
 /* "Sort: A–Z" over the list; its menu pops out under it (dimmed in Edit) */
-.sort-row { position: relative; z-index: 20; display: flex; padding: 0 0 6px; flex: none; transition: opacity var(--anim); }
-.sort-row.off { opacity: .35; pointer-events: none; }
+.sort-row { position: relative; z-index: 20; display: flex; align-items: center; gap: 2px; padding: 0 0 6px; flex: none; }
+.sort-wrap { position: relative; flex: 1; min-width: 0; display: flex; transition: opacity var(--anim); }
+.sort-wrap.off { opacity: .35; pointer-events: none; }
+.sort-row .top-btn { height: 30px; font-size: 15px; margin-right: -6px; }
+.sort-row .top-btn + .top-btn { margin-left: 4px; }
 .sort-btn { display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 6px; margin-left: -2px; border-radius: 8px;
             color: var(--link); font-size: 14px; }
 .sort-btn b { font-weight: 700; }
 .sort-btn:active, .sort-btn.open { background: color-mix(in srgb, var(--link) 12%, transparent); }
 .sort-chev { display: flex; transform: rotate(90deg); transition: transform var(--anim); }
 .sort-btn.open .sort-chev { transform: rotate(-90deg); }
-.sort-menu { position: absolute; top: 34px; left: -2px; min-width: 170px; padding: 5px; border-radius: 12px;
+.sort-menu { position: absolute; top: 34px; z-index: 1; left: -2px; min-width: 170px; padding: 5px; border-radius: 12px;
              display: flex; flex-direction: column; background: color-mix(in srgb, var(--text) 6%, var(--bg));
              box-shadow: 0 8px 28px rgba(0,0,0,.28); transform-origin: 24px 0;
              transform: scale(.85); opacity: 0; visibility: hidden; pointer-events: none;

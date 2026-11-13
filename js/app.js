@@ -1582,10 +1582,15 @@ function glideRows(change) {
 // tinted). Picking one, tapping anywhere else or Back closes it.
 function sortChips() {
     const cur = (SORTS.find(([k]) => k === S.sort) || SORTS[0])[1];
-    return `<div class="sort-row${S.editing ? " off" : ""}">
-        <button class="sort-btn${S.sortOpen ? " open" : ""}" data-act="sortMenu">Sort: <b>${cur}</b><span class="sort-chev">${icon("next", 11)}</span></button>
-        <div class="sort-menu${S.sortOpen ? " on" : ""}">${SORTS.map(([k, l]) =>
-            `<button class="sort-opt${k === S.sort ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>
+    // Edit (+ Group and Done while editing) at the row's right end
+    return `<div class="sort-row">
+        <div class="sort-wrap${S.editing ? " off" : ""}">
+            <button class="sort-btn${S.sortOpen ? " open" : ""}" data-act="sortMenu">Sort: <b>${cur}</b><span class="sort-chev">${icon("next", 11)}</span></button>
+            <div class="sort-menu${S.sortOpen ? " on" : ""}">${SORTS.map(([k, l]) =>
+                `<button class="sort-opt${k === S.sort ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>
+        </div>
+        ${S.editing ? `<button class="top-btn" data-act="newGroup">${icon("plus", 14)}Group</button>` : ""}
+        <button class="top-btn${S.editing ? " strong" : ""}" data-act="edit">${S.editing ? "Done" : "Edit"}</button>
     </div>`;
 }
 // The second line in the places list: the station names, like under the name at the top
@@ -1710,9 +1715,7 @@ function renderList() {
     page.classList.toggle("searching", S.lsearch);
     page.classList.toggle("editing", S.editing);
     $("#lqCancel").classList.toggle("on", S.lsearch);
-    morphInto($("#listTop"), `<h1 class="ltitle">Places</h1>
-        ${S.editing ? `<button class="top-btn" data-act="newGroup">${icon("plus", 14)}Group</button>` : ""}
-        ${S.places.length ? `<button class="top-btn${S.editing ? " strong" : ""}" data-act="edit">${S.editing ? "Done" : "Edit"}</button>` : ""}`);
+    morphInto($("#listTop"), `<h1 class="ltitle">Places</h1>`);
     const results = S.lsearch && ($("#lq").value.trim() || !S.places.length);
     morphInto($("#listBody"), results || !S.places.length ? hitsHtml(true, true, $("#lq").value.trim().length) : renderPlaces());
 }
