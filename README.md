@@ -55,10 +55,10 @@ Only the inputs change from the desktop widget:
   Sandy; the median, so flood years don't inflate it). It follows the reading bar's
   day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
-- **History ↗** under the Flow chart (next to Typical flow) and the Water temp chart
+- **History** (blue, under the Flow chart next to Typical flow, and under the Water temp chart)
   turns the chart into a longer view: **1 wk · 1 mo · 3 mo · 1 yr · 5 yr** (no dates
   to type). The river's line keeps its good-range colors; a faint dashed line is the
-  typical value for each date; dragging shows the value, date and typical. 1 wk uses
+  typical value for each date (a small legend under the chart names both); dragging shows the value, date and typical. 1 wk uses
   the 15-minute readings, longer ranges USGS's daily averages. Only for gauges with a
   USGS number, and only downloaded when opened (saved 6 h; 1 wk 15 min). **Done**, the
   back swipe, another tab or place, or picking a weather day goes back.

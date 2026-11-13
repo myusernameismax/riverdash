@@ -982,7 +982,7 @@ function renderTiles(cur) {
 }
 
 // ── history (Flow / Water temp at a USGS gauge) ────────────────────
-// "History ↗" under the chart turns it into a longer view: range chips (1 wk … 5 yr),
+// "History" under the chart turns it into a longer view: range chips (1 wk … 5 yr),
 // the river's line (good range colors kept) and a faint dashed typical line for each
 // date. Done, the back swipe, another tab or place go back. Only downloaded when opened.
 const HIST_RANGES = [["1w", "1 wk"], ["1m", "1 mo"], ["3m", "3 mo"], ["1y", "1 yr"], ["5y", "5 yr"]];
@@ -1008,7 +1008,10 @@ function renderHistory(cur) {
         cur.g = { series: h.data.series, forecast: [], typical: h.data.typical, color, decimals: temp ? 1 : 0,
                   unit: temp ? " °F" : " cfs", ideal: temp ? null : idealOf(p, "flow"), markers: [], threshold: NaN,
                   nowValue: NaN, dates: range !== "1w", noNow: range !== "1w", history: true };
-        body = `<canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>`;
+        // a legend here (unlike the other charts): two lines that are easy to mix up
+        body = `<canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
+            <div class="hist-legend" style="--accent:${color}"><span class="lg-solid"></span>${temp ? "Water temp" : "Flow"}${h.data.typical.length > 1
+                ? `<span class="lg-dash"></span>Typical for the date` : ""}</div>`;
     } else {
         cur.g = null;
         body = `<div class="chart-empty" style="height:${LOOK.chartHeight}px">${h.loading ? `<span class="spinner"></span>`
@@ -1036,7 +1039,7 @@ function renderChart(cur) {
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
     const hist = S.focusDay < 0 && histSite(cur);
-    const under = hist ? `<button class="chart-peak hist-link" data-act="history">${avg ? `<span id="chartAvg">${esc(avg)}</span>  ·  ` : ""}History ↗</button>`
+    const under = hist ? `<div class="hist-row">${avg ? `<span class="chart-peak" id="chartAvg">${esc(avg)}</span>` : ""}<button class="edit-btn" data-act="history">History</button></div>`
         : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
