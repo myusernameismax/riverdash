@@ -13,6 +13,8 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 3. Open it from the home screen icon ("Flow Tides"). It runs full screen without Safari's bars.
 
 It starts empty: tap **+ Add** and search for a river, town, bay or gauge id.
+The Add page stays open after adding, so several can go in at once (every gauge on a
+river, say); added ones get a ✓, Back turns into **Done**, and Done shows the first one.
 Places are saved on the phone only (nothing is sent anywhere but the public
 data services below).
 

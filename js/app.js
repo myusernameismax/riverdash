@@ -48,7 +48,8 @@ const S = {
     editing: false,
     customizing: false,      // the "Customize" panel for the shown place
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
-    newGroups: [],           // Edit → + Group: groups made but still empty (gone if left empty)
+    newGroups: [],
+    addedKeys: [],           // places added during this visit to the Add page (it stays open for more)           // Edit → + Group: groups made but still empty (gone if left empty)
     swiped: -1,              // place row swiped open to show Delete
     // share / import page
     moving: "",              // "share" | "import" | ""
@@ -568,6 +569,7 @@ function openAdd(target, kind) {
     S.searchResults = []; S.searchError = ""; S.searching = false; S.searchSeq++;
     S.editing = false;
     S.adding = true;
+    S.addedKeys = [];
     const p = S.places[target];
     const q = $("#q");
     q.value = p ? p.name : "";       // attaching: start with the place's name
@@ -576,7 +578,14 @@ function openAdd(target, kind) {
     if (q.value) runSearch(q.value);
     warmSearch();
 }
-function closeAdd() { S.adding = false; $("#q").blur(); }
+// Done / Back: shows the first place added this visit (if any).
+function closeAdd() {
+    S.adding = false;
+    $("#q").blur();
+    const i = S.places.findIndex(p => S.addedKeys.includes(keyOf(p)));
+    S.addedKeys = [];
+    if (i >= 0) { select(i); flash.selected = true; }
+}
 const alreadyHave = item => S.places.some(p => p[item.kind] === item.id);
 function addResult(item) {
     const list = S.places.map(p => ({ ...p }));
@@ -589,11 +598,17 @@ function addResult(item) {
         // turns them on); a tide station on its own shows them
         if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
     } else {
+        // a new place: the Add page stays open with its results (now ✓), so several can
+        // be added in a row (e.g. every gauge on a river); Done shows the first one
         const p = { name: shortName(item.name) };
         p[item.kind] = item.id;
         if (item.kind === "river") p.rv = shortName(item.name);
         list.push(p);
         i = list.length - 1;
+        savePlaces(list);
+        S.addedKeys.push(keyOf(p));
+        if (i !== pinned()) toast("Added " + p.name, "Open first", () => pin(i)); else toast("Added " + p.name, "", null);
+        return;
     }
     savePlaces(list);
     select(i);
@@ -1327,6 +1342,7 @@ function renderFooter() {
 
 function renderAdd() {
     const rivers = S.attachKind !== "tide", tides = S.attachKind !== "river";
+    $("#addBack").lastChild.nodeValue = S.addedKeys.length ? "Done" : "Back";
     $("#addTitle").textContent = S.attachTo < 0 ? "Add a place"
         : (S.attachKind === "tide" ? "Tides for " : "River gauge for ") + placeName(S.attachTo);
     $("#q").placeholder = tides && rivers ? "River, town, bay or gauge id" : tides ? "Search tide stations" : "Search river gauges";
