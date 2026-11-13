@@ -54,6 +54,7 @@ const S = {
     openGroups: new Set(),   // river groups opened in the places list (lower-case names)
     newGroups: [],           // Edit → + Group: groups made but still empty (gone if left empty)
     addedKeys: [],           // places added in this search (Cancel / Back takes them out)
+    freshKeys: new Set(),    // just added: their rows light up for a moment
     swiped: -1,              // place row swiped open to show Delete
     sort: load("rt:sort", "mine"),   // places list order: "mine" (as arranged in Edit) | "az" | "views"
     sortOpen: false,         // its menu is out
@@ -774,7 +775,10 @@ function keepAdded() {
     if (S.adding) { closeAdd(true); return; }
     endSearch(true);
     for (const p of S.places) if (keys.includes(keyOf(p)) && groupOf(p)) S.openGroups.add(groupOf(p).toLowerCase());
+    // marked while they light up, so rows next to each other light up as one block
+    S.freshKeys = new Set(keys);
     render();
+    setTimeout(() => { S.freshKeys = new Set(); render(); }, ANIM + 1850);
     const rows = [...document.querySelectorAll("#placesList .prow[data-i]")].filter(r => keys.includes(r.dataset.key));
     if (!rows.length) return;
     // after the title slides back and the search's padding goes (they change the list's height)
@@ -1629,7 +1633,7 @@ function stationLine(i) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${listShown() && wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.freshKeys.has(keyOf(p)) ? " fresh" : ""}${listShown() && wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pmain"><div class="pname">${esc(o.label || placeLabel(i))}</div></div>

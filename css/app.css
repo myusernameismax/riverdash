@@ -292,6 +292,11 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: var(--hair); }
 .prow.first::before, body.dragging .prow::before { display: none; }
 .prow[data-act]:active { background: var(--hover); }
+/* A tinted row (the place on the right on a wide screen, places just added) needs no
+   hairlines around it; tinted rows next to each other join into one block. */
+.prow.shown::before, .prow.shown + .prow::before, .prow.fresh::before, .prow.fresh + .prow::before { display: none; }
+.prow.fresh + .prow.fresh { border-top-left-radius: 0; border-top-right-radius: 0; }
+.prow.fresh:has(+ .prow.fresh) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
 .spark { width: 36px; height: 16px; flex: none; }
