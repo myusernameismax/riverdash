@@ -55,7 +55,7 @@ Only the inputs change from the desktop widget:
   Sandy; the median, so flood years don't inflate it). It follows the reading bar's
   day, else the picked day, else today. USGS has no height history for these gauges.
 - Both can be turned off per place under Customize → Show (Water temp).
-- **History** (blue, under the Flow chart next to Typical flow, and under the Water temp chart)
+- **History** (in the tab's color, under the Flow chart next to Typical flow, and under the Water temp chart)
   turns the chart into a longer view: **1 wk · 1 mo · 3 mo · 1 yr · 5 yr** (no dates
   to type). The river's line keeps its good-range colors; a faint dashed line is the
   typical value for each date (the legend under the chart says Recorded Flow / Average
