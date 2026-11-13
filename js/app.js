@@ -1576,7 +1576,7 @@ function glideRows(change) {
     }
 }
 function sortChips() {
-    const cur = S.editing ? "mine" : S.sort;   // Edit shows your own order (the one you drag)
+    const cur = S.sort;
     return `<div class="sort-row${S.editing ? " off" : ""}">${SORTS.map(([k, l]) =>
         `<button class="hist-chip sort-chip${k === cur ? " on" : ""}" data-act="sort" data-s="${k}">${l}</button>`).join("")}</div>`;
 }
@@ -1645,7 +1645,7 @@ function renderPlaces() {
     const box = (name, inner) => `<div class="gbox" data-key="gb:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">${inner}</div>`;
     let rows = "", first = true;
     for (const name of S.newGroups) { rows += box(name, head(name, 0, true)); first = false; }
-    for (const it of listItems()) {
+    for (const it of sortedItems()) {   // in the order on screen, so nothing moves going into Edit
         if (it.members === undefined) { rows += placeRow(it.i, { first, label: label(it.i) }); first = false; continue; }
         rows += box(it.name, head(it.name, it.members.length, true) +
             it.members.map(i => placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) })).join(""));
@@ -2009,7 +2009,10 @@ function startDrag(e, handle) {
 
 // After a drag in Edit, the list on screen is the new order; a dragged place's
 // group is the box it ended up in (none if outside every box).
+// Dragging while the list is sorted A–Z / Most viewed starts your own order from what's
+// on screen: that order (with the move) becomes "My order".
 function dropInEdit(D) {
+    if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
     const order = [...D.list.querySelectorAll(".prow[data-i]")].map(x => +x.dataset.i);
     if (D.isBox) { reorder(order); return; }
     const box = D.row.parentNode.closest(".gbox"), was = D.row.dataset.gm || "";

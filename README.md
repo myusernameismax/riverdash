@@ -95,8 +95,10 @@ Only the inputs change from the desktop widget:
   each place from the list (a group by its places' total) and the same inside. Ties
   keep your order. The pick is remembered; rows glide to their new spots. The counts
   are a small number per place kept on the phone only (`rt:views`), not in share
-  links; opening the app on the ★ place doesn't count. Edit always shows your own
-  order (the chips dim), since that's the order you drag.
+  links; opening the app on the ★ place doesn't count. Edit keeps the order on screen
+  (the chips dim), so nothing moves. Dragging a place while sorted A–Z or Most viewed
+  makes that order, with your move, your own (**My order** lights up); going into Edit
+  just to delete or regroup leaves the sort as it was.
 - Each mini graph is one color that says how the place is doing: green in shape, red
   not, gray with no good range set. Coastal tide stations show the jetty / surf rating
   instead (green calm, yellow caution, red sketchy).
