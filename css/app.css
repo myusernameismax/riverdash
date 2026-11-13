@@ -350,7 +350,11 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }
 
 /* ── places list page ──────────────────────────────────────────────── */
-#listTop { display: flex; align-items: center; gap: 2px; padding: calc(var(--top) + 14px) calc(var(--gutter) - 6px) 8px calc(var(--gutter) + 2px); flex: none; }
+#listTop { display: flex; align-items: flex-end; gap: 2px; padding: 0 calc(var(--gutter) - 6px) 8px calc(var(--gutter) + 2px); flex: none;
+           height: calc(var(--top) + 58px); overflow: hidden;
+           transition: height var(--anim) cubic-bezier(.33,1,.68,1), padding-bottom var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
+/* searching: the title row slides up out of the way and the search bar takes the top (Apple Weather) */
+#listPage.searching #listTop { height: calc(var(--top) + 8px); padding-bottom: 0; opacity: 0; pointer-events: none; }
 .ltitle { flex: 1; min-width: 0; margin: 0; font-size: 32px; line-height: 1.1; font-weight: 800; letter-spacing: -.4px; }
 .top-btn { display: flex; align-items: center; gap: 3px; height: 36px; padding: 0 8px; border-radius: 9px; color: var(--link); font-size: 16px; }
 .top-btn.strong { font-weight: 700; }
