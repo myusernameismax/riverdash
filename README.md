@@ -12,12 +12,15 @@ There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
 2. Tap Share → **Add to Home Screen** → Add.
 3. Open it from the home screen icon ("Flow Tides"). It runs full screen without Safari's bars.
 
-It starts empty: tap **+ Add** and search for a river, town, bay or gauge id (NOAA's,
-like VIDO3, or a USGS number, like 14162500). Gauges come from NOAA (with forecasts and
+Like Apple Weather, the app opens on one place (the ★ one), and the **list button**
+(bottom right) zooms out to the **Places** list; tapping a place there zooms into it.
+The list has a search bar at the top: type a river, town, bay or gauge id (NOAA's,
+like VIDO3, or a USGS number, like 14162500) and the results take the list's place.
+It starts empty: **Add a place** opens that search. Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS.
-Tapping a result adds it (✓) and starts loading its data; the page stays open so several
+Tapping a result adds it (✓) and starts loading its data; the results stay up so several
 can go in at once (every gauge on a river, say). A floating **Add 2 Rivers To List**
-button (1/5 of the way up the screen, in thumb reach; above the keyboard while it's up) keeps them and shows the first one; **Back** (or the back swipe) takes them out
+button (1/5 of the way up the screen, in thumb reach; above the keyboard while it's up) keeps them and shows the first one; **Cancel** (or Back, or the back swipe) takes them out
 again, and tapping a ✓ result takes just that one out. Adding a gauge or tide station
 to an existing place happens straight away and goes back to it.
 Places are saved on the phone only (nothing is sent anywhere but the public
@@ -41,7 +44,7 @@ Only the inputs change from the desktop widget:
 | Hover a *Jetty / surf* day | Tap it. The picked row also shows the biggest swell and the calm window. |
 | Hover the hourly graph | Drag a finger along it, or tap an hour. |
 | Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. |
-| (Back, one step at a time) | Closes what's on top (add page, share, Customize, Edit), then a picked day goes back to the week, then another place goes back to the ★ place. On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
+| (Back, one step at a time) | Closes what's on top (add page, share, the list's search, Edit, the Places list, Customize), then a picked day goes back to the week, then another place goes back to the ★ place. On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
 | (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
@@ -72,8 +75,10 @@ Only the inputs change from the desktop widget:
 
 ## Places list and groups
 
-- Every place, the one on screen lightly highlighted; tapping one keeps the list where
-  it is. **+ Add** and **Edit** sit on the list's header.
+- Opened with the **list button** at the bottom right (blue); the river view zooms out
+  and the list zooms in. Big **Places** title with **Edit** on its right, the search
+  bar under it (that's where places get added), then every place, the one on screen
+  lightly highlighted. Tapping one zooms into it; the list keeps its spot for next time.
 - Each mini graph is one color that says how the place is doing: green in shape, red
   not, gray with no good range set. Coastal tide stations show the jetty / surf rating
   instead (green calm, yellow caution, red sketchy).
@@ -97,8 +102,8 @@ after the river.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
-- Edit glides down to the list, Done glides back to where the page was; the place on
-  screen isn't highlighted in Edit. Opening a group that runs off the screen scrolls it
+- In Edit, **+ Group** and **Done** sit where Edit was, the search bar dims in place
+  (nothing moves), and the place on screen isn't highlighted. Opening a group that runs off the screen scrolls it
   into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.

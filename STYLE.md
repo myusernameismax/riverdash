@@ -26,7 +26,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 - Stars are solid: yellow for the ★ place, gray for the others. No outline stars.
 - Arrows after readings: ↑ rising, ↓ falling, → steady.
 - One signal per state: an on/off chip is shown by its tint alone, no ✓ added.
-- Tappable text is blue (`var(--link)`): Edit, + Add, Done, station names. A button that
+- Tappable text is blue (`var(--link)`): Edit, + Group, Done, Cancel, station names, and the
+  list button that opens the Places list. A button that
   belongs to a chart takes that tab's accent instead (View History). A small ↗ marks only
   links that leave the app (the map). No colored pins or emoji-like icons.
 - Pick from presets, don't type values (history ranges are chips, not dates).
@@ -36,7 +37,9 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 - Notes with **Undo** stay up 2 s; other notes 4.5 s (`js/config.js`).
 - Swipes copy iOS: clearly sideways before anything moves, rubber-band resistance
   past the end (UIScrollView curve, c = 0.55), destructive full swipes need a long drag.
-- Nothing jumps. Panels (Customize, Edit) glide the page first, then unfold / switch;
+- Going between a place and the Places list zooms (like Apple Weather); pages on top
+  (Add, Share) slide in from the right.
+- Nothing jumps. Panels (Customize) glide the page first, then unfold / switch;
   closing glides back, then folds. Things loading keep their spot (a spinning tile
   sits where the real one will be). Pull-to-refresh and the end-of-page pull are
   stiff rubber bands that spring back.

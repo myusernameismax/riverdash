@@ -58,6 +58,12 @@ html.ios-app #app { bottom: auto; height: 100vh; }
            transition: transform var(--anim) cubic-bezier(.33,1,.68,1), visibility 0s var(--anim); }
 body.adding #details { transform: translateX(-25%); opacity: 0; pointer-events: none; }
 body.adding #addPage { transform: none; visibility: visible; transition: transform var(--anim) cubic-bezier(.33,1,.68,1); }
+/* The places list zooms in over the river view and back out into a place (Apple Weather) */
+#listPage { transform: scale(1.06); opacity: 0; visibility: hidden; background: var(--bg);
+            transition: transform var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim), visibility 0s var(--anim); }
+body.listing #listPage { transform: none; opacity: 1; visibility: visible;
+                         transition: transform var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
+body.listing #details { transform: scale(.94); opacity: 0; pointer-events: none; }
 #movePage { transform: translateX(100%); visibility: hidden; background: var(--bg);
             transition: transform var(--anim) cubic-bezier(.33,1,.68,1), visibility 0s var(--anim); }
 body.moving #details { transform: translateX(-25%); opacity: 0; pointer-events: none; }
@@ -343,6 +349,31 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #ftr .fbtn { opacity: .6; font-weight: 400; font-size: var(--small); }   /* quiet, like the status text */
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }
 
+/* ── places list page ──────────────────────────────────────────────── */
+#listTop { display: flex; align-items: center; gap: 2px; padding: calc(var(--top) + 14px) calc(var(--gutter) - 6px) 8px calc(var(--gutter) + 2px); flex: none; }
+.ltitle { flex: 1; min-width: 0; margin: 0; font-size: 32px; line-height: 1.1; font-weight: 800; letter-spacing: -.4px; }
+.top-btn { display: flex; align-items: center; gap: 3px; height: 36px; padding: 0 8px; border-radius: 9px; color: var(--link); font-size: 16px; }
+.top-btn.strong { font-weight: 700; }
+.top-btn:active { background: var(--hover); }
+/* the search bar stays put in Edit, just dimmed (so the list doesn't move) */
+.lsearch { flex: none; transition: opacity var(--anim); }
+#listPage.editing .lsearch { opacity: .35; pointer-events: none; }
+.lsearch-in { display: flex; align-items: center; padding: 0 var(--gutter) 10px; }
+.lsearch .search-wrap { flex: 1; min-width: 0; margin: 0; }
+#lq { flex: 1; min-width: 0; border: 0; outline: none; background: none; font-size: 16px; height: 100%; padding: 0; }
+#lq::placeholder { color: var(--text); opacity: .45; }
+#lq::-webkit-search-cancel-button { -webkit-appearance: none; }
+#listPage.searching .search-wrap { background: color-mix(in srgb, #5cb8ff 16%, transparent); }   /* typing: light blue (STYLE.md) */
+/* Cancel slides in beside the field while searching */
+.lq-cancel { flex: none; max-width: 0; margin-left: 0; opacity: 0; overflow: hidden; white-space: nowrap; color: var(--link); font-size: 16px;
+             transition: max-width var(--anim) cubic-bezier(.33,1,.68,1), margin-left var(--anim) cubic-bezier(.33,1,.68,1), opacity var(--anim); }
+.lq-cancel.on { max-width: 80px; margin-left: 12px; opacity: 1; }
+#listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+              padding: 0 var(--gutter) calc(var(--bot) + 20px); display: flex; flex-direction: column; }
+#listBody { display: flex; flex-direction: column; flex: 1; }
+#listPage.picking #listScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
+#ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
+
 /* ── add page ──────────────────────────────────────────────────────── */
 .add-top { display: flex; align-items: center; gap: 8px; padding: calc(var(--top) + 8px) var(--gutter) 6px calc(var(--gutter) - 6px); flex: none; }
 .back-btn { display: flex; align-items: center; gap: 2px; height: 36px; padding: 0 8px 0 4px; border-radius: 9px; color: var(--link); font-size: 16px; }
@@ -357,16 +388,17 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 #q::-webkit-search-cancel-button { -webkit-appearance: none; }
 #addScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--gutter) calc(var(--bot) + 20px); }
 #addPage.picking #addScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
-/* floating "Add 2 Rivers To List": slides up once something is added. Its middle sits
-   1/5 of the way up the screen, where a thumb rests (about the keyboard's G row);
-   with the keyboard up it rides just above it (--kb = the covered height, set in app.js) */
-#addCommit { position: absolute; left: 50%; bottom: max(calc(20vh - 24px), calc(var(--kb, 0px) + 14px)); z-index: 40; height: 48px; padding: 0 26px;
+/* floating "Add 2 Rivers To List" (places list and Add page): slides up once something
+   is added. Its middle sits 1/5 of the way up the screen, where a thumb rests (about the
+   keyboard's G row); with the keyboard up it rides just above it (--kb = the covered
+   height, set on #app in app.js) */
+.commit { position: absolute; left: 50%; bottom: max(calc(20vh - 24px), calc(var(--kb, 0px) + 14px)); z-index: 40; height: 48px; padding: 0 26px;
              max-width: calc(100% - 2 * var(--gutter)); border-radius: 24px; background: var(--link); color: #fff;
              font-size: 16px; font-weight: 700; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.3);
              transform: translate(-50%, 90px); opacity: 0; pointer-events: none;
              transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim); }
-#addCommit.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
-#addCommit:active { filter: brightness(.9); }
+.commit.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.commit:active { filter: brightness(.9); }
 .rtitle { font-size: 11px; font-weight: 700; letter-spacing: .4px; margin: 14px 0 4px 4px; }
 .hit { display: flex; align-items: center; gap: 10px; padding: 7px 6px 7px 8px; border-radius: 10px; transition: background 120ms; cursor: pointer; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -387,6 +419,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
          transform: translate(-50%, 90px); opacity: 0; pointer-events: none;
          transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim); }
 #toast.above-footer { bottom: calc(var(--bot) + 62px); }
+#toast.above-commit { bottom: max(calc(20vh + 36px), calc(var(--kb, 0px) + 74px)); }
 #toast.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 #toastText { overflow: hidden; text-overflow: ellipsis; }
 #toastAct { color: #5cb8ff; font-weight: 700; padding: 4px 0; flex: none; }
@@ -422,7 +455,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 /* ── inside a desktop wrapper's popup ──────────────────────────────── */
 /* The Linux panel widget sets data-embed: the popup's own rounded, translucent
    frame (Plasma theme) is the background, so the app matches other popups. */
-html[data-embed], html[data-embed] body, html[data-embed] #addPage,
+html[data-embed], html[data-embed] body, html[data-embed] #addPage, html[data-embed] #listPage,
 html[data-embed] #movePage, html[data-embed] #ftr { background: transparent; }
 html[data-embed] #ftr a[href^="mailto:"] { display: none; }   /* the desktop widget is for me */
 .prow { overflow: hidden; }
