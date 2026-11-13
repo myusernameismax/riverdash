@@ -89,14 +89,15 @@ Only the inputs change from the desktop widget:
   (the list sinks back behind it). The list button does the same in reverse: the page
   shrinks back into its row (scrolled into view first; its group's row if that's
   closed) and the list settles with a small bounce. The list keeps its spot for next time.
-- **Sort** with the chips over the list: **My order** (as you arranged it in Edit),
-  **A–Z**, or **Most viewed**. Groups stay together: A–Z goes by the group's (or place's)
+- **Sort** with the **Sort: …** button over the list (it pops out the choices; tap one,
+  or anywhere else to close): **My order** (as you arranged it in Edit), **A–Z**, or
+  **Most viewed**. Groups stay together: A–Z goes by the group's (or place's)
   name and is A–Z inside each group too; Most viewed goes by how often you've opened
   each place from the list (a group by its places' total) and the same inside. Ties
   keep your order. The pick is remembered; rows glide to their new spots. The counts
   are a small number per place kept on the phone only (`rt:views`), not in share
   links; opening the app on the ★ place doesn't count. Edit keeps the order on screen
-  (the chips dim), so nothing moves. Dragging a place while sorted A–Z or Most viewed
+  (the Sort button dims), so nothing moves. Dragging a place while sorted A–Z or Most viewed
   makes that order, with your move, your own (**My order** lights up); going into Edit
   just to delete or regroup leaves the sort as it was.
 - Each mini graph is one color that says how the place is doing: green in shape, red
