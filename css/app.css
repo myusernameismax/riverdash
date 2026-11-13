@@ -361,7 +361,7 @@ body.editing .psub.full { margin-left: 32px; }
 .ph-btn { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 14px; border-radius: 10px; background: var(--tint); font-weight: 600; }
 
 /* ── footer (stays put) ────────────────────────────────────────────── */
-#ftr { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 4px calc(var(--gutter) - 4px) calc(var(--bot) + 4px) calc(var(--gutter) + 2px);
+.ftr { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 4px calc(var(--gutter) - 4px) calc(var(--bot) + 4px) calc(var(--gutter) + 2px);
        border-top: 1px solid var(--hair); background: var(--bg); }
 .fstat { flex: 1; font-size: var(--small); opacity: .6; white-space: pre; }
 /* the easter egg: in the gap the page leaves when pushed up past its end */
@@ -370,7 +370,7 @@ body.editing .psub.full { margin-left: 32px; }
 #details.egg-anim .egg { transition: height .3s ease-out, opacity .3s ease-out; }
 .fbtn { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 10px; border-radius: 10px; font-weight: 600; font-size: 14px; }
 .fbtn:active { background: var(--hover); }
-#ftr .fbtn { opacity: .6; font-weight: 400; font-size: var(--small); }   /* quiet, like the status text */
+.ftr .fbtn { opacity: .6; font-weight: 400; font-size: var(--small); }   /* quiet, like the status text */
 .fbtn.round { width: 40px; padding: 0; justify-content: center; }
 
 /* ── places list page ──────────────────────────────────────────────── */
@@ -419,14 +419,17 @@ body.editing .psub.full { margin-left: 32px; }
 .sort-opt:active { background: var(--hover); }
 .sort-opt.on { background: color-mix(in srgb, var(--link) 16%, transparent); color: var(--link); font-weight: 600; }   /* the pick: tint, no ✓ */
 #listScroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-              padding: 0 var(--gutter) calc(var(--bot) + 20px); display: flex; flex-direction: column; }
+              padding: 0 var(--gutter) 20px; display: flex; flex-direction: column; }
 #listBody { display: flex; flex-direction: column; flex: 1; }
 /* while the keyboard is up, the hint ("Find a river or tide station") centers in the
    space above it (iOS doesn't shrink the page for the keyboard; --kb is the part it covers) */
 #listScroll, #addScroll { transition: padding-bottom var(--anim) cubic-bezier(.33,1,.68,1); }
 #listPage.searching #listScroll { padding-bottom: calc(max(var(--bot), var(--kb, 0px)) + 20px); }
 #listPage.picking #listScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
-#ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
+.ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
+.ftr .fbtn.flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list is showing */
+html.wide #listFtr { display: none; }   /* a pane next to the place: the place's bar serves both */
+#listPage.searching #listFtr { display: none; }   /* searching: the keyboard's there; the hint centers above it */
 
 /* ── add page ──────────────────────────────────────────────────────── */
 .add-top { display: flex; align-items: center; gap: 8px; padding: calc(var(--top) + 8px) var(--gutter) 6px calc(var(--gutter) - 6px); flex: none; }
@@ -516,8 +519,8 @@ body.editing .psub.full { margin-left: 32px; }
 /* The Linux panel widget sets data-embed: the popup's own rounded, translucent
    frame (Plasma theme) is the background, so the app matches other popups. */
 html[data-embed], html[data-embed] body, html[data-embed] #addPage, html[data-embed] #listPage,
-html[data-embed] #movePage, html[data-embed] #ftr { background: transparent; }
-html[data-embed] #ftr a[href^="mailto:"] { display: none; }   /* the desktop widget is for me */
+html[data-embed] #movePage, html[data-embed] .ftr { background: transparent; }
+html[data-embed] .ftr a[href^="mailto:"] { display: none; }   /* the desktop widget is for me */
 .prow { overflow: hidden; }
 #placesSec .sec-box { overflow: hidden; }   /* keeps a red Delete inside the rounded box */
 
@@ -544,8 +547,8 @@ html.wide #addPage, html.wide #movePage { left: calc(var(--listw) + var(--sl)); 
 html.wide body.list-hidden #details, html.wide body.list-hidden #addPage, html.wide body.list-hidden #movePage { left: 0; }
 html.wide body.list-hidden #details { padding-left: var(--sl); }
 html.wide #hdr, html.wide #body { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
-html.wide #ftr .flist { opacity: 1; }
-html.wide #ftr .flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list pane is out */
+html.wide .ftr .flist { opacity: 1; }
+html.wide .ftr .flist.on { background: color-mix(in srgb, var(--link) 16%, transparent); }   /* the list pane is out */
 html.wide .prow.shown { background: color-mix(in srgb, var(--link) 12%, transparent); }   /* the place on the right */
 html.wide #toast { left: calc(var(--listw) + var(--sl) + (100% - var(--listw) - var(--sl)) / 2); }
 /* the pane is narrow: a name that doesn't fit next to its readings wraps to a second line (no more) */
@@ -554,8 +557,8 @@ html.wide .pname { white-space: normal; overflow-wrap: break-word; display: -web
 html.wide body.list-hidden #toast { left: 50%; }
 /* the bottom bar: status left, Share and Contact centered, the list button alone on the
    right (so Contact isn't right next to it, easy to hit by mistake sideways) */
-html.wide #ftr { display: grid; grid-template-columns: 1fr auto auto 1fr; }
-html.wide #ftr .fstat { grid-column: 1; }
-html.wide #ftr [data-act=share] { grid-column: 2; }
-html.wide #ftr a.fbtn { grid-column: 3; }
-html.wide #ftr .flist { grid-column: 4; justify-self: end; }
+html.wide .ftr { display: grid; grid-template-columns: 1fr auto auto 1fr; }
+html.wide .ftr .fstat { grid-column: 1; }
+html.wide .ftr [data-act=share] { grid-column: 2; }
+html.wide .ftr a.fbtn { grid-column: 3; }
+html.wide .ftr .flist { grid-column: 4; justify-self: end; }
