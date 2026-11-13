@@ -334,6 +334,9 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
 | Typical (median) flow for each calendar date (over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |
 
+Some Oregon gauges (run by the state, e.g. the Metolius above Allingham, MLSO3) aren't in
+NOAA's or USGS's services yet; see [docs/oregon-gauges.md](docs/oregon-gauges.md).
+
 The jetty rating is a rough model forecast, not a buoy reading. Look at the
 water yourself before going out on rocks or a jetty.
 
