@@ -60,15 +60,15 @@ it; its places show where they are ("Vida", "Above Coburg") when they're all nam
 after the river.
 
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
-  selected so you can type over it; tap the name later to rename). Drag places in and
-  out with ≡: dropped right under a group's name or above one of its places = in it;
-  anywhere else, including below its last place, = out. Drag a group by its own ≡
-  to move it with its places. − on a group
-  only ungroups (the places stay). Your own groups show even with one place; an empty
-  new group is gone after Done. Dragging a place out of its river's group keeps it
-  out; dragging it back in makes it automatic again.
-- In Edit, groups are always open; a group sits where its first place is.
-  Places with the same name show where they are there too ("McKenzie · Vida").
+  selected so you can type over it; tap the name later to rename). In Edit each group
+  is a tinted box around its name and its places. Drag a place by ≡ over a box and
+  the gap where it'll land moves inside (the box grows around it); drag it below the
+  box's end to take it out. Drag a group by its own ≡ to move it with its places.
+  − on a group only ungroups (the places stay). Your own groups show even with one
+  place; an empty new group is gone after Done. Dragging a place out of its river's
+  group keeps it out; dragging it back in makes it automatic again.
+- Edit doesn't move the page, and the place on screen isn't highlighted there.
+  Places with the same name show where they are ("McKenzie · Vida").
 - Groups travel with share links.
 
 ## Moving places between devices

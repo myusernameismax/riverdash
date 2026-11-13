@@ -249,7 +249,6 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: var(--hair); }
 .prow.first::before, body.dragging .prow::before { display: none; }
 .prow[data-act]:active { background: var(--hover); }
-.prow.cur { background: color-mix(in srgb, #5cb8ff 14%, transparent); }
 .prow.shown { background: color-mix(in srgb, #5cb8ff 7%, transparent); }   /* the place on screen */
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
@@ -265,6 +264,13 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.grp.open .gchev { transform: rotate(90deg); }
 .prow.member { padding-left: 30px; }
 .prow.gedit { gap: 10px; cursor: default; }
+/* Edit: a group is a tinted box around its name and places (no outline, see STYLE.md) */
+.gbox { margin: 4px 6px; border-radius: 12px; background: color-mix(in srgb, var(--link) 10%, transparent); overflow: hidden; }
+.gbox .prow.member { padding-left: 14px; }
+.gbox .prow.member::before { left: 14px; }
+.gbox + .prow::before, .drag-ph + .prow::before, .gbox > .prow:first-child::before { display: none; }
+.gbox.lifted { background: color-mix(in srgb, var(--link) 10%, var(--bg)); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+.drag-ph { border-radius: 10px; background: var(--hover); flex: none; }
 .prow.gedit .gchev { transform: rotate(90deg); margin: 0 -4px 0 -2px; }   /* always open in Edit */
 .gname { flex: 1; min-width: 0; height: 34px; margin-left: -6px; padding: 0 6px; border: 0; outline: none; border-radius: 8px;
          background: transparent; font-size: 16px; font-weight: 700; }

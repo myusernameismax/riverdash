@@ -1205,7 +1205,7 @@ function memberLabel(i, groupName) {
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
-    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.editing && i === S.selected ? " cur" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
+    return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${!S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
         ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pname">${esc(o.label || p.name)}</div>
@@ -1239,9 +1239,9 @@ function renderPlaces() {
             trailing: `<button class="edit-btn" data-act="add">${icon("plus", 12)}Add</button><button class="edit-btn" data-act="edit">Edit</button>`,
             body: `<div id="placesList">${rows}</div>` });
     }
-    // Edit mode: every place with its ≡ handle, groups as folders (always open) with
-    // their own handle, a name field and − (ungroup). Drag a place under a group's
-    // name or between its places to put it in; drag it out to take it out.
+    // Edit mode: every place with its ≡ handle; each group is a tinted box (always
+    // open) with its name field, − (ungroup) and its own ≡. Drag places into and
+    // out of the boxes (see startDrag).
     // Places with the same name (e.g. three "McKenzie") also show where they are.
     const named = {};
     S.places.forEach(p => { const k = p.name.toLowerCase(); named[k] = (named[k] || 0) + 1; });
@@ -1257,12 +1257,14 @@ function renderPlaces() {
         <span class="gcount">${n || ""}</span>
         <div class="handle" data-g="${esc(name.toLowerCase())}">${icon("handle", 20)}</div>
     </div>`;
+    const box = (name, inner) => `<div class="gbox" data-key="gb:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">${inner}</div>`;
     let rows = "", first = true;
-    for (const name of S.newGroups) { rows += head(name, 0, first); first = false; }
+    for (const name of S.newGroups) { rows += box(name, head(name, 0, true)); first = false; }
     for (const it of listItems()) {
         if (it.members === undefined) { rows += placeRow(it.i, { first, label: label(it.i) }); first = false; continue; }
-        rows += head(it.name, it.members.length, first); first = false;
-        for (const i of it.members) rows += placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) });
+        rows += box(it.name, head(it.name, it.members.length, true) +
+            it.members.map(i => placeRow(i, { member: true, gm: it.key, label: memberLabel(i, it.name) })).join(""));
+        first = false;
     }
     return section({ id: "placesSec", title: "All places", pad: 0, gap: 0,
         trailing: `<button class="edit-btn" data-act="newGroup">${icon("plus", 12)}Group</button><button class="edit-btn on" data-act="edit">Done</button>`,
@@ -1517,37 +1519,50 @@ function bindHourly(cv) {
 
 // ── drag to reorder (Edit mode, by the ≡ handle) ────────────────────
 // The lifted row follows the finger; the rows it passes slide out of its way.
+// Edit: drag by ≡. The row floats under the finger and a gap shows where it will
+// land. A group is a tinted box; dragging a place over a box puts the gap inside it
+// (the box grows around it), dragging it below the box's end takes it back out.
+// A group dragged by its own ≡ moves as a whole, between the other places and groups.
 function startDrag(e, handle) {
     e.preventDefault();
-    const list = $("#placesList"), row = handle.closest(".prow");
-    if (!row || dragging) return;
-    // a group moves as one: its places fold under its name while it's dragged
-    if (row.classList.contains("gedit"))
-        [...list.children].forEach(x => { if (x.dataset.gm && x.dataset.gm === row.dataset.g) x.classList.add("hide"); });
-    const rows = [...list.children].filter(x => !x.classList.contains("hide")), from = rows.indexOf(row);
-    const r = row.getBoundingClientRect();
-    dragging = { from, to: from, row, rows, list, grab: e.clientY - r.top, y: e.clientY, h: r.height, pending: false };
-    handle.setPointerCapture(e.pointerId);
-    row.classList.add("lifted");
+    const list = $("#placesList"), prow = handle.closest(".prow");
+    if (!prow || dragging) return;
+    const isBox = prow.classList.contains("gedit"), actual = isBox ? prow.closest(".gbox") : prow;
+    const r = actual.getBoundingClientRect();
+    const ph = document.createElement("div");
+    ph.className = "drag-ph";
+    ph.style.height = r.height + "px";
+    actual.parentNode.insertBefore(ph, actual);
+    Object.assign(actual.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", boxSizing: "border-box", zIndex: 50, margin: 0 });
+    actual.classList.add("lifted");
     document.body.classList.add("dragging");
-    rows.forEach(x => { if (x !== row) x.style.transition = `transform ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`; });
+    dragging = { row: actual, isBox, ph, list, grab: e.clientY - r.top, y: e.clientY, pending: false };
+    handle.setPointerCapture(e.pointerId);
     const scroller = $("#scroll");
+    const others = el => [...el.children].filter(x => x !== actual && x !== ph);
+    const mid = x => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; };
+    const nextOf = x => { let n = x.nextElementSibling; while (n === actual) n = n.nextElementSibling; return n; };
+    const place = Y => {
+        const top = others(list);
+        let parent = list, before = null;
+        const idx = top.findIndex(x => Y < x.getBoundingClientRect().bottom);
+        const over = idx >= 0 && Y >= top[idx].getBoundingClientRect().top ? top[idx] : null;
+        if (over && over.classList.contains("gbox") && !isBox) {
+            const [head, ...mem] = others(over);
+            if (Y < mid(head)) before = over;                                   // upper half of the name: just above the group
+            else { parent = over; before = mem.find(x => Y < mid(x)) || null; }  // in the box
+        } else if (over) before = Y < mid(over) ? over : top[idx + 1] || null;
+        else before = idx >= 0 ? top[idx] : null;                               // in a gap: before what comes next
+        if (ph.parentNode === parent && nextOf(ph) === before) return;
+        parent.insertBefore(ph, before);
+    };
     const frame = () => {
         const D = dragging;
         if (!D || D.dropping) return;
         const sr = scroller.getBoundingClientRect();
         if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > sr.bottom - 50) scroller.scrollTop += 6;
-        const py = D.y - D.list.getBoundingClientRect().top;
-        D.row.style.transform = `translateY(${py - D.grab - D.row.offsetTop}px) scale(1.03)`;
-        const c = py - D.grab + D.h / 2;
-        let t = 0;
-        D.rows.forEach((x, i) => { if (i !== D.from && x.offsetTop + x.offsetHeight / 2 < c) t++; });
-        D.to = t;
-        D.rows.forEach((x, i) => {
-            if (i === D.from) return;
-            const sh = i < D.from && i >= t ? D.h : i > D.from && i <= t ? -D.h : 0;
-            x.style.transform = sh ? `translateY(${sh}px)` : "";
-        });
+        D.row.style.top = (D.y - D.grab) + "px";
+        place(D.y - D.grab + D.row.offsetHeight / 2);
         requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
@@ -1558,18 +1573,18 @@ function startDrag(e, handle) {
         handle.removeEventListener("pointercancel", up);
         const D = dragging;
         D.dropping = true;
-        const hOf = (a, b) => { let h = 0; for (let i = a; i <= b; i++) h += D.rows[i].offsetHeight; return h; };
-        const off = D.to > D.from ? hOf(D.from + 1, D.to) : D.to < D.from ? -hOf(D.to, D.from - 1) : 0;
-        D.row.style.transition = `transform ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
-        D.row.style.transform = `translateY(${off}px)`;
+        const to = ph.getBoundingClientRect();
+        D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
+        D.row.style.top = to.top + "px";
         D.row.classList.remove("lifted");
-        document.body.classList.remove("dragging");
         setTimeout(() => {
-            D.rows.forEach(x => { x.style.transition = "none"; x.style.transform = ""; });
+            document.body.classList.remove("dragging");
+            ph.parentNode.insertBefore(D.row, ph);
+            ph.remove();
+            D.row.removeAttribute("style");
             dragging = null;
             dropInEdit(D);
             render();
-            requestAnimationFrame(() => D.rows.forEach(x => { x.style.transition = ""; }));
         }, Math.max(1, ANIM * 0.8));
     };
     handle.addEventListener("pointermove", moveH);
@@ -1577,26 +1592,15 @@ function startDrag(e, handle) {
     handle.addEventListener("pointercancel", up);
 }
 
-// Where a drag in Edit ended: the new order, and for a place, its group: right under
-// a group's name or above one of its places = in that group; anywhere else (also
-// below a group's last place) = in no group.
+// After a drag in Edit, the list on screen is the new order; a dragged place's
+// group is the box it ended up in (none if outside every box).
 function dropInEdit(D) {
-    if (D.to === D.from) return;
-    const seq = D.rows.slice();
-    seq.splice(D.from, 1); seq.splice(D.to, 0, D.row);
-    const isHead = el => el.classList.contains("gedit"), all = [...D.list.children];
-    const order = [];
-    for (const el of seq) {
-        if (!isHead(el)) { order.push(+el.dataset.i); continue; }
-        if (el === D.row) all.forEach(m => { if (!isHead(m) && m.dataset.gm === el.dataset.g) order.push(+m.dataset.i); });
-    }
-    if (isHead(D.row)) { reorder(order); return; }
-    const k = seq.indexOf(D.row), prev = seq[k - 1], next = seq[k + 1], was = D.row.dataset.gm || "";
-    const gOf = el => el && !isHead(el) ? el.dataset.gm || "" : "";
-    const g = prev && isHead(prev) ? prev.dataset.g : gOf(next);
+    const order = [...D.list.querySelectorAll(".prow[data-i]")].map(x => +x.dataset.i);
+    if (D.isBox) { reorder(order); return; }
+    const box = D.row.parentNode.closest(".gbox"), was = D.row.dataset.gm || "";
+    const g = box ? box.dataset.g : "";
     if (g === was) { reorder(order); return; }
-    const head = g && all.find(el => isHead(el) && el.dataset.g === g);
-    reorder(order, +D.row.dataset.i, head ? head.dataset.name : "");
+    reorder(order, +D.row.dataset.i, box ? box.dataset.name : "");
 }
 
 // ════════════ events ════════════
@@ -1651,7 +1655,6 @@ const ACTIONS = {
     edit: () => {
         S.editing = !S.editing;
         S.newGroups = [];
-        if (S.editing) setTimeout(showList, ANIM + 20);
     },
     newGroup: () => {
         let name = "New group", n = 2;
@@ -1693,7 +1696,6 @@ const ACTIONS = {
 };
 
 // Edit mode adds the current place to the list; scroll so the whole list is in view.
-function showList() { showSection("#placesSec"); }
 function showSection(sel) {
     const f = $("#scroll"), sec = $(sel);
     if (!sec) return;
