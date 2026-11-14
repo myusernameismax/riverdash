@@ -335,6 +335,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .gbox > .prow.gedit + .prow::before { display: none; }   /* Edit: no hairline under a group's name (its deeper tint sets it apart) */
 .gbox.lifted { background: color-mix(in srgb, var(--link) 10%, var(--bg)); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .drag-ph { border-radius: 10px; background: var(--hover); flex: none; }
+.drag-ph.in { margin-left: 32px; }   /* outside Edit: the place would go into the open group above */
 .gbox > .prow.gedit { background: color-mix(in srgb, var(--link) 14%, transparent); }   /* Edit: the group's name row, a deeper tint than its places */
 .gname { flex: 1; min-width: 0; height: 34px; margin-left: -6px; padding: 0 6px; border: 0; outline: none; border-radius: 8px;
          background: transparent; font-size: 16px; font-weight: 700; }

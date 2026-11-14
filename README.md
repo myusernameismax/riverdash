@@ -111,6 +111,13 @@ Only the inputs change from the desktop widget:
   (the Sort button dims), so nothing moves. Dragging a place while sorted A–Z or Most viewed
   makes that order, with your move, your own (**Custom order** lights up); going into Edit
   just to delete or regroup leaves the sort as it was.
+- **Hold a place** in the list (no need for Edit) to pick it up and move it, as with
+  Edit's ≡: the places it passes slide aside, and it settles in when you let go. The
+  list keeps its look (folders stay folders, no −). Hold it over a closed group's name
+  for a moment and the group opens so the place can go in among its places (the gap is
+  indented when it would land inside); a group opened that way closes again once you
+  move on. An open group: just drag it in or out. A finger that moves before the hold
+  is up scrolls (or swipes) as usual.
 - Each mini graph is one color that says how the place is doing: green in shape, red
   not, gray with no good range set. Coastal tide stations show the jetty / surf rating
   instead (green calm, yellow caution, red sketchy).
@@ -133,7 +140,9 @@ crosses a state line splits the same way (**Columbia (OR)** / **Columbia (WA)**)
 shows which side each gauge is on; a group of your own puts them back together.
 
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
-  selected so you can type over it; tap the name later to rename). In Edit each group
+  selected so you can type over it; tap the name later to rename). It stays at the top
+  until a place goes in: a place dragged onto it or above it goes into it, and a dragged
+  group can't go above it. In Edit each group
   is a tinted box around its name and its places; the name row has a deeper tint (no
   arrow, since groups are always open in Edit), and its places are indented as in the
   list. Edit has no stars, and the rows keep their heights going in and out of it. Drag a place by ≡ and the places it passes slide out of its way (the gap glides

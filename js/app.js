@@ -2115,32 +2115,110 @@ function bindHourly(cv) {
     cv.addEventListener("pointercancel", () => { start = null; scrub = false; });
 }
 
-// ── drag to reorder (Edit mode, by the ≡ handle) ────────────────────
-// The lifted row follows the finger; the rows it passes slide out of its way.
-// Edit: drag by ≡. The row floats under the finger and a gap shows where it will
-// land. A group is a tinted box; dragging a place over a box puts the gap inside it
-// (the box grows around it), dragging it below the box's end takes it back out.
-// A group dragged by its own ≡ moves as a whole, between the other places and groups.
+// ── drag to reorder ─────────────────────────────────────────────────
+// Edit: drag by ≡. Outside Edit: hold a place (startHoldDrag). The row floats under
+// the finger and a gap shows where it will land; the rows it passes slide out of its
+// way. In Edit a group is a tinted box; dragging a place over a box puts the gap inside
+// it (the box grows around it), dragging it below the box's end takes it back out. A
+// group dragged by its own ≡ moves as a whole, between the other places and groups.
+
+// Lifts `row` out of the list (it follows the finger, a gap stays in its place).
+function liftRow(row, list, y, extra) {
+    const r = row.getBoundingClientRect();
+    const ph = document.createElement("div");
+    ph.className = "drag-ph";
+    ph.style.height = r.height + "px";
+    row.parentNode.insertBefore(ph, row);
+    Object.assign(row.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", boxSizing: "border-box", zIndex: 50, margin: 0 });
+    row.classList.add("lifted");
+    document.body.classList.add("dragging");
+    dragging = { row, ph, list, grab: y - r.top, y, pending: false, dir: 0, turn: y, pushed: new Set(), ...extra };
+    return dragging;
+}
+// Changes the list (change()), then every row, box and the gap that moved slides from
+// where it was to its new spot instead of jumping there. Measured against its own box
+// (or the list), so a place inside a box that moves isn't moved twice.
+function slideAside(D, change) {
+    const { list, row } = D;
+    const all = () => [...list.querySelectorAll(".prow, .gbox, .drag-ph")].filter(x => x !== row && !row.contains(x));
+    const base = x => x.classList.contains("drag-ph") ? list : x.parentNode.closest(".gbox") || list;
+    const rel = x => x.getBoundingClientRect().top - base(x).getBoundingClientRect().top;
+    const was = new Map(all().map(x => [x, rel(x)]));
+    change();
+    const now = all();
+    now.forEach(x => { x.style.transition = "none"; x.style.transform = ""; });
+    const moved = now.filter(x => {
+        const w = was.get(x);
+        if (w === undefined) return false;
+        const d = w - rel(x);
+        if (Math.abs(d) <= 0.5) return false;
+        x.style.transform = `translateY(${d}px)`;
+        D.pushed.add(x);
+        return true;
+    });
+    list.offsetHeight;   // start from there
+    moved.forEach(x => { x.style.transition = `transform ${ANIM}ms cubic-bezier(.33,1,.68,1)`; x.style.transform = ""; });
+}
+// Follows the finger every frame: scrolls the list near its edges, and places swap as
+// soon as the dragged one's leading edge (its bottom going down, its top going up)
+// reaches the middle of the one it's passing, like Apple Weather; it stays under the
+// finger, and only the drop settles it into the gap. The direction turns after 4 px
+// back, so a shaky finger doesn't flip it.
+function dragFrames(place) {
+    const scroller = $("#listScroll");
+    const frame = () => {
+        const D = dragging;
+        if (!D || D.dropping) return;
+        const sr = scroller.getBoundingClientRect();
+        if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > sr.bottom - 50) scroller.scrollTop += 6;
+        D.row.style.top = (D.y - D.grab) + "px";
+        if (D.y - D.turn > 4) { D.dir = 1; D.turn = D.y; } else if (D.y - D.turn < -4) { D.dir = -1; D.turn = D.y; }
+        else if (D.dir > 0 ? D.y > D.turn : D.dir < 0 && D.y < D.turn) D.turn = D.y;
+        const top = D.y - D.grab, h = D.row.offsetHeight;
+        place(D.dir > 0 ? top + h - 1 : D.dir < 0 ? top + 1 : top + h / 2);
+        requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+}
+// The drop: the row glides into the gap, then finish() saves the new order and the list
+// is drawn again. Nothing redraws mid-drag (render() waits); whatever happens here, the
+// list is usable again afterwards.
+let noClickUntil = 0;
+function endDrag(finish) {
+    const D = dragging;
+    if (!D || D.dropping) return;
+    D.dropping = true;
+    noClickUntil = Date.now() + 500;   // letting go isn't a tap on the place
+    const to = D.ph.getBoundingClientRect();
+    D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
+    D.row.style.top = to.top + "px";
+    D.row.classList.remove("lifted");
+    setTimeout(() => {
+        try {
+            D.pushed.forEach(x => { x.style.transition = ""; x.style.transform = ""; });
+            document.body.classList.remove("dragging");
+            finish(D);
+        } finally {
+            if (D.ph.parentNode) D.ph.remove();
+            D.row.removeAttribute("style");
+            dragging = null;
+            render();
+        }
+    }, Math.max(1, ANIM * 0.8));
+}
+
 function startDrag(e, handle) {
     e.preventDefault();
     const list = $("#placesList"), prow = handle.closest(".prow");
     if (!prow || dragging) return;
     const isBox = prow.classList.contains("gedit"), actual = isBox ? prow.closest(".gbox") : prow;
-    const r = actual.getBoundingClientRect();
-    const ph = document.createElement("div");
-    ph.className = "drag-ph";
-    ph.style.height = r.height + "px";
-    actual.parentNode.insertBefore(ph, actual);
-    Object.assign(actual.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", boxSizing: "border-box", zIndex: 50, margin: 0 });
-    actual.classList.add("lifted");
-    document.body.classList.add("dragging");
-    dragging = { row: actual, isBox, ph, list, grab: e.clientY - r.top, y: e.clientY, pending: false, dir: 0, turn: e.clientY };
+    const D = liftRow(actual, list, e.clientY, { isBox });
+    const ph = D.ph;
     handle.setPointerCapture(e.pointerId);
-    const scroller = $("#listScroll");
     const others = el => [...el.children].filter(x => x !== actual && x !== ph);
     const mid = x => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; };
     const nextOf = x => { let n = x.nextElementSibling; while (n === actual) n = n.nextElementSibling; return n; };
-    const place = Y => {
+    dragFrames(Y => {
         const top = others(list);
         let parent = list, before = null;
         const idx = top.findIndex(x => Y < x.getBoundingClientRect().bottom);
@@ -2151,40 +2229,16 @@ function startDrag(e, handle) {
             else { parent = over; before = mem.find(x => Y < mid(x)) || null; }  // in the box
         } else if (over) before = Y < mid(over) ? over : top[idx + 1] || null;
         else before = idx >= 0 ? top[idx] : null;                               // in a gap: before what comes next
+        // A new group (+ Group, still empty) stays at the top until a place goes in: a
+        // place that would land just above it goes into it, a dragged group goes below it.
+        const empty = x => x && x.classList.contains("gbox") && !x.querySelector(".prow[data-i]");
+        if (parent === list && empty(before)) {
+            if (!isBox) { parent = before; before = null; }
+            else while (empty(before)) before = top[top.indexOf(before) + 1] || null;
+        }
         if (ph.parentNode === parent && nextOf(ph) === before) return;
-        // The rows the gap passes are pushed out of its way: each slides from where it
-        // was to its new spot instead of jumping there. Measured against its own box (or
-        // the list), so a place inside a box that moves isn't moved twice.
-        const els = [...list.querySelectorAll(".prow, .gbox")].filter(x => x !== actual && !actual.contains(x));
-        const rel = x => { const b = x.parentNode.closest(".gbox") || list; return x.getBoundingClientRect().top - b.getBoundingClientRect().top; };
-        const was = els.map(rel), lt = () => list.getBoundingClientRect().top;
-        const phWas = ph.getBoundingClientRect().top - lt();   // the gap glides along too
-        parent.insertBefore(ph, before);
-        els.forEach(x => { x.style.transition = "none"; x.style.transform = ""; });
-        ph.style.transition = "none"; ph.style.transform = "";
-        els.push(ph); was.push(phWas);
-        const now = els.map(x => x === ph ? ph.getBoundingClientRect().top - lt() : rel(x));
-        els.forEach((x, k) => { if (Math.abs(was[k] - now[k]) > 0.5) { x.style.transform = `translateY(${was[k] - now[k]}px)`; pushed.add(x); } });
-        list.offsetHeight;   // start from there
-        els.forEach(x => { x.style.transition = `transform ${ANIM}ms cubic-bezier(.33,1,.68,1)`; x.style.transform = ""; });
-    };
-    const pushed = new Set();
-    const frame = () => {
-        const D = dragging;
-        if (!D || D.dropping) return;
-        const sr = scroller.getBoundingClientRect();
-        if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > sr.bottom - 50) scroller.scrollTop += 6;
-        D.row.style.top = (D.y - D.grab) + "px";
-        // Like Apple Weather: places swap as soon as the dragged one's leading edge (its
-        // bottom going down, its top going up) reaches the middle of the one it's passing;
-        // it stays under the finger, and only the drop settles it into the gap.
-        if (D.y - D.turn > 4) { D.dir = 1; D.turn = D.y; } else if (D.y - D.turn < -4) { D.dir = -1; D.turn = D.y; }
-        else if (D.dir > 0 ? D.y > D.turn : D.dir < 0 && D.y < D.turn) D.turn = D.y;
-        const top = D.y - D.grab, h = D.row.offsetHeight;
-        place(D.dir > 0 ? top + h - 1 : D.dir < 0 ? top + 1 : top + h / 2);
-        requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
+        slideAside(D, () => parent.insertBefore(ph, before));
+    });
     const moveH = ev => { if (dragging) dragging.y = ev.clientY; };
     // ends on the finger lifting, iOS taking the touch over, or the handle losing it
     const up = () => {
@@ -2192,32 +2246,110 @@ function startDrag(e, handle) {
         handle.removeEventListener("pointerup", up);
         handle.removeEventListener("pointercancel", up);
         handle.removeEventListener("lostpointercapture", up);
-        const D = dragging;
-        if (!D || D.dropping) return;
-        D.dropping = true;
-        const to = ph.getBoundingClientRect();
-        D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
-        D.row.style.top = to.top + "px";
-        D.row.classList.remove("lifted");
-        setTimeout(() => {
-            try {
-                pushed.forEach(x => { x.style.transition = ""; x.style.transform = ""; });
-                document.body.classList.remove("dragging");
-                if (ph.parentNode) ph.parentNode.insertBefore(D.row, ph);
-                ph.remove();
-                D.row.removeAttribute("style");
-                dragging = null;
-                dropInEdit(D);
-            } finally {
-                dragging = null;     // whatever happened, the list is usable again
-                render();
-            }
-        }, Math.max(1, ANIM * 0.8));
+        endDrag(D => { D.ph.parentNode.insertBefore(D.row, D.ph); D.ph.remove(); dropInEdit(D); });
     };
     handle.addEventListener("pointermove", moveH);
     handle.addEventListener("pointerup", up);
     handle.addEventListener("pointercancel", up);
     handle.addEventListener("lostpointercapture", up);
+}
+
+// Outside Edit: hold a place to move it, as with Edit's ≡, but the list keeps its look
+// (folders stay folders, no −). Held over a closed group for a moment, the group opens
+// so the place can go in among its places; a group opened that way closes again once
+// the place moves on. Dropped among an open group's places = into that group (the gap
+// is indented like them); anywhere else = in no group.
+// The finger is followed by touch events on phones (they're what can stop the list from
+// scrolling), by pointer events for a mouse.
+function startHoldDrag(row, y) {
+    const list = $("#placesList");
+    if (!list || dragging || !row || !row.isConnected) return null;
+    const headOf = x => {   // the open group a place row is in ("" = none)
+        if (!x.classList.contains("member")) return "";
+        let h = x.previousElementSibling;
+        while (h && !h.classList.contains("grp")) h = h.previousElementSibling;
+        return h ? h.dataset.g : "";
+    };
+    const wasG = headOf(row);
+    const D = liftRow(row, list, y, { listMode: true });
+    const ph = D.ph, moved = +row.dataset.i, opened = new Map();   // group key -> its rows put in by this drag
+    ph.dataset.g = wasG;
+    ph.classList.toggle("in", !!wasG);
+    const rows = () => [...list.children].filter(x => x !== row && x !== ph);
+    const mid = x => { const b = x.getBoundingClientRect(); return b.top + b.height / 2; };
+    const nextOf = x => { let n = x.nextElementSibling; while (n === row) n = n.nextElementSibling; return n; };
+    const itemOf = k => sortedItems().find(it => it.members && it.key === k);
+    const headRow = k => rows().find(x => x.classList.contains("grp") && x.dataset.g === k);
+    const openGroup = head => {
+        const it = itemOf(head.dataset.g);
+        if (!it || head.classList.contains("open")) return;
+        const before = new Set(list.children);
+        slideAside(D, () => {
+            head.insertAdjacentHTML("afterend", it.members.filter(i => i !== moved)
+                .map(i => placeRow(i, { member: true, label: memberLabel(i, it.name) })).join(""));
+            head.classList.add("open");
+        });
+        const added = [...list.children].filter(x => !before.has(x));
+        added.forEach(x => {
+            const c = x.querySelector("canvas[data-spark]");
+            if (c) drawSpark(c, listSpark(+c.dataset.spark), 1.25, LOOK.fillOpacity);
+            x.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ANIM });
+        });
+        opened.set(head.dataset.g, added);
+    };
+    const closeGroup = k => {
+        const added = opened.get(k), head = headRow(k);
+        opened.delete(k);
+        slideAside(D, () => { added.forEach(x => x.remove()); if (head) head.classList.remove("open"); });
+    };
+    let hover = null, hoverT = 0;
+    dragFrames(Y => {
+        const els = rows();
+        const idx = els.findIndex(x => Y < x.getBoundingClientRect().bottom);
+        const over = idx >= 0 && Y >= els[idx].getBoundingClientRect().top ? els[idx] : null;
+        let before, g = "";
+        if (idx < 0) before = null;                                                // past the end
+        else if (!over) { before = els[idx]; g = headOf(before); }                 // in a gap: before what comes next
+        else if (over.classList.contains("grp")) {                                 // a group's name: above it, or first in it
+            if (Y < mid(over)) before = over;
+            else { before = els[idx + 1] || null; g = over.classList.contains("open") ? over.dataset.g : ""; }
+        } else { before = Y < mid(over) ? over : els[idx + 1] || null; g = headOf(over); }
+        // held over a closed group's name: it opens after a moment
+        const closed = over && over.classList.contains("grp") && !over.classList.contains("open") ? over : null;
+        if (closed !== hover) {
+            clearTimeout(hoverT);
+            hover = closed;
+            if (closed) hoverT = setTimeout(() => { if (dragging === D && !D.dropping && hover === closed) openGroup(closed); }, 600);
+        }
+        // a group this drag opened closes once the place has moved on from it
+        for (const [k, added] of [...opened])
+            if (g !== k && !(over && (over.dataset.g === k || added.includes(over)))) closeGroup(k);
+        if (ph.parentNode === list && nextOf(ph) === before && ph.dataset.g === g) return;
+        slideAside(D, () => { list.insertBefore(ph, before); ph.dataset.g = g; ph.classList.toggle("in", !!g); });
+    });
+    D.drop = () => {
+        clearTimeout(hoverT);
+        endDrag(() => {
+            // the new order: the list as it stands, a closed group standing for its places
+            const order = [];
+            for (const x of list.children) {
+                if (x === row) continue;
+                if (x === ph) order.push(moved);
+                else if (x.classList.contains("grp")) {
+                    const it = itemOf(x.dataset.g);
+                    if (it && !x.classList.contains("open")) order.push(...it.members.filter(i => i !== moved));
+                } else if (x.dataset.i !== undefined) order.push(+x.dataset.i);
+            }
+            const g = ph.dataset.g || "";
+            if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
+            if (g === wasG) { reorder(order); return; }
+            const it = g && itemOf(g);
+            if (g && !it) { reorder(order); return; }
+            if (g) S.openGroups.add(g);   // dropped into a group: it stays open, showing it there
+            reorder(order, moved, it ? it.name : "");
+        });
+    };
+    return D;
 }
 
 // After a drag in Edit, the list on screen is the new order; a dragged place's
@@ -2438,7 +2570,7 @@ function wire() {
             ? { row, x: t.clientX, y: t.clientY, base: row.classList.contains("swiped") ? -DEL_W : 0, sx: 0, raw: 0, mode: "" } : null;
     }, { passive: true });
     lb.addEventListener("touchmove", e => {
-        if (!sw) return;
+        if (!sw || dragging) return;
         const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
         if (!sw.mode) {
             if (Math.abs(dx) > 14 && Math.abs(dx) > 2 * Math.abs(dy)) sw.mode = "h";
@@ -2460,7 +2592,49 @@ function wire() {
         if (raw < -row.offsetWidth * 0.75) { const b = row.querySelector(".pdel"); S.swiped = -1; if (b) ACTIONS.remove(b); }
         else setSx(row, sx < -DEL_W * 0.6 ? -DEL_W : 0);
     });
-    $("#app").addEventListener("click", e => { if (swallowClick && !e.target.closest(".pdel")) { e.stopPropagation(); e.preventDefault(); } }, true);
+    $("#app").addEventListener("click", e => {
+        if ((swallowClick && !e.target.closest(".pdel")) || Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    // Hold a place in the list (outside Edit) to move it: startHoldDrag. A finger that
+    // moves first is scrolling (or swiping), so it never lifts anything.
+    const HOLD_MS = 450;
+    let hold = null;
+    const unhold = () => { if (hold) { clearTimeout(hold.t); hold = null; } };
+    lb.addEventListener("pointerdown", e => {
+        unhold();
+        const row = e.target.closest("#placesList .prow[data-act=select]");
+        if (!row || S.editing || dragging || e.button > 0 || e.target.closest("button") || row.classList.contains("swiped")) return;
+        const h = hold = { x: e.clientX, y: e.clientY, touch: e.pointerType === "touch" };
+        h.t = setTimeout(() => {
+            if (hold !== h) return;
+            hold = null;
+            if (sw && sw.mode) return;   // it's a swipe
+            sw = null;
+            const D = startHoldDrag(row, h.y);
+            if (!D || h.touch) return;
+            // a mouse: follow it until the button comes up
+            const mv = ev => { if (dragging === D) D.y = ev.clientY; };
+            const upM = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", upM); D.drop(); };
+            window.addEventListener("pointermove", mv);
+            window.addEventListener("pointerup", upM);
+        }, HOLD_MS);
+    });
+    lb.addEventListener("pointermove", e => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 8) unhold(); });
+    lb.addEventListener("pointerup", unhold);
+    lb.addEventListener("pointercancel", unhold);
+    $("#listScroll").addEventListener("scroll", unhold, { passive: true });
+    // a finger: its moves keep the list from scrolling while it carries a place
+    const listDrag = () => dragging && dragging.listMode && !dragging.dropping ? dragging : null;
+    lb.addEventListener("touchmove", e => {
+        const D = listDrag();
+        if (!D) return;
+        e.preventDefault();
+        D.y = e.touches[0].clientY;
+    }, { passive: false });
+    const touchUp = e => { const D = listDrag(); if (D && !e.touches.length) D.drop(); };
+    lb.addEventListener("touchend", touchUp);
+    lb.addEventListener("touchcancel", touchUp);
 
     // Pull down from the top to refresh. The page follows the finger with
     // resistance; let go past PTR_GO and it holds there with a spinning arrow
