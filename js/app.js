@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, isUsgs } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, isUsgs, tidyName } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -23,9 +23,22 @@ function load(key, fallback) {
 function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* private mode */ } }
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { /* fine */ }
 
+const tidyRiver = n => n.replace(/\s+(?:River|R\.?)(?=\s*\(|\s*$)/i, "").trim();   // "River" / an "R" for it
+// "Deschutes River (OR) at Moody" → "Deschutes (OR)", "McKenzie River near Vida" → "McKenzie"
+const shortName = n => tidyRiver(n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0]);
+// Places added from a station whose name came in ALL CAPS kept that name; they get the
+// tidied one (a name the user typed has lowercase in it, so it's never touched).
+const isCaps = n => typeof n === "string" && !/[a-z]/.test(n) && /[A-Z]{3}/.test(n);
+function capsFix(p) {
+    if (!p || !(isCaps(p.name) || isCaps(p.rv))) return p;
+    const q = { ...p };
+    if (isCaps(q.name)) q.name = shortName(tidyName(q.name));
+    if (isCaps(q.rv)) q.rv = shortName(tidyName(q.rv));
+    return q;
+}
 // ── state (same names as the widget's root properties) ──────────────
 const S = {
-    places: (() => { const p = load("rt:places", null); return Array.isArray(p) ? p : DEFAULT_PLACES.map(x => ({ ...x })); })(),
+    places: (() => { const p = load("rt:places", null); return Array.isArray(p) ? p.map(capsFix) : DEFAULT_PLACES.map(x => ({ ...x })); })(),
     pinnedRaw: load("rt:pinned", 0),
     selected: 0,             // place shown
     results: {},             // place key -> data from data.js
@@ -106,9 +119,6 @@ const flooding = r => !!r && ["action", "minor", "moderate", "major"].includes(r
 const nativeFlow = r => r.flowNative ?? r.flowNote === "NOAA";
 // a few USGS gauges measure flow only
 const hasStage = r => has(r.stage) || r.series.some(p => p[1] !== null);
-// "Deschutes River (OR) at Moody" → "Deschutes (OR)", "McKenzie River near Vida" → "McKenzie"
-const tidyRiver = n => n.replace(/\s+River(?=\s*\(|\s*$)/i, "").trim();
-const shortName = n => tidyRiver(n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0]);
 // "Deschutes (OR)" → ["Deschutes", "OR"]
 const splitState = n => { const m = n.match(/^(.*?)\s*\(([^)]*)\)\s*$/); return m ? [m[1].trim(), m[2].trim()] : [n.trim(), ""]; };
 const dayLabel = ms => fmtDay(ms) + " " + fmtMonthDay(ms);

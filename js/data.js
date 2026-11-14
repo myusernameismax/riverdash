@@ -128,6 +128,25 @@ async function cached(name, maxAge, fetchFn) {
 const ms = iso => Date.parse(iso);
 const num = v => (v === null || v === undefined || v <= -900) ? null : v;
 const round = (v, n = 0) => { v = v === null || v === undefined || v === "" ? NaN : Number(v); return !isFinite(v) ? null : n === 0 ? Math.round(v) : Math.round(v * 10 ** n) / 10 ** n; };
+// Some stations' names come in ALL CAPS ("MID FORK WILLAMETTE R BELOW HILLS CREEK DAM
+// NEAR OAKRIDGE"); they're shown like the others: "Mid Fork Willamette R below Hills
+// Creek Dam near Oakridge". Names with any lowercase are left as they are.
+const SMALL_WORDS = new Set(["at", "near", "nr", "below", "blw", "bl", "above", "abv", "ab", "of", "the", "and",
+                             "in", "on", "to", "from", "by", "for", "with", "a", "an", "or"]);
+export function tidyName(n) {
+    if (typeof n !== "string" || /[a-z]/.test(n) || !/[A-Z]{3}/.test(n)) return n;
+    return n.replace(/[A-Z0-9'.]+/g, (w, at) => {
+        const before = n.slice(0, at), bare = w.replace(/\./g, "");
+        if (/\d/.test(w)) return w;                                         // ids, highway numbers
+        if (/[,(]\s*$/.test(before) && bare.length === 2 && /^\s*($|\))/.test(n.slice(at + w.length))) return w;   // ", MD" / "(OR)": a state
+        if (/^(USCG|CBBT|USGS|NOAA|USACE)$/.test(bare)) return w;
+        if (before.trim() && SMALL_WORDS.has(bare.toLowerCase())) return w.toLowerCase();
+        if (bare.length <= 3 && !/[AEIOUY]/.test(bare) && !/^(ST|FT|MT|DR)$/.test(bare)) return w;   // NF, SF, R
+        return w.toLowerCase().replace(/(^|[-'.])([a-z])/g, (m, s1, c, i, all) =>
+            s1 === "'" && all.length - i <= 2 ? m : s1 + c.toUpperCase())      // O'Brien, but Peter's
+            .replace(/^Mc([a-z])/, (m, c) => "Mc" + c.toUpperCase());          // McKenzie
+    });
+}
 
 function thin(pts, n = 150) {
     if (pts.length <= n) return pts;
@@ -339,7 +358,7 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
     const fc = sf.forecast.filter(p => p[1] !== null && p[0] > (t || 0));
     const peak = fc.length ? fc.reduce((a, p) => p[1] > a[1] ? p : a) : null;
     return {
-        id: lid, name: g.name || lid, time: t,
+        id: lid, name: tidyName(g.name) || lid, time: t,
         lat: g.latitude, lon: g.longitude,
         stage, stageTrend: trend(1, stage),
         flow, flowTime, flowNote, flowNative: flowNote === "NOAA",   // native: flow is part of the gauge's own series (it has a chart)
@@ -394,7 +413,7 @@ async function usgsRiver(site, full = true, need = { series: true, flow: true, t
     const tempTried = temp !== undefined;
     temp = temp || null;
     return {
-        id: site, name: row ? row[1] : "USGS " + site, time: t,
+        id: site, name: row ? tidyName(row[1]) : "USGS " + site, time: t,
         lat: row ? row[3] : null, lon: row ? row[4] : null,
         stage: ls ? ls[1] : null, stageTrend: trend(1, ls),
         flow, flowTime: lf ? lf[0] : t, flowNote: "USGS", flowNative: true, flowTrend: trend(2, lf),
@@ -535,7 +554,7 @@ async function tide(sid) {
     const st = (await tideStations().catch(() => [])).find(s => s[0] === sid);
     const past = events.filter(e => e.time <= now);
     return {
-        id: sid, name: st ? st[1] : sid, lat: st ? st[3] : null, lon: st ? st[4] : null,
+        id: sid, name: st ? tidyName(st[1]) : sid, lat: st ? st[3] : null, lon: st ? st[4] : null,
         height: live ? obs[1] : (predNow !== null ? round(predNow, 2) : null),
         live, time: live ? obs[0] : now,
         rising: predNow === null || later === null ? null : later > predNow,
@@ -780,7 +799,7 @@ export async function search(text) {
         // every search word starts some word of "id name state"
         rows.forEach((r, i) => {
             if (words.every(w => ix[i].some(h => h.startsWith(w))))
-                out.push({ kind, id: r[0], name: r[1].trim(), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : "") });
+                out.push({ kind, id: r[0], name: tidyName(r[1].trim()), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : "") });
         });
         // names that start with the first word (or exact ids) first
         const k = r => [r.id.toLowerCase() !== words[0] && r.usgs !== words[0] ? 1 : 0, r.name.toLowerCase().startsWith(words[0]) ? 0 : 1];

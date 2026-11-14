@@ -149,6 +149,8 @@ rivers share a name.
   Under a place's station names, a quieter line names who runs each station and its id
   ("NOAA SILO3", "USGS 14305800", "NOAA SILO3 · NOAA 9435380" with a tide station), so
   look-alike gauges ("Siletz River at Siletz" / "near Siletz") are easy to tell apart.
+  Station names that come in ALL CAPS are shown like the rest ("Mid Fork Willamette R
+  below Hills Creek Dam near Oakridge"); state codes, ids and USCG-style abbreviations stay as they are.
 - Groups travel with share links.
 
 ## On a computer, or a phone turned sideways (wide windows)
