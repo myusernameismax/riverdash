@@ -8,7 +8,8 @@
 //                  and stays on the same time when you switch to another chart)
 //   pinch          zoom around your fingers; move two fingers to pan
 //   double-tap     back to the normal view
-// On a computer: hover, scroll to zoom, drag to pan, double-click.
+// On a computer: hover, scroll to zoom, drag to pan, double-click (opens the weather day
+// the bar is on, if the app says so; otherwise back to the normal view).
 // Zoom never goes past the data already downloaded.
 
 import { fmtTime, fmtDay, fmtMonthDay, sameDay } from "./fmt.js";
@@ -44,6 +45,7 @@ export class Chart {
         this.hoverT = NaN;                    // time of the reading bar; NaN = none
         this.pinT = NaN;                      // mouse: where a click left the bar
         this.onHover = opts.onHover || null;  // called with the bar's time when you move it (NaN = gone)
+        this.onDblClick = opts.onDblClick || null;   // mouse double-click; returns true if it handled it
         this.box = { left: 0, right: 1 };
         this.cv = null;
     }
@@ -193,7 +195,10 @@ export class Chart {
         cv.addEventListener("pointerup", end);
         cv.addEventListener("pointercancel", end);
         cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") this.setHoverT(this.pinT); });
-        cv.addEventListener("dblclick", () => { this.pinT = NaN; this.resetView(); this.setHoverT(NaN); });
+        cv.addEventListener("dblclick", () => {
+            if (this.onDblClick && this.onDblClick(this.hoverT)) return;
+            this.pinT = NaN; this.resetView(); this.setHoverT(NaN);
+        });
         cv.addEventListener("wheel", e => {
             const v = this.view();
             if (!v || !this.wheelZoom()) return;   // not zooming: the page scrolls
@@ -220,7 +225,7 @@ export class Chart {
         const all = past.concat(fut);
         if (all.length < 2) return;
 
-        const text = css("--text"), bg = css("--bg");
+        const text = css("--text");
         const px = 11;
         ctx.font = `${px}px -apple-system, system-ui, sans-serif`;
         const decimals = g.decimals ?? 1, unit = g.unit || "", color = g.color;
@@ -369,15 +374,17 @@ export class Chart {
                 const tv = typ.length ? valueOn(typ, t) : NaN;
                 const label = fmt(v) + unit + "  ·  " + when + (isNaN(tv) ? "" : "  ·  average " + fmt(tv))
                     + (past.length && t > past[past.length - 1][0] && fut.length ? " (forecast)" : "");
-                const w = ctx.measureText(label).width + 10, h = px + 8;
+                // a rounded chip tinted with the chart's own color, no outline (STYLE.md): the
+                // lines under it are cleared away so whatever is behind the chart shows through
+                // (the page, or the Linux panel's see-through popup)
+                const w = ctx.measureText(label).width + 16, h = px + 10, r = h / 2;
                 const bx = Math.min(Math.max(x - w / 2, left), right - w);
                 const by = y - h - 8 < 0 ? y + 8 : y - h - 8;
-                ctx.globalAlpha = 0.94; ctx.fillStyle = bg;
-                ctx.fillRect(bx, by, w, h);
-                ctx.globalAlpha = 0.6; ctx.strokeStyle = color;
-                ctx.strokeRect(bx + 0.5, by + 0.5, w - 1, h - 1);
+                const chip = () => { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, w, h, r); else ctx.rect(bx, by, w, h); };
+                ctx.save(); chip(); ctx.clip(); ctx.clearRect(bx, by, w, h); ctx.restore();
+                ctx.globalAlpha = 0.18; ctx.fillStyle = color; chip(); ctx.fill();
                 ctx.globalAlpha = 1; ctx.fillStyle = text; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                ctx.fillText(label, bx + 5, by + h / 2);
+                ctx.fillText(label, bx + 8, by + h / 2);
             }
         }
     }

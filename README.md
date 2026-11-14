@@ -310,7 +310,9 @@ gauges 15 min, water temperature 30 min, typical flow 30 days).
     # open http://localhost:8765 in Firefox, Responsive Design Mode (Ctrl+Shift+M), iPhone size
 
 A mouse works too: hover, drag and Esc behave like the widget; the scroll wheel zooms
-the chart only in View History (elsewhere it scrolls the page). In search
+the chart only in View History (elsewhere it scrolls the page). Double-clicking the big
+chart in the week view opens the weather day the reading bar is on (the highlighted one);
+anywhere else it resets the zoom. In search
 results, the row under the pointer is tinted so it's clear which one the + adds.
 
 ## Troubleshooting

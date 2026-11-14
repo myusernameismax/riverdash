@@ -73,5 +73,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   gray = no range set.
 - Deleting (Edit's trash can, a group's −, the swipe's Delete, the drag's trash can box) is iOS's bright red
   (`--remove`); errors and Customize's Remove keep the softer `--negative`.
+- Charts: the reading under the bar is a rounded chip tinted with the chart's accent (~18%),
+  no outline and no solid backing (the lines under it are cleared, so the page shows through).
 - Charts: solid line = measured, dashed = forecast. A good range colors the line
   only (green inside, red outside), never a shaded band.

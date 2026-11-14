@@ -1198,7 +1198,17 @@ const flash = { selected: false, week: false, day: false };   // one-shot fade-i
 // The mouse wheel zooms the big chart only in View History (a long range worth zooming
 // into); otherwise it scrolls the page past the chart. Pinch zoom works everywhere.
 const bigChart = new Chart({ lineWidth: LOOK.lineWidth, fillOpacity: LOOK.fillOpacity, minSpanHours: LOOK.chartMinZoomHours,
-                            onHover: t => syncWeather(t), wheelZoom: () => !!S.hist });
+                            onHover: t => syncWeather(t), wheelZoom: () => !!S.hist,
+                            onDblClick: () => openBarDay() });
+// Double-clicking the big chart (a mouse) in the week view opens the weather day the
+// reading bar is on (the one highlighted), the bar staying on that time.
+function openBarDay() {
+    const el = S.focusDay < 0 && !S.hist && document.querySelector(".wx-day.hl[data-start]");
+    if (!el) return false;
+    ACTIONS.day(el);
+    render();
+    return true;
+}
 let dragging = null;     // reorder in progress (render waits)
 let ptrSync = () => {};
 // the Easter egg's note: a scroll wheel (a computer) or a finger (a phone) pushed past the end
