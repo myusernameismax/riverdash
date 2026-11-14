@@ -379,7 +379,7 @@ body.editing .psub.full { margin-left: 32px; }
 /* a place's trash can sits in the middle of its row's height (its name, station lines and
    all), where it was across; the name keeps its spot */
 body.editing .prow > .bubble.trash[data-act=remove] { position: absolute; top: 50%; margin-top: -13px; }
-body.editing .prow > .bubble.trash[data-act=remove] + .pmain { margin-left: 36px; }
+body.editing .prow > .bubble.trash[data-act=remove] + .pmain { margin-left: 32px; }   /* lined up with the station lines (.psub.full in Edit) */
 
 /* empty / search states */
 /* no places yet: the icon, words and buttons centered as one group in the space between
