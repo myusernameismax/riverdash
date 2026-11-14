@@ -380,6 +380,9 @@ body.editing .psub.full { margin-left: 32px; }
    all), where it was across; the name keeps its spot */
 body.editing .prow > .bubble.trash[data-act=remove] { position: absolute; top: 50%; margin-top: -13px; }
 body.editing .prow > .bubble.trash[data-act=remove] + .pmain { margin-left: 32px; }   /* lined up with the station lines (.psub.full in Edit) */
+/* …and its ≡ the same way, on the right (the row's 4px end padding); the name stops short of it */
+body.editing .prow > .handle[data-i] { position: absolute; right: 4px; top: 50%; margin-top: -22px; }
+body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-height: 44px; display: flex; align-items: center; }   /* the line keeps the ≡'s height */
 
 /* empty / search states */
 /* no places yet: the icon, words and buttons centered as one group in the space between

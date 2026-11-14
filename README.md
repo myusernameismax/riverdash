@@ -151,7 +151,7 @@ shows which side each gauge is on; a group of your own puts them back together.
   stays under your finger until you let go; over a box,
   the gap where it'll land moves inside (the box grows around it); drag it below the
   box's end to take it out. Drag a group by its own ≡ to move it with its places.
-  A place's red trash can (in the middle of its row's height) deletes it, with Undo;
+  A place's red trash can and its ≡ sit in the middle of its row's height; the trash can deletes it, with Undo;
   the red − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
