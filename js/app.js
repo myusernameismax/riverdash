@@ -1790,10 +1790,9 @@ function renderPlaces() {
         return loc && loc !== p.name ? p.name + " · " + loc : placeLabel(i);
     };
     const head = (name, n, first) => `<div class="prow grp gedit${first ? " first" : ""}" data-key="g:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">
-        <button class="bubble neg" data-act="ungroup" data-g="${esc(name.toLowerCase())}">−</button>
+        <button class="bubble neg trash" data-act="ungroup" data-g="${esc(name.toLowerCase())}" aria-label="Ungroup">${icon("minus", 22)}</button>
         <input class="gname" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false"
             data-g="${esc(name.toLowerCase())}" value="${esc(name)}">
-        <span class="gcount">${n || ""}</span>
         <div class="handle" data-g="${esc(name.toLowerCase())}">${icon("handle", 20)}</div>
     </div>`;
     const box = (name, inner) => `<div class="gbox" data-key="gb:${esc(name.toLowerCase())}" data-g="${esc(name.toLowerCase())}" data-name="${esc(name)}">${inner}</div>`;

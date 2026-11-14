@@ -352,7 +352,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow > :not(.pdel) { transform: translateX(var(--sx, 0px)); transition: transform var(--anim); }
 .prow.dragx > :not(.pdel), .prow.dragx .pdel { transition: none; }
 .pdel { position: absolute; top: 0; right: 0; bottom: 0; width: calc(-1 * var(--sx, 0px)); overflow: hidden;
-        background: var(--negative); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap;
+        background: var(--remove); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap;
         display: flex; align-items: center; justify-content: center; transition: width var(--anim); }
 .prow.member::before { left: 46px; }
 .pmain { flex: 1; min-width: 0; }
@@ -374,8 +374,8 @@ body.editing .psub.full { margin-left: 32px; }
           color: #fff; font-weight: 700; font-size: 18px; line-height: 1; padding-bottom: 2px; background: #5cb8ff;
           transition: transform 120ms; }
 .bubble:active { transform: scale(.85); }
-.bubble.neg { background: none; color: var(--remove); font-size: 26px; font-weight: 500; }   /* ungroup: just a red minus */
-.bubble.neg.trash { width: 26px; height: 26px; }   /* delete a place: a red trash can */
+.bubble.neg { background: none; color: var(--remove); font-size: 26px; font-weight: 500; }
+.bubble.neg.trash { width: 26px; height: 26px; }   /* Edit: a red trash can deletes a place, a red − (drawn, so it sits centered) ungroups */
 
 /* empty / search states */
 /* no places yet: the icon, words and buttons centered as one group in the space between
