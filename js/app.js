@@ -1573,8 +1573,7 @@ function customizePanel(cur) {
         ${jetty}
         <div class="cz-head">Stations</div>
         ${station("river", "River", cur.r && cur.r.name + (cur.r.usgs ? " · USGS " + cur.r.usgs : ""))}
-        ${station("tide", "Tides", cur.t && cur.t.name)}
-        ${both ? "" : `<div class="cz-note">To remove the last station, remove the place under Edit.</div>`}`;
+        ${station("tide", "Tides", cur.t && cur.t.name)}`;
     return section({ id: "czSec", title: "Customize · " + p.name, pad: 10, gap: 6,
         trailing: `<button class="edit-btn on" data-act="customize">Done</button>`, body });
 }
