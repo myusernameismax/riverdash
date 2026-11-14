@@ -309,6 +309,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 /* solid, like the list's box, even under the finger (a held place in the list is :active,
    whose see-through tint would otherwise win) */
 #placesList .prow.lifted, #placesList .prow.lifted:active { background: var(--card); }
+/* a group picked up outside Edit: its name and open places as one solid block */
+#placesList .gdrag.lifted { background: var(--card); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+#placesList .gdrag.lifted .prow:active { background: none; }
 .spark { width: 36px; height: 16px; flex: none; }
 /* river groups: count + arrow where a place's graph goes, the gauges' graphs on the right (up to 4) */
 .ghead { width: 36px; flex: none; display: flex; align-items: center; justify-content: center; }
@@ -369,7 +372,8 @@ body.editing .psub.full { margin-left: 32px; }
           color: #fff; font-weight: 700; font-size: 18px; line-height: 1; padding-bottom: 2px; background: #5cb8ff;
           transition: transform 120ms; }
 .bubble:active { transform: scale(.85); }
-.bubble.neg { background: none; color: var(--negative); font-size: 26px; font-weight: 500; }   /* remove: just a red minus */
+.bubble.neg { background: none; color: var(--negative); font-size: 26px; font-weight: 500; }   /* ungroup: just a red minus */
+.bubble.neg.trash { width: 26px; height: 26px; }   /* delete a place: a red trash can */
 
 /* empty / search states */
 /* no places yet: the icon, words and buttons centered as one group in the space between

@@ -1747,7 +1747,7 @@ function placeRow(i, o) {
     const parts_ = S.editing ? "" : parts(dataFor(i), p).map(x => `<span class="ppart" style="color:${x.color}">${esc(x.text)}</span>`).join("");
     return `<div class="prow${o.hidden ? " hide" : ""}${o.first ? " first" : ""}${o.member ? " member" : ""}${S.freshKeys.has(keyOf(p)) ? " fresh" : ""}${listShown() && wide() && !S.editing && i === S.selected ? " shown" : ""}${!S.editing && i === S.swiped ? " swiped" : ""}"${!S.editing && i === S.swiped ? ` style="--sx:-84px"` : ""}
                  data-key="${esc(keyOf(p))}" ${S.editing ? `data-gm="${esc(o.gm || "")}"` : `data-act="select"`} data-i="${i}">
-        ${S.editing ? `<button class="bubble neg" data-act="remove" data-i="${i}">−</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
+        ${S.editing ? `<button class="bubble neg trash" data-act="remove" data-i="${i}" aria-label="Delete">${icon("trash", 20)}</button>` : `<canvas class="spark" data-spark="${i}"></canvas>`}
         <div class="pmain"><div class="pname">${esc(o.label || placeLabel(i))}</div></div>
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
@@ -2264,6 +2264,7 @@ function startDrag(e, handle) {
 function startHoldDrag(row, y) {
     const list = $("#placesList");
     if (!list || dragging || !row || !row.isConnected) return null;
+    if (row.classList.contains("grp")) return startHoldGroupDrag(row, y, list);
     const headOf = x => {   // the open group a place row is in ("" = none)
         if (!x.classList.contains("member")) return "";
         let h = x.previousElementSibling;
@@ -2349,6 +2350,59 @@ function startHoldDrag(row, y) {
             reorder(order, moved, it ? it.name : "");
         });
     };
+    return D;
+}
+
+// Outside Edit, holding a group's name picks up the whole group, open (its places come
+// along) or closed, to move it between the other places and groups (never into one).
+function startHoldGroupDrag(head, y, list) {
+    const key = head.dataset.g;
+    const it = sortedItems().find(x => x.members && x.key === key);
+    if (!it) return null;
+    // the name and, if open, its places travel together in one block
+    const block = document.createElement("div");
+    block.className = "gdrag";
+    head.before(block);
+    block.append(head);
+    while (block.nextElementSibling && block.nextElementSibling.classList.contains("member")) block.append(block.nextElementSibling);
+    const D = liftRow(block, list, y, { listMode: true });
+    const ph = D.ph;
+    // what the gap can go before: a place on its own, or a group (its name and open places)
+    const units = () => {
+        const out = [];
+        for (const x of list.children) {
+            if (x === block || x === ph) continue;
+            if (x.classList.contains("member") && out.length && out[out.length - 1].grp) out[out.length - 1].els.push(x);
+            else out.push({ els: [x], grp: x.classList.contains("grp") });
+        }
+        return out.map(u => {
+            const a = u.els[0].getBoundingClientRect(), b = u.els[u.els.length - 1].getBoundingClientRect();
+            return { first: u.els[0], top: a.top, bottom: b.bottom, mid: (a.top + b.bottom) / 2 };
+        });
+    };
+    const nextOf = x => { let n = x.nextElementSibling; while (n === block) n = n.nextElementSibling; return n; };
+    dragFrames(Y => {
+        const us = units();
+        const idx = us.findIndex(u => Y < u.bottom);
+        let before = null;
+        if (idx >= 0) before = Y < us[idx].top || Y < us[idx].mid ? us[idx].first : (us[idx + 1] ? us[idx + 1].first : null);
+        if (nextOf(ph) === before) return;
+        slideAside(D, () => list.insertBefore(ph, before));
+    });
+    D.drop = () => endDrag(() => {
+        const order = [];
+        for (const x of list.children) {
+            if (x === block) continue;
+            if (x === ph) order.push(...it.members);
+            else if (x.classList.contains("grp")) {
+                const o = sortedItems().find(g => g.members && g.key === x.dataset.g);
+                if (o && !x.classList.contains("open")) order.push(...o.members);
+            } else if (x.dataset.i !== undefined) order.push(+x.dataset.i);
+        }
+        block.replaceWith(...block.children);
+        if (S.sort !== "mine") { S.sort = "mine"; save("rt:sort", S.sort); }
+        reorder(order);
+    });
     return D;
 }
 
@@ -2603,7 +2657,7 @@ function wire() {
     const unhold = () => { if (hold) { clearTimeout(hold.t); hold = null; } };
     lb.addEventListener("pointerdown", e => {
         unhold();
-        const row = e.target.closest("#placesList .prow[data-act=select]");
+        const row = e.target.closest("#placesList .prow[data-act=select], #placesList .prow.grp[data-act=toggleGroup]");
         if (!row || S.editing || dragging || e.button > 0 || e.target.closest("button") || row.classList.contains("swiped")) return;
         const h = hold = { x: e.clientX, y: e.clientY, touch: e.pointerType === "touch" };
         h.t = setTimeout(() => {

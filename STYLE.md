@@ -22,7 +22,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 ## Icons and marks
 
 - Simple, iOS-like symbols. No Android-style filled circles around symbols:
-  remove is a plain red minus, not a red circle.
+  deleting a place is a plain red trash can (ungrouping a plain red minus), not a red circle.
 - Stars are solid: yellow for the ★ place, gray for the others. No outline stars.
 - Arrows after readings: ↑ rising, ↓ falling, → steady.
 - One signal per state: an on/off chip is shown by its tint alone, no ✓ added.

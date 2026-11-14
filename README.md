@@ -57,7 +57,7 @@ Only the inputs change from the desktop widget:
 | Esc / mouse back button | **Swipe in from the left edge**, or tap Back / Week / Done. On a place's page (phone upright), the swipe drags the page into the Places list, like Apple Weather: it becomes a card that follows your finger and shrinks toward its row while the list comes up behind; let go past a third of the way (or flick) and it lands in its row, earlier and it springs back. |
 | (Back, one step at a time) | Closes what's on top (add page, share, the list's search, Edit, the Places list, Customize), then a picked day goes back to the week, then another place goes back to the ★ place (on the phone, a swipe on a place's page goes to the list instead, see above). On the desktop: Esc or the mouse back button; in the panel popup, once more closes it. |
 | Drag a row to reorder | In Edit, drag the **≡ handle**. |
-| (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → red −. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
+| (Remove a place) | **Swipe it left** in the Places list (short swipe shows Delete, long swipe deletes), or Edit → the red trash can. In search, tapping an already-added result (✓) takes it back out. All with Undo (up for 2 s; hold a finger on it to keep it). A swipe has to be clearly sideways; deleting outright takes 3/4 of the row. |
 | Right-click → Configure… | Per place: the **sliders** button left of the name (Customize, below). Colors and timing are in `js/config.js`. |
 | Refresh every 15 min | Same while it's open, plus a refresh each time you come back to it. **Pull down** from the top to refresh now (no refresh button): the arrow spins until the place on screen is updated (if it was already downloading, until that's done). When the app refreshes by itself nothing shows at the top; the bottom bar says **Updating…** while the place on screen downloads, and otherwise when that place was last updated. |
 
@@ -116,7 +116,8 @@ Only the inputs change from the desktop widget:
   list keeps its look (folders stay folders, no −). Hold it over a closed group's name
   for a moment and the group opens so the place can go in among its places (the gap is
   indented when it would land inside); a group opened that way closes again once you
-  move on. An open group: just drag it in or out. A finger that moves before the hold
+  move on. An open group: just drag it in or out. Hold a group's name to move the whole group
+  (open or closed) between the other places and groups. A finger that moves before the hold
   is up scrolls (or swipes) as usual.
 - Each mini graph is one color that says how the place is doing: green in shape, red
   not, gray with no good range set. Coastal tide stations show the jetty / surf rating

@@ -70,6 +70,7 @@ const UI = {
     back: `<path d="M20 5L9 16l11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
     next: `<path d="M12 5l11 11-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
     list: `<circle cx="6.5" cy="9" r="1.9" fill="currentColor"/><circle cx="6.5" cy="16" r="1.9" fill="currentColor"/><circle cx="6.5" cy="23" r="1.9" fill="currentColor"/><path d="M12 9h15M12 16h15M12 23h15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`,
+    trash: `<path d="M6 9h20M13 9V6.5h6V9" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 9l1.4 16.2A2 2 0 0 0 11.9 27h8.2a2 2 0 0 0 2-1.8L23.5 9" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><path d="M13.6 13.5v8.5M18.4 13.5v8.5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>`,
     handle: `<path d="M7 11h18M7 16h18M7 21h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`,
     search: `<circle cx="14" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M20 20l7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
     empty: `<circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 23.5l15-15" stroke="currentColor" stroke-width="2"/>`,
