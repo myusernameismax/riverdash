@@ -51,6 +51,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   once the carried one's leading edge reaches their middle, the passed rows slide aside,
   and the carried one stays under the finger until it's let go. Held over a closed group
   for 600 ms, the group opens (and closes again when passed).
+  With a mouse, a held place (not a group) can also go in the red trash can box that rises at the bottom:
+  over it, the place shrinks into the box and the box fills red; carried out, it pops back.
 
 ## Words
 
@@ -69,7 +71,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   purple, waves orange (`js/config.js`).
 - Status: green = in shape / calm, yellow = caution, red = out of shape / sketchy,
   gray = no range set.
-- Deleting (Edit's trash can, a group's −, the swipe's Delete) is iOS's bright red
+- Deleting (Edit's trash can, a group's −, the swipe's Delete, the drag's trash can box) is iOS's bright red
   (`--remove`); errors and Customize's Remove keep the softer `--negative`.
 - Charts: solid line = measured, dashed = forecast. A good range colors the line
   only (green inside, red outside), never a shaded band.

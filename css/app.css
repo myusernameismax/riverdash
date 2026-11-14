@@ -503,6 +503,17 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
                          bottom var(--kbanim) var(--kbease); }
 .commit.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 .commit:active { filter: brightness(.9); }
+/* Places list, outside Edit: while a place is held, a red trash can box comes up at the
+   bottom; carried over it, the place shrinks into it and the box turns red; let go there = delete */
+#dropBin { position: absolute; left: 50%; bottom: calc(var(--bote) + 18px); z-index: 45; width: 60px; height: 60px;
+           border-radius: 18px; display: grid; place-items: center; pointer-events: none;
+           background: color-mix(in srgb, var(--remove) 16%, var(--card)); color: var(--remove);
+           box-shadow: 0 4px 16px rgba(0,0,0,.25);
+           transform: translate(-50%, 24px) scale(.8); opacity: 0;
+           transition: transform calc(var(--anim) * 1.2) cubic-bezier(.34,1.56,.64,1), opacity var(--anim),
+                       background 160ms, color 160ms; }
+#dropBin.on { transform: translate(-50%, 0); opacity: 1; }
+#dropBin.on.hot { transform: translate(-50%, 0) scale(1.12); background: var(--remove); color: #fff; }
 .rtitle { font-size: 11px; font-weight: 700; letter-spacing: .4px; margin: 14px 0 4px 4px; }
 .hit { display: flex; align-items: center; gap: 10px; padding: 7px 6px 7px 8px; border-radius: 10px; transition: background 120ms; cursor: pointer; }
 .hit:active { background: color-mix(in srgb, var(--accent) 25%, transparent); }

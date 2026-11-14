@@ -2186,7 +2186,12 @@ function dragFrames(place) {
         const D = dragging;
         if (!D || D.dropping) return;
         const sr = scroller.getBoundingClientRect();
-        if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > sr.bottom - 50) scroller.scrollTop += 6;
+        const br = D.bin ? $("#dropBin").getBoundingClientRect() : null;
+        const inBin = !!br && D.x !== undefined && D.x > br.left - 12 && D.x < br.right + 12 && D.y > br.top - 12 && D.y < br.bottom + 12;
+        if (inBin !== !!D.inBin) binHover(D, inBin, br);
+        if (D.inBin) { requestAnimationFrame(frame); return; }   // it sits in the box until it's carried out again
+        const bottom = br ? Math.min(sr.bottom, br.top - 8) : sr.bottom;   // (scrolling stops short of the box)
+        if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > bottom - 50 && D.y < bottom) scroller.scrollTop += 6;
         D.row.style.top = (D.y - D.grab) + "px";
         if (D.y - D.turn > 4) { D.dir = 1; D.turn = D.y; } else if (D.y - D.turn < -4) { D.dir = -1; D.turn = D.y; }
         else if (D.dir > 0 ? D.y > D.turn : D.dir < 0 && D.y < D.turn) D.turn = D.y;
@@ -2195,6 +2200,26 @@ function dragFrames(place) {
         requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
+}
+// The place carried over the trash can box shrinks into it (the box turns red);
+// carried out again, it pops back out under the finger.
+function binHover(D, on, br) {
+    D.inBin = on;
+    const row = D.row, bin = $("#dropBin");
+    bin.classList.toggle("hot", on);
+    if (on) {
+        // (measured without its transform: it may still be popping back out)
+        const w = row.offsetWidth, h = row.offsetHeight, left = parseFloat(row.style.left), top = parseFloat(row.style.top);
+        const s = Math.min(br.width * 0.7 / w, br.height * 0.7 / h);
+        const dx = br.left + br.width / 2 - (left + w / 2), dy = br.top + br.height / 2 - (top + h / 2);
+        row.style.transition = `transform ${ANIM}ms cubic-bezier(.33,1,.68,1), opacity ${ANIM}ms`;
+        row.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+        row.style.opacity = "0";
+    } else {
+        row.style.transition = `transform ${ANIM * 1.2}ms cubic-bezier(.34,1.56,.64,1), opacity ${ANIM * 0.6}ms`;
+        row.style.transform = "";
+        row.style.opacity = "";
+    }
 }
 // The drop: the row glides into the gap, then finish() saves the new order and the list
 // is drawn again. Nothing redraws mid-drag (render() waits); whatever happens here, the
@@ -2205,14 +2230,17 @@ function endDrag(finish) {
     if (!D || D.dropping) return;
     D.dropping = true;
     noClickUntil = Date.now() + 500;   // letting go isn't a tap on the place
-    const to = D.ph.getBoundingClientRect();
-    D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
-    D.row.style.top = to.top + "px";
-    D.row.classList.remove("lifted");
+    if (!D.inBin) {   // (let go over the trash can box: it's already gone into it)
+        const to = D.ph.getBoundingClientRect();
+        D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
+        D.row.style.top = to.top + "px";
+        D.row.classList.remove("lifted");
+    }
     setTimeout(() => {
         try {
             D.pushed.forEach(x => { x.style.transition = ""; x.style.transform = ""; });
             document.body.classList.remove("dragging");
+            $("#dropBin").classList.remove("on", "hot");
             finish(D);
         } finally {
             if (D.ph.parentNode) D.ph.remove();
@@ -2270,14 +2298,14 @@ function startDrag(e, handle) {
     handle.addEventListener("lostpointercapture", up);
 }
 
-// Outside Edit: hold a place to move it, as with Edit's ≡, but the list keeps its look
+// Outside Edit: hold a place to move it (with a mouse, or drop it in the trash can box), as with Edit's ≡, but the list keeps its look
 // (folders stay folders, no −). Held over a closed group for a moment, the group opens
 // so the place can go in among its places; a group opened that way closes again once
 // the place moves on. Dropped among an open group's places = into that group (the gap
 // is indented like them); anywhere else = in no group.
 // The finger is followed by touch events on phones (they're what can stop the list from
 // scrolling), by pointer events for a mouse.
-function startHoldDrag(row, y) {
+function startHoldDrag(row, y, bin) {
     const list = $("#placesList");
     if (!list || dragging || !row || !row.isConnected) return null;
     if (row.classList.contains("grp")) return startHoldGroupDrag(row, y, list);
@@ -2288,7 +2316,8 @@ function startHoldDrag(row, y) {
         return h ? h.dataset.g : "";
     };
     const wasG = headOf(row);
-    const D = liftRow(row, list, y, { listMode: true });
+    const D = liftRow(row, list, y, { listMode: true, bin });
+    if (bin) $("#dropBin").classList.add("on");
     const ph = D.ph, moved = +row.dataset.i, opened = new Map();   // group key -> its rows put in by this drag
     ph.dataset.g = wasG;
     ph.classList.toggle("in", !!wasG);
@@ -2347,6 +2376,7 @@ function startHoldDrag(row, y) {
     D.drop = () => {
         clearTimeout(hoverT);
         endDrag(() => {
+            if (D.inBin) { remove(moved); return; }   // let go over the trash can box
             // the new order: the list as it stands, a closed group standing for its places
             const order = [];
             for (const x of list.children) {
@@ -2676,10 +2706,10 @@ function wire() {
         unhold();
         const row = e.target.closest("#placesList .prow[data-act=select], #placesList .prow.grp[data-act=toggleGroup]");
         if (!row || S.editing || dragging || e.button > 0 || e.target.closest("button") || row.classList.contains("swiped")) return;
-        const h = hold = { x: e.clientX, y: e.clientY, cy: e.clientY, touch: e.pointerType === "touch" };
+        const h = hold = { x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY, touch: e.pointerType === "touch" };
         if (!h.touch) {
             // the mouse is followed (and let go) anywhere on the page, not just over the list
-            const mvH = ev => { h.cy = ev.clientY; };
+            const mvH = ev => { h.cx = ev.clientX; h.cy = ev.clientY; };
             const upH = () => { if (hold === h) unhold(); };
             window.addEventListener("pointermove", mvH);
             window.addEventListener("pointerup", upH);
@@ -2691,7 +2721,8 @@ function wire() {
             hold = null;
             if (sw && sw.mode) return;   // it's a swipe
             sw = null;
-            const D = startHoldDrag(row, h.y);
+            const D = startHoldDrag(row, h.y, !h.touch);   // the trash can box: mouse only (a finger swipes to delete)
+            if (D) D.x = h.cx;
             if (!D || h.touch) return;
             // a mouse: the row glides from where it was to the pointer, then follows it
             // until the button comes up
@@ -2700,7 +2731,7 @@ function wire() {
                 D.row.style.transition = `top ${ANIM * 0.5}ms cubic-bezier(.33,1,.68,1)`;
                 setTimeout(() => { if (dragging === D && !D.dropping) D.row.style.transition = ""; }, ANIM * 0.5);
             }
-            const mv = ev => { if (dragging === D) D.y = ev.clientY; };
+            const mv = ev => { if (dragging === D) { D.x = ev.clientX; D.y = ev.clientY; } };
             const upM = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", upM); D.drop(); };
             window.addEventListener("pointermove", mv);
             window.addEventListener("pointerup", upM);
@@ -2716,6 +2747,7 @@ function wire() {
         const D = listDrag();
         if (!D) return;
         e.preventDefault();
+        D.x = e.touches[0].clientX;
         D.y = e.touches[0].clientY;
     }, { passive: false });
     const touchUp = e => { const D = listDrag(); if (D && !e.touches.length) D.drop(); };
@@ -2731,6 +2763,7 @@ function wire() {
     const PTR_GO = 64, PTR_HOLD = 44, ptr = $("#ptr");
     // the pull turns the outer part; the spin is on the inner one (iOS Safari won't
     // animate a rotation on an element whose own rotation is set by the pull)
+    $("#dropBin").innerHTML = icon("trash", 28);
     ptr.innerHTML = `<span class="ptr-turn"><span class="ptr-whirl">${icon("refresh", 20)}</span></span><span class="ptr-msg"></span>`;
     let pd = null, ptrBusy = false, ptrOff = 0, waitShown = null;
     const setPull = (px, anim) => {
