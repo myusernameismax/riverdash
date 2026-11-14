@@ -146,6 +146,9 @@ rivers share a name.
   nothing moves (long station names wrap the same way in both). Opening a group that runs off the screen scrolls it
   into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
+  Under a place's station names, a quieter line names who runs each station and its id
+  ("NOAA SILO3", "USGS 14305800", "NOAA SILO3 · NOAA 9435380" with a tide station), so
+  look-alike gauges ("Siletz River at Siletz" / "near Siletz") are easy to tell apart.
 - Groups travel with share links.
 
 ## On a computer, or a phone turned sideways (wide windows)

@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, isUsgs } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -1705,13 +1705,17 @@ function sortChips() {
     </div>`;
 }
 // Under a place's name in the list: its stations, like under the name at the top of a
-// place (a station whose charts are all switched off isn't named; ids until the first
-// download), one per line: a river gauge and a tide station stack instead of running on.
+// place (a station whose charts are all switched off isn't named; before the first
+// download only the id line), one per line: a river gauge and a tide station stack.
+// The last line: who runs each of those stations and its id ("NOAA SILO3 · NOAA 9435380"),
+// so two gauges with nearly the same name can be told apart.
 function stationLines(i) {
     const p = S.places[i], d = S.results[keyOf(p)] || {};
     const off = ms => ms.every(m => hidden(p, m));
-    return [p.river && !off(["stage", "flow", "temp"]) ? (d.river && d.river.name) || p.river : "",
-            p.tide && !off(["tide", "surf"]) ? "Tides: " + ((d.tide && d.tide.name) || p.tide) : ""].filter(x => x);
+    const river = p.river && !off(["stage", "flow", "temp"]), tide = p.tide && !off(["tide", "surf"]);
+    const ids = [river ? (isUsgs(p.river) ? "USGS " : "NOAA ") + p.river : "", tide ? "NOAA " + p.tide : ""].filter(x => x).join(" · ");
+    return [river && d.river && d.river.name, tide && d.tide && d.tide.name && "Tides: " + d.tide.name].filter(x => x).map(l => `<div class="pst">${esc(l)}</div>`).join("")
+         + (ids ? `<div class="pst pid">${esc(ids)}</div>` : "");
 }
 function placeRow(i, o) {
     const p = S.places[i], isPin = i === pinned();
@@ -1723,7 +1727,7 @@ function placeRow(i, o) {
         ${parts_ ? `<div class="pparts">${parts_}</div>` : ""}
         ${S.editing ? "" : `<button class="pstar${isPin ? " on" : ""}" data-act="pin" data-i="${i}">${icon("star", 18)}</button>`}
         ${S.editing ? `<div class="handle" data-i="${i}">${icon("handle", 20)}</div>` : `<button class="pdel" data-act="remove" data-i="${i}">Delete</button>`}
-        <div class="psub full">${stationLines(i).map(l => `<div class="pst">${esc(l)}</div>`).join("")}</div>
+        <div class="psub full">${stationLines(i)}</div>
     </div>`;
 }
 

@@ -357,6 +357,7 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .psub.full { flex: 0 0 auto; width: calc(100% - 56px); margin: -8px 0 0 46px; white-space: normal; overflow: visible; line-height: 1.3; }
 .gbox .prow.member .psub.full { width: calc(100% - 50px); }   /* the box is 6px in on each side */
 body.editing .psub.full { margin-left: 32px; }
+.pst.pid { opacity: .75; }   /* who runs the stations + their ids: a step quieter than the names */
 .pparts { display: flex; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; }
 .pstar { width: 36px; height: 44px; }
 .handle { width: 40px; height: 44px; display: grid; place-items: center; opacity: .45; touch-action: none; cursor: grab; flex: none; }
