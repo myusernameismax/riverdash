@@ -1896,6 +1896,23 @@ function render() {
 let splashSlow = 0;
 let waitingForLink = !S.places.length && !!codeFrom(location.hash);   // a new user's link: keep the logo up until its data
 function splashText(text) { const el = $("#splashText"); if (el) el.textContent = text; }
+// one tip per start, never the same one twice in a row
+const SPLASH_TIPS = [
+    () => `Hide or show a river's readings with ${icon("sliders", 18)}`,
+    () => `Add a tide station to a river with ${icon("sliders", 18)}`,
+    () => `Set a good range in ${icon("sliders", 18)} to see \u201cin shape\u201d at a glance`,
+    () => `Tap ${icon("star", 18, "sp-star")} to make a place show on startup`,
+];
+function splashTip() {
+    const el = $("#splashTip");
+    if (!el) return;
+    let last = -1;
+    try { last = +(localStorage.getItem("rt:tip") ?? -1); } catch (e) { /* fine */ }
+    let i = Math.floor(Math.random() * (SPLASH_TIPS.length - 1));
+    if (i >= last && last >= 0) i++;
+    el.innerHTML = SPLASH_TIPS[i]();
+    try { localStorage.setItem("rt:tip", String(i)); } catch (e) { /* fine */ }
+}
 function hideSplash() {
     const el = $("#splash");
     clearTimeout(splashSlow);
@@ -2664,6 +2681,7 @@ function reloadForUpdate() {
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
 splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
 splashSlow = setTimeout(() => splashText("Slow connection · still loading…"), 8000);
+splashTip();
 setTimeout(hideSplash, 30000);                        // never stuck behind it
 if (navigator.standalone === true) {
     document.documentElement.classList.add("ios-app");

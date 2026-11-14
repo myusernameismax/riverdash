@@ -31,6 +31,15 @@ Under a place's name, each station's name (one per line, blue, with ↗ in front
 even when a long name is cut off) opens a map at the exact spot
 of the gauge or tide station. In search results, **Map ↗** does the same before adding.
 
+## Starting up
+
+The app opens on the logo, the same picture as iPhone's launch screen. If loading takes
+over a second (usually after a long break, or a weak signal), the name, what it's waiting
+on, and a tip fade in. A quick start never shows them. There are four tips, in
+`SPLASH_TIPS` in `js/app.js`; each start picks one at random, never the same one twice
+in a row (the last one is kept in `rt:tip`). The page is dark from its first frame in
+dark mode, so starting up or reloading into a new version never flashes white.
+
 ## What's different from the widget
 
 Only the inputs change from the desktop widget:

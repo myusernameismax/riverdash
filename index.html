@@ -23,7 +23,7 @@
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" href="icons/launch-1125x2436-light.png">
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" href="icons/launch-1125x2436-dark.png">
 <!-- logo + name + status centered as one group (the logo alone sits 31 px above the middle) -->
-<!-- shown before app.css and the scripts arrive; js/app.js fades it out once there's something to show -->
+<!-- shown before app.css and the scripts arrive; js/app.js picks a tip and fades it out once there's something to show -->
 <style>
 html { background: #f2f3f5; }
 @media (prefers-color-scheme: dark) { html { background: #16181b; } }
@@ -33,6 +33,15 @@ html { background: #f2f3f5; }
 #splash img { position: absolute; left: 50%; top: calc(50% - 79px); width: 96px; height: 96px; margin-left: -48px; border-radius: 22px; }
 #splash .sp-name { position: absolute; left: 0; right: 0; top: calc(50% + 31px); text-align: center; font-size: 20px; font-weight: 700; }
 #splash .sp-text { position: absolute; left: 0; right: 0; top: calc(50% + 63px); text-align: center; font-size: 13px; opacity: .6; }
+#splash .sp-tip { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 56px); text-align: center; font-size: 14px; line-height: 1.4; opacity: .75; }
+#splash .sp-tip svg { display: inline-block; vertical-align: -3px; margin: 0 1px; }
+#splash .sp-tip .sp-star { color: #f5c542; }
+/* the launch screen is the logo alone: the words come in only once the wait is long enough
+   to read them, so a quick start never flashes them */
+#splash .sp-later { opacity: 0; animation: sp-in 300ms 1000ms forwards; }
+@keyframes sp-in { to { opacity: 1; } }
+#splash .sp-tip.sp-later { animation-name: sp-tip-in; }
+@keyframes sp-tip-in { to { opacity: .75; } }
 #splash.gone { opacity: 0; pointer-events: none; }
 html[data-embed] #splash { display: none; }
 </style>
@@ -84,7 +93,7 @@ html[data-embed] #splash { display: none; }
 
     <div id="toast"><span id="toastText"></span><button id="toastAct" hidden></button></div>
 </div>
-<div id="splash"><img src="icons/icon-512.png" alt=""><div class="sp-name">Flow Tides</div><div class="sp-text" id="splashText">Loading data…</div></div>
+<div id="splash"><img src="icons/icon-512.png" alt=""><div class="sp-later"><div class="sp-name">Flow Tides</div><div class="sp-text" id="splashText">Loading data…</div></div><div class="sp-tip sp-later" id="splashTip"></div></div>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

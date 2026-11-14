@@ -52,6 +52,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   banners. Short labels only ("Tide · ft"). Explanations go in the README.
   Exception: the history chart has a one-line legend (Recorded Flow / Average Flow),
   because its two lines are easy to mix up.
+  Also the splash screen's one tip per start ("Add a tide station to a river with" + the
+  sliders symbol), shown only when the start is slow enough to read it.
 - Data in tooltips and labels is fine ("Forecast · measured 8 h ago").
 - Plain words over jargon ("Typical flow", not "median").
 
