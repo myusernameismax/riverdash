@@ -2561,15 +2561,35 @@ function wire() {
     $("#addCommit").addEventListener("click", () => { keepAdded(); render(); });
     // The keyboard covers the bottom of the Add page (iOS doesn't shrink the page for
     // it), so the floating Add buttons ride on top of it: --kb = the covered height.
+    // iOS only reports the keyboard once it's up, so a search field getting / losing
+    // focus moves --kb to the keyboard's last height right away: the button glides
+    // along with the keyboard instead of jumping after it (the real height corrects it).
     const vv = window.visualViewport;
     if (vv) {
         const app = $("#app");
+        let kbLast = 0, kbCheck = 0;
+        try { kbLast = +(localStorage.getItem("rt:kb") || 0); } catch (e) { /* fine */ }
+        const setKb = px => app.style.setProperty("--kb", px + "px");
         const lift = () => {
-            const covered = app.getBoundingClientRect().bottom - (vv.offsetTop + vv.height);
-            app.style.setProperty("--kb", Math.max(0, Math.round(covered)) + "px");
+            const covered = Math.max(0, Math.round(app.getBoundingClientRect().bottom - (vv.offsetTop + vv.height)));
+            setKb(covered);
+            if (covered > 100 && covered !== kbLast) {
+                kbLast = covered;
+                try { localStorage.setItem("rt:kb", String(covered)); } catch (e) { /* fine */ }
+            }
         };
         vv.addEventListener("resize", lift);
         vv.addEventListener("scroll", lift);
+        const isSearch = el => el && (el.id === "q" || el.id === "lq");
+        const guess = up => {
+            if (kbLast && matchMedia("(pointer: coarse)").matches) setKb(up ? kbLast : 0);
+            clearTimeout(kbCheck);
+            kbCheck = setTimeout(lift, 700);   // no keyboard after all (a hardware one): back to what's really covered
+        };
+        document.addEventListener("focusin", e => { if (isSearch(e.target)) guess(true); });
+        document.addEventListener("focusout", e => {
+            if (isSearch(e.target) && !isSearch(e.relatedTarget)) guess(false);
+        });
     }
     $("#moveBack").addEventListener("click", () => { closeMove(); render(); });
     $("#moveBody").addEventListener("input", e => {

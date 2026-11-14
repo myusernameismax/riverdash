@@ -14,6 +14,7 @@
     --radius: 12px;
     --gutter: 14px;
     --anim: 220ms;
+    --kbanim: 350ms; --kbease: cubic-bezier(.2,.8,.2,1);   /* about iOS's keyboard slide, so things above it move with it */
     --small: 12px;
     --top: env(safe-area-inset-top, 0px);
     --bot: env(safe-area-inset-bottom, 0px);
@@ -442,7 +443,7 @@ body.editing .psub.full { margin-left: 32px; }
 #listBody { display: flex; flex-direction: column; flex: none; min-height: calc(100% + 1px); }
 /* while the keyboard is up, the hint ("Find a river or tide station") centers in the
    space above it (iOS doesn't shrink the page for the keyboard; --kb is the part it covers) */
-#listScroll, #addScroll { transition: padding-bottom var(--anim) cubic-bezier(.33,1,.68,1); }
+#listScroll, #addScroll { transition: padding-bottom var(--kbanim) var(--kbease); }
 #listPage.searching #listScroll { padding-bottom: calc(max(var(--bote), var(--kb, 0px)) + 20px); }
 #listPage.picking #listScroll { padding-bottom: max(calc(20vh + 40px), calc(var(--kb, 0px) + 78px)); }   /* the last result scrolls clear of the button */
 .ftr .fbtn.flist { opacity: 1; color: var(--link); margin-left: 2px; }   /* the places list: blue, it's how you get around */
@@ -476,7 +477,8 @@ body.editing .psub.full { margin-left: 32px; }
              max-width: calc(100% - 2 * var(--gutter)); border-radius: 24px; background: var(--link); color: #fff;
              font-size: 16px; font-weight: 700; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.3);
              transform: translate(-50%, 90px); opacity: 0; pointer-events: none;
-             transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim); }
+             transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim),
+                         bottom var(--kbanim) var(--kbease); }
 .commit.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 .commit:active { filter: brightness(.9); }
 .rtitle { font-size: 11px; font-weight: 700; letter-spacing: .4px; margin: 14px 0 4px 4px; }
@@ -503,7 +505,8 @@ body.editing .psub.full { margin-left: 32px; }
          max-width: calc(100% - 2 * var(--gutter)); padding: 10px 18px; border-radius: 22px; white-space: nowrap;
          background: color-mix(in srgb, var(--text) 92%, transparent); color: var(--bg); font-size: 14px;
          transform: translate(-50%, 90px); opacity: 0; pointer-events: none;
-         transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim); }
+         transition: transform calc(var(--anim) * 1.4) cubic-bezier(.34,1.56,.64,1), opacity var(--anim),
+                    bottom var(--kbanim) var(--kbease); }
 #toast.above-footer { bottom: calc(var(--bote) + 62px); }
 #toast.above-commit { bottom: max(calc(20vh + 36px), calc(var(--kb, 0px) + 74px)); }
 #toast.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
