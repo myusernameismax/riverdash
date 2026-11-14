@@ -656,19 +656,24 @@ async function weatherData(lat, lon) {
         throw e;
     }
 }
+// Models now and then call an hour snow at 40 °F+ (HRRR/GFS, a heavy downpour), and the
+// day takes its worst hour, so a 46 °F rainy day read "Heavy snow". Too warm to snow
+// at the place: the rain of the same strength.
+const SNOW_AS_RAIN = { 71: 61, 73: 63, 75: 65, 77: 61, 85: 80, 86: 81 };
+const wxCode = (code, tempF) => round(tempF >= 40 && SNOW_AS_RAIN[round(code)] || code);
 async function weather(lat, lon) {
     lat = round(parseFloat(lat), 2); lon = round(parseFloat(lon), 2);   // ~1 km; also the cache key
     const d = await weatherData(lat, lon);
     const c = d.current, w = d.daily, h = d.hourly || {};
     return {
         now: c ? { time: c.time ? c.time * 1000 : Date.now(), temp: round(c.temperature_2m), feels: round(c.apparent_temperature),
-                   code: round(c.weather_code), day: !!(c.is_day ?? 1),
+                   code: wxCode(c.weather_code, c.temperature_2m), day: !!(c.is_day ?? 1),
                    wind: round(c.wind_speed_10m), gust: round(c.wind_gusts_10m), windDir: c.wind_direction_10m } : null,
-        days: w.time.map((t, i) => [t * 1000, round(w.weather_code[i]), round(w.temperature_2m_max[i]), round(w.temperature_2m_min[i]),
+        days: w.time.map((t, i) => [t * 1000, wxCode(w.weather_code[i], w.temperature_2m_min[i]), round(w.temperature_2m_max[i]), round(w.temperature_2m_min[i]),
             round(w.precipitation_probability_max[i]), round(w.precipitation_sum[i], 2), round(w.wind_speed_10m_max[i]),
             round(w.wind_gusts_10m_max[i]), round(w.wind_direction_10m_dominant[i]),
             w.sunrise[i] ? +w.sunrise[i] * 1000 : null, w.sunset[i] ? +w.sunset[i] * 1000 : null]),
-        hours: (h.time || []).map((t, i) => [t * 1000, round(h.temperature_2m[i]), round(h.weather_code[i]),
+        hours: (h.time || []).map((t, i) => [t * 1000, round(h.temperature_2m[i]), wxCode(h.weather_code[i], h.temperature_2m[i]),
             round(h.precipitation_probability[i]), round(h.precipitation[i], 2), round(h.wind_speed_10m[i]),
             round(h.wind_gusts_10m[i]), !!h.is_day[i]]),
     };
