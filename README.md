@@ -145,13 +145,14 @@ shows which side each gauge is on; a group of your own puts them back together.
   until a place goes in: a place dragged onto it or above it goes into it, and a dragged
   group can't go above it. In Edit each group
   is a tinted box around its name and its places; the name row has a deeper tint (no
-  arrow, since groups are always open in Edit), and its places are indented as in the
+  arrow or count, since groups are always open in Edit), and its places are indented as in the
   list. Edit has no stars, and the rows keep their heights going in and out of it. Drag a place by ≡ and the places it passes slide out of its way (the gap glides
   with them) as soon as its leading edge reaches their middle, like Apple Weather; it
   stays under your finger until you let go; over a box,
   the gap where it'll land moves inside (the box grows around it); drag it below the
   box's end to take it out. Drag a group by its own ≡ to move it with its places.
-  − on a group only ungroups (the places stay). Your own groups show even with one
+  A place's red trash can (in the middle of its row's height) deletes it, with Undo;
+  the red − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
   A group of yours can share a river's name (an "Alsea" group for the Alsea and a creek
@@ -341,7 +342,9 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   hold them back (or keep the other tiles spinning). With 21 places: the shown place is current in ~2 s, all in ~6 s,
   with 62 downloads instead of 104.
 - **Busy servers** (HTTP 429/5xx, e.g. a weather 503) get one quiet retry. Places
-  within 10 km share one weather forecast; if weather can't be downloaded, the
+  within 10 km share one weather forecast (an hour or day the model calls snow while it's
+  40 °F or warmer at the place shows as the rain of the same strength: HRRR / GFS now and
+  then call a downpour snow); if weather can't be downloaded, the
   nearest saved one within 30 km stands in.
 - **Weak or no signal:** the last downloaded readings show the moment the app opens,
   and fresh ones replace them when they arrive.

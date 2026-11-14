@@ -2615,7 +2615,7 @@ function wire() {
         if (h) startDrag(e, h);
     });
 
-    // Swipe a place left in the Places list to delete it (same as Edit → −, with Undo):
+    // Swipe a place left in the Places list to delete it (same as Edit's trash can, with Undo):
     // a short swipe shows a Delete button, a long one deletes right away. Made hard to do
     // by accident: the swipe must be clearly sideways, the row resists once Delete is
     // fully out (UIScrollView's rubber-band curve, c = 0.55), and deleting outright

@@ -44,7 +44,13 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 - Nothing jumps. Panels (Customize) glide the page first, then unfold / switch;
   closing glides back, then folds. Things loading keep their spot (a spinning tile
   sits where the real one will be). Pull-to-refresh and the end-of-page pull use
-  the same rubber band (the same give everywhere) and spring back.
+  the same rubber band (the same give everywhere) and spring back. The place header
+  glides to a new height (another place, the wind line), and things above the
+  keyboard (the Add button) ride up and down with it.
+- Reordering copies Apple Weather: hold a place (350 ms) or drag Edit's ≡; rows swap
+  once the carried one's leading edge reaches their middle, the passed rows slide aside,
+  and the carried one stays under the finger until it's let go. Held over a closed group
+  for 600 ms, the group opens (and closes again when passed).
 
 ## Words
 
@@ -63,5 +69,7 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   purple, waves orange (`js/config.js`).
 - Status: green = in shape / calm, yellow = caution, red = out of shape / sketchy,
   gray = no range set.
+- Deleting (Edit's trash can, a group's −, the swipe's Delete) is iOS's bright red
+  (`--remove`); errors and Customize's Remove keep the softer `--negative`.
 - Charts: solid line = measured, dashed = forecast. A good range colors the line
   only (green inside, red outside), never a shaded band.
