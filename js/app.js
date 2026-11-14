@@ -2134,7 +2134,7 @@ function startDrag(e, handle) {
     Object.assign(actual.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", boxSizing: "border-box", zIndex: 50, margin: 0 });
     actual.classList.add("lifted");
     document.body.classList.add("dragging");
-    dragging = { row: actual, isBox, ph, list, grab: e.clientY - r.top, y: e.clientY, pending: false };
+    dragging = { row: actual, isBox, ph, list, grab: e.clientY - r.top, y: e.clientY, pending: false, dir: 0, turn: e.clientY };
     handle.setPointerCapture(e.pointerId);
     const scroller = $("#listScroll");
     const others = el => [...el.children].filter(x => x !== actual && x !== ph);
@@ -2175,7 +2175,13 @@ function startDrag(e, handle) {
         const sr = scroller.getBoundingClientRect();
         if (D.y < sr.top + 50) scroller.scrollTop -= 6; else if (D.y > sr.bottom - 50) scroller.scrollTop += 6;
         D.row.style.top = (D.y - D.grab) + "px";
-        place(D.y - D.grab + D.row.offsetHeight / 2);
+        // Like Apple Weather: places swap as soon as the dragged one's leading edge (its
+        // bottom going down, its top going up) reaches the middle of the one it's passing;
+        // it stays under the finger, and only the drop settles it into the gap.
+        if (D.y - D.turn > 4) { D.dir = 1; D.turn = D.y; } else if (D.y - D.turn < -4) { D.dir = -1; D.turn = D.y; }
+        else if (D.dir > 0 ? D.y > D.turn : D.dir < 0 && D.y < D.turn) D.turn = D.y;
+        const top = D.y - D.grab, h = D.row.offsetHeight;
+        place(D.dir > 0 ? top + h - 1 : D.dir < 0 ? top + 1 : top + h / 2);
         requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

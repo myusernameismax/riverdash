@@ -137,7 +137,8 @@ shows which side each gauge is on; a group of your own puts them back together.
   is a tinted box around its name and its places; the name row has a deeper tint (no
   arrow, since groups are always open in Edit), and its places are indented as in the
   list. Edit has no stars, and the rows keep their heights going in and out of it. Drag a place by ≡ and the places it passes slide out of its way (the gap glides
-  with them); over a box,
+  with them) as soon as its leading edge reaches their middle, like Apple Weather; it
+  stays under your finger until you let go; over a box,
   the gap where it'll land moves inside (the box grows around it); drag it below the
   box's end to take it out. Drag a group by its own ≡ to move it with its places.
   − on a group only ungroups (the places stay). Your own groups show even with one
