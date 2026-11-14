@@ -306,6 +306,9 @@ body.moving #movePage { transform: none; visibility: visible; transition: transf
 .prow.fresh:has(+ .prow.fresh) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .prow.removing { height: 0 !important; min-height: 0; opacity: 0; overflow: hidden; }
 .prow.lifted { z-index: 10; background: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: box-shadow 140ms; }
+/* solid, like the list's box, even under the finger (a held place in the list is :active,
+   whose see-through tint would otherwise win) */
+#placesList .prow.lifted, #placesList .prow.lifted:active { background: var(--card); }
 .spark { width: 36px; height: 16px; flex: none; }
 /* river groups: count + arrow where a place's graph goes, the gauges' graphs on the right (up to 4) */
 .ghead { width: 36px; flex: none; display: flex; align-items: center; justify-content: center; }

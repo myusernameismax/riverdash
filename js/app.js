@@ -2598,7 +2598,7 @@ function wire() {
 
     // Hold a place in the list (outside Edit) to move it: startHoldDrag. A finger that
     // moves first is scrolling (or swiping), so it never lifts anything.
-    const HOLD_MS = 450;
+    const HOLD_MS = 350;
     let hold = null;
     const unhold = () => { if (hold) { clearTimeout(hold.t); hold = null; } };
     lb.addEventListener("pointerdown", e => {
