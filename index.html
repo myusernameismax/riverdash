@@ -12,6 +12,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.water.noaa.gov https://api.tidesandcurrents.noaa.gov https://api.waterdata.usgs.gov https://waterservices.usgs.gov https://api.open-meteo.com https://marine-api.open-meteo.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="format-detection" content="telephone=no">
+<!-- the page is dark from its very first frame in dark mode (before app.css, and during an update's reload) -->
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -23,6 +25,8 @@
 <!-- logo + name + status centered as one group (the logo alone sits 31 px above the middle) -->
 <!-- shown before app.css and the scripts arrive; js/app.js fades it out once there's something to show -->
 <style>
+html { background: #f2f3f5; }
+@media (prefers-color-scheme: dark) { html { background: #16181b; } }
 #splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #f2f3f5; color: #1d2125;
           font: 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: opacity 250ms; }
 @media (prefers-color-scheme: dark) { #splash { background: #16181b; color: #eef0f2; } }
