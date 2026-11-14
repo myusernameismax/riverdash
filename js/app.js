@@ -1810,7 +1810,6 @@ function renderPlaces() {
 }
 
 function renderBody(cur) {
-    if (dragging) { dragging.pending = true; return; }
     let html = "";
     if (!S.places.length) {
         html += `<div class="placeholder"><img class="ph-logo" src="icons/icon-192.png" alt=""><div class="ph-text">No places yet</div>
@@ -1928,7 +1927,12 @@ function renderToast() {
     }
 }
 
+// Nothing redraws mid-drag (a rename saved as the field loses focus, data arriving, a
+// note): redrawing the list replaced the dragged row and its handle, the finger's
+// touches were lost, and the drag never ended (a blank gap left, no more dragging).
+// The drop draws everything.
 function render() {
+    if (dragging) { dragging.pending = true; return; }
     const place = S.places[S.selected] || null;
     const d = dataFor(S.selected);
     const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
@@ -2162,29 +2166,37 @@ function startDrag(e, handle) {
     };
     requestAnimationFrame(frame);
     const moveH = ev => { if (dragging) dragging.y = ev.clientY; };
+    // ends on the finger lifting, iOS taking the touch over, or the handle losing it
     const up = () => {
         handle.removeEventListener("pointermove", moveH);
         handle.removeEventListener("pointerup", up);
         handle.removeEventListener("pointercancel", up);
+        handle.removeEventListener("lostpointercapture", up);
         const D = dragging;
+        if (!D || D.dropping) return;
         D.dropping = true;
         const to = ph.getBoundingClientRect();
         D.row.style.transition = `top ${ANIM * 0.8}ms cubic-bezier(.33,1,.68,1)`;
         D.row.style.top = to.top + "px";
         D.row.classList.remove("lifted");
         setTimeout(() => {
-            document.body.classList.remove("dragging");
-            ph.parentNode.insertBefore(D.row, ph);
-            ph.remove();
-            D.row.removeAttribute("style");
-            dragging = null;
-            dropInEdit(D);
-            render();
+            try {
+                document.body.classList.remove("dragging");
+                if (ph.parentNode) ph.parentNode.insertBefore(D.row, ph);
+                ph.remove();
+                D.row.removeAttribute("style");
+                dragging = null;
+                dropInEdit(D);
+            } finally {
+                dragging = null;     // whatever happened, the list is usable again
+                render();
+            }
         }, Math.max(1, ANIM * 0.8));
     };
     handle.addEventListener("pointermove", moveH);
     handle.addEventListener("pointerup", up);
     handle.addEventListener("pointercancel", up);
+    handle.addEventListener("lostpointercapture", up);
 }
 
 // After a drag in Edit, the list on screen is the new order; a dragged place's
