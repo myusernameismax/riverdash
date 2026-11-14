@@ -125,9 +125,12 @@ it; its places show where they are ("Vida", "Above Coburg") when they're all nam
 after the river.
 Rivers with the same name in different states stay apart: the Deschutes gauges at
 Moody and Madras group as **Deschutes (OR)**, and one near Rainier, WA shows as
-**Deschutes (WA)**. The state comes from NOAA's name where it has one ("Deschutes
-River (OR)") and otherwise from the station list, and is only shown when two places'
-rivers share a name.
+**Deschutes (WA)**. The state comes from the station list (the gauge's own state) and
+is only shown when two places' rivers share a name; on its own either one is just
+**Deschutes**. NOAA writes a state into some gauges' names ("Deschutes River (OR) at
+Moody") but not others on the same river, so the app doesn't go by it. A river that
+crosses a state line splits the same way (**Columbia (OR)** / **Columbia (WA)**), which
+shows which side each gauge is on; a group of your own puts them back together.
 
 - **Your own groups:** Edit → **+ Group** adds a folder (named "New group", already
   selected so you can type over it; tap the name later to rename). In Edit each group

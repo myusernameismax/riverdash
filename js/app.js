@@ -26,19 +26,34 @@ try { navigator.storage && navigator.storage.persist && navigator.storage.persis
 const tidyRiver = n => n.replace(/\s+(?:River|R\.?)(?=\s*\(|\s*$)/i, "").trim();   // "River" / an "R" for it
 // "Deschutes River (OR) at Moody" → "Deschutes (OR)", "McKenzie River near Vida" → "McKenzie"
 const shortName = n => tidyRiver(n.split(/ (?:near|at|above|below|blw|abv|nr) |,| {2}/)[0]);
-// Places added from a station whose name came in ALL CAPS kept that name; they get the
-// tidied one (a name the user typed has lowercase in it, so it's never touched).
+// NOAA writes a state into some gauges' names ("Deschutes River (OR) at Moody") and not
+// others on the same river, so it's dropped: the state comes from the station list, and
+// shows only when two of your rivers share a name (autoRiver).
+const STATE_TAG = /\s*\(([A-Z]{2})\)\s*$/;
+const untag = n => n.replace(STATE_TAG, "");
+// Saved places get the same names a newly added one would:
+// - a station name that came in ALL CAPS is tidied (a name the user typed has lowercase
+//   in it, so it's never touched)
+// - NOAA's state tag goes (kept as the place's state if it had none); the place's name
+//   loses it only while it's still the river's name
 const isCaps = n => typeof n === "string" && !/[a-z]/.test(n) && /[A-Z]{3}/.test(n);
-function capsFix(p) {
-    if (!p || !(isCaps(p.name) || isCaps(p.rv))) return p;
+function placeFix(p) {
+    if (!p) return p;
+    const tag = typeof p.rv === "string" && p.rv.match(STATE_TAG);
+    if (!(isCaps(p.name) || isCaps(p.rv) || tag)) return p;
     const q = { ...p };
     if (isCaps(q.name)) q.name = shortName(tidyName(q.name));
     if (isCaps(q.rv)) q.rv = shortName(tidyName(q.rv));
+    if (tag) {
+        if (!q.st) q.st = tag[1];
+        if (q.name === p.rv) q.name = untag(q.name);
+        q.rv = untag(q.rv);
+    }
     return q;
 }
 // ── state (same names as the widget's root properties) ──────────────
 const S = {
-    places: (() => { const p = load("rt:places", null); return Array.isArray(p) ? p.map(capsFix) : DEFAULT_PLACES.map(x => ({ ...x })); })(),
+    places: (() => { const p = load("rt:places", null); return Array.isArray(p) ? p.map(placeFix) : DEFAULT_PLACES.map(x => ({ ...x })); })(),
     pinnedRaw: load("rt:pinned", 0),
     selected: 0,             // place shown
     results: {},             // place key -> data from data.js
@@ -868,7 +883,7 @@ function addResult(item) {
         i = S.attachTo;
         const was = { ...list[i] };
         list[i][item.kind] = item.id;
-        if (item.kind === "river") { list[i].rv = shortName(item.name); if (item.state) list[i].st = item.state; }
+        if (item.kind === "river") { list[i].rv = untag(shortName(item.name)); if (item.state) list[i].st = item.state; }
         // tides added to a river place: waves / jetty rating start hidden (Customize → Show
         // turns them on); a tide station on its own shows them
         if (item.kind === "tide" && list[i].river) list[i].hide = [...new Set([...(list[i].hide || []), "surf"])];
@@ -876,9 +891,9 @@ function addResult(item) {
     } else {
         // a new place, added (and loading) right away; the Add page stays open so several
         // can go in (e.g. every gauge on a river). Back takes them out again.
-        const p = { name: shortName(item.name) };
+        const p = { name: untag(shortName(item.name)) };
         p[item.kind] = item.id;
-        if (item.kind === "river") { p.rv = shortName(item.name); if (item.state) p.st = item.state; }
+        if (item.kind === "river") { p.rv = untag(shortName(item.name)); if (item.state) p.st = item.state; }
         list.push(p);
         savePlaces(list);
         S.addedKeys.push(keyOf(p));
@@ -1570,23 +1585,24 @@ function customizePanel(cur) {
 // (e.g. "Coast"), and dragging places in and out of it is how they join or leave;
 // your own groups show even with one place. place.rv remembers the river's name;
 // place.group is the override ("" = kept out of its river's group).
-// Rivers with the same name in different states stay apart: NOAA marks some ("Deschutes
-// River (OR)"), and place.st (the gauge's state, from the station list) marks the rest
-// when another place's river shares the name: "Deschutes (OR)" and "Deschutes (WA)".
+// Rivers with the same name in different states stay apart: place.st (the gauge's state,
+// from the station list) is shown when another place's river shares the name, on both:
+// "Deschutes (OR)" and "Deschutes (WA)". A river crossing a state line splits the same
+// way (Columbia (OR) / Columbia (WA)), which tells which side a gauge is on.
 function riverOf(p) {   // [name, state] or null
     if (!p || !p.river) return null;
     const d = S.results[keyOf(p)];
     const raw = p.rv || (d && d.river && d.river.name ? shortName(d.river.name) : "");
     if (!raw) return null;
-    const [name, st] = splitState(tidyRiver(raw));
-    return [name, st || p.st || "", !!st];
+    const tag = raw.match(STATE_TAG);
+    return [tidyRiver(untag(raw)), p.st || (tag ? tag[1] : "")];
 }
 function autoRiver(p) {
     const r = riverOf(p);
     if (!r) return "";
-    const [name, st, marked] = r, k = name.toLowerCase();
+    const [name, st] = r, k = name.toLowerCase();
     const clash = !!st && S.places.some(q => { const o = q !== p && riverOf(q); return o && o[0].toLowerCase() === k && o[1] && o[1] !== st; });
-    return marked || clash ? `${name} (${st})` : name;
+    return clash ? `${name} (${st})` : name;
 }
 const sameRiverName = (a, b) => splitState(tidyRiver(a))[0].toLowerCase() === splitState(tidyRiver(b))[0].toLowerCase();
 // A place on its own named just like its river shows the river's full name ("Deschutes (WA)").
