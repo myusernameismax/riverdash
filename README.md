@@ -139,6 +139,9 @@ rivers share a name.
   − on a group only ungroups (the places stay). Your own groups show even with one
   place; an empty new group is gone after Done. Dragging a place out of its river's
   group keeps it out; dragging it back in makes it automatic again.
+  A group of yours can share a river's name (an "Alsea" group for the Alsea and a creek
+  that runs into it): a place you drag in stays in it, even when it's the river's own
+  gauge, and a lone gauge on that river isn't pulled in just because the names match.
 - In Edit, **+ Group** and **Done** sit where Edit was and the search bar and Sort dim in place;
   nothing moves (long station names wrap the same way in both). Opening a group that runs off the screen scrolls it
   into view (never past its name).

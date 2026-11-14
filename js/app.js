@@ -444,11 +444,15 @@ function pin(i) {
     setPinned(i);
     toast("★ " + placeName(i) + " opens first", "", null);
 }
-// Put a place in group `name` ("" = in no group). The automatic river group's own
-// name = automatic again; leaving an automatic group is remembered as "".
-function groupTo(p, name) {
-    const auto = autoRiver(p);
-    if (name && name.toLowerCase() === auto.toLowerCase()) delete p.group;
+// Put a place in group `name` ("" = in no group). Its river's automatic group = automatic
+// again; but a group of yours with the river's name (made with + Group, or holding a place
+// you put there) is joined for good, so it can't fall apart; leaving an automatic group
+// is remembered as "".
+function groupTo(p, name, list = S.places) {
+    const auto = autoRiver(p), k = name.toLowerCase();
+    const yours = S.newGroups.some(n => n.toLowerCase() === k) ||
+        list.some(q => q !== p && q.group && q.group.trim().toLowerCase() === k);
+    if (name && k === auto.toLowerCase() && !yours) delete p.group;
     else if (name) p.group = name;
     else if (auto) p.group = "";
     else delete p.group;
@@ -459,16 +463,20 @@ function renameGroup(key, value) {
     if (!v) return;
     const ng = S.newGroups.findIndex(n => n.toLowerCase() === key);
     if (ng >= 0) { S.newGroups[ng] = v; return; }
+    const counts = autoCounts();
     const list = S.places.map(p => ({ ...p }));
-    list.forEach(p => { if (groupOf(p).toLowerCase() === key) groupTo(p, v); });
+    const members = list.filter(p => shownGroup(p, counts).toLowerCase() === key);
+    const yours = members.some(p => p.group);           // yours: everyone stays in it, renamed
+    members.forEach(p => { if (yours) p.group = v; else groupTo(p, v, list); });
     S.places = list;
     save("rt:places", list);
 }
 // Edit → − on a group: its places stay, just out of the group.
 function ungroup(key) {
     S.newGroups = S.newGroups.filter(n => n.toLowerCase() !== key);
+    const counts = autoCounts();
     const list = S.places.map(p => ({ ...p }));
-    list.forEach(p => { if (groupOf(p).toLowerCase() === key) groupTo(p, ""); });
+    list.forEach(p => { if (shownGroup(p, counts).toLowerCase() === key) groupTo(p, ""); });
     S.places = list;
     save("rt:places", list);
 }
@@ -478,7 +486,7 @@ function reorder(order, moved, groupName) {
     if (order.length !== S.places.length) return;
     const list = order.map(i => ({ ...S.places[i] }));
     if (groupName !== undefined) {
-        groupTo(list[order.indexOf(moved)], groupName);
+        groupTo(list[order.indexOf(moved)], groupName, list);
         if (groupName) S.newGroups = S.newGroups.filter(n => n.toLowerCase() !== groupName.toLowerCase());
     }
     setPinned(order.indexOf(pinned()));
@@ -692,7 +700,7 @@ const canZoom = () => !wide() && ANIM > 0 && !!document.body.animate && !matchMe
 function rowFor(i) {
     const row = document.querySelector(`#placesList .prow[data-i="${i}"]`);
     if (row) return row;
-    const g = S.places[i] ? groupOf(S.places[i]).toLowerCase() : "";
+    const g = S.places[i] ? shownGroup(S.places[i]).toLowerCase() : "";
     return g ? [...document.querySelectorAll("#placesList .prow.grp")].find(x => x.dataset.g === g) || null : null;
 }
 function insetOf(el) {
@@ -823,7 +831,7 @@ function keepAdded() {
     if (first) toast("Added " + (n === 1 ? placeLabel(S.places.indexOf(first)) : n + " places"), "", null);
     if (S.adding) { closeAdd(true); return; }
     endSearch(true);
-    for (const p of S.places) if (keys.includes(keyOf(p)) && groupOf(p)) S.openGroups.add(groupOf(p).toLowerCase());
+    for (const p of S.places) if (keys.includes(keyOf(p)) && shownGroup(p)) S.openGroups.add(shownGroup(p).toLowerCase());
     // marked while they light up, so rows next to each other light up as one block
     S.freshKeys = new Set(keys);
     render();
@@ -1583,18 +1591,31 @@ function fillStates() {
     }).catch(() => {}).finally(() => { statesAsked = false; });
 }
 const groupOf = p => (p.group !== undefined ? p.group : autoRiver(p)).trim();
-// The list in order: single places, and groups (river groups with 2+ places, your own
-// with any) where their first place is.
-function listItems() {
-    const count = {}, own = {};
+// How many places on each river were left where the app put them (no group set).
+function autoCounts() {
+    const n = {};
     S.places.forEach(p => {
-        const g = groupOf(p).toLowerCase();
-        if (g) { count[g] = (count[g] || 0) + 1; if (p.group) own[g] = true; }
+        const k = p.group === undefined ? autoRiver(p).trim().toLowerCase() : "";
+        if (k) n[k] = (n[k] || 0) + 1;
     });
+    return n;
+}
+// The group a place shows in ("" = on its own). A place you put in a group is always in
+// it (even alone); the rest join their river's group only when 2+ of them are on that
+// river. So a lone Alsea gauge stays out of your "Alsea" group (with a creek in it)
+// until you drag it in.
+function shownGroup(p, counts = autoCounts()) {
+    const g = groupOf(p);
+    if (!g || p.group !== undefined) return g;
+    return counts[g.toLowerCase()] >= 2 ? g : "";
+}
+// The list in order: single places, and groups where their first place is.
+function listItems() {
+    const counts = autoCounts();
     const out = [], seen = {};
     S.places.forEach((p, i) => {
-        const g = groupOf(p), k = g.toLowerCase();
-        if (!k || (count[k] < 2 && !own[k])) { out.push({ i }); return; }
+        const g = shownGroup(p, counts), k = g.toLowerCase();
+        if (!k) { out.push({ i }); return; }
         if (!seen[k]) { seen[k] = { key: k, name: g, members: [] }; out.push(seen[k]); }
         seen[k].members.push(i);
     });
