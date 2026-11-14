@@ -1252,13 +1252,14 @@ function renderHeader(cur) {
     // a station whose charts are all switched off (Customize → Show) isn't named
     const off = ms => ms.every(m => hidden(place, m));
     // each station's name opens a map at the exact spot of the gauge / tide station
-    // (↗ in front, so a long name cut off at the edge still shows it opens something)
+    // (↗ in front, so a long name cut off at the edge still shows it opens something;
+    // it hangs out to the left, so the names line up with the place's name above)
     const pin = (label, s) => isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lon))
         ? `<a class="hmap" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(s.lat)},${parseFloat(s.lon)}" target="_blank" rel="noopener"><span class="hmap-arrow lead">↗</span>${esc(label)}</a>`
         : esc(label);
     // one line per station (a river gauge and a tide station stack), each its own map link
     const sub = [r && !off(["stage", "flow", "temp"]) ? pin(r.name, r) : "", t && !off(["tide", "surf"]) ? pin("Tides: " + t.name, t) : ""]
-        .filter(s => s).map(s => `<div class="hsub-l">${s}</div>`).join("");
+        .filter(s => s).map(s => `<div class="hsub-l${s.startsWith("<a") ? " hang" : ""}">${s}</div>`).join("");
     const n = d && d.weather ? d.weather.now : null;
     const wx = LOOK.showWeather && n && has(n.temp)
         ? `<button class="hwx" data-act="nowToggle">${wxIcon(n.code, n.day, 34)}<span class="hwx-t"><span class="hwx-temp">${n.temp}°</span><span class="hwx-word">${esc(wxWord(n.code))}</span></span></button>`
@@ -2666,30 +2667,46 @@ function wire() {
     }, true);
 
     // Hold a place in the list (outside Edit) to move it: startHoldDrag. A finger that
-    // moves first is scrolling (or swiping), so it never lifts anything.
+    // moves first is scrolling (or swiping), so it never lifts anything. A mouse may move
+    // while it holds: when the time is up, the place lifts and glides to the pointer.
     const HOLD_MS = 350;
     let hold = null;
-    const unhold = () => { if (hold) { clearTimeout(hold.t); hold = null; } };
+    const unhold = () => { if (hold) { clearTimeout(hold.t); if (hold.off) hold.off(); hold = null; } };
     lb.addEventListener("pointerdown", e => {
         unhold();
         const row = e.target.closest("#placesList .prow[data-act=select], #placesList .prow.grp[data-act=toggleGroup]");
         if (!row || S.editing || dragging || e.button > 0 || e.target.closest("button") || row.classList.contains("swiped")) return;
-        const h = hold = { x: e.clientX, y: e.clientY, touch: e.pointerType === "touch" };
+        const h = hold = { x: e.clientX, y: e.clientY, cy: e.clientY, touch: e.pointerType === "touch" };
+        if (!h.touch) {
+            // the mouse is followed (and let go) anywhere on the page, not just over the list
+            const mvH = ev => { h.cy = ev.clientY; };
+            const upH = () => { if (hold === h) unhold(); };
+            window.addEventListener("pointermove", mvH);
+            window.addEventListener("pointerup", upH);
+            h.off = () => { window.removeEventListener("pointermove", mvH); window.removeEventListener("pointerup", upH); };
+        }
         h.t = setTimeout(() => {
             if (hold !== h) return;
+            if (h.off) h.off();
             hold = null;
             if (sw && sw.mode) return;   // it's a swipe
             sw = null;
             const D = startHoldDrag(row, h.y);
             if (!D || h.touch) return;
-            // a mouse: follow it until the button comes up
+            // a mouse: the row glides from where it was to the pointer, then follows it
+            // until the button comes up
+            if (h.cy !== h.y) {
+                D.y = h.cy;
+                D.row.style.transition = `top ${ANIM * 0.5}ms cubic-bezier(.33,1,.68,1)`;
+                setTimeout(() => { if (dragging === D && !D.dropping) D.row.style.transition = ""; }, ANIM * 0.5);
+            }
             const mv = ev => { if (dragging === D) D.y = ev.clientY; };
             const upM = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", upM); D.drop(); };
             window.addEventListener("pointermove", mv);
             window.addEventListener("pointerup", upM);
         }, HOLD_MS);
     });
-    lb.addEventListener("pointermove", e => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 8) unhold(); });
+    lb.addEventListener("pointermove", e => { if (hold && hold.touch && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 8) unhold(); });
     lb.addEventListener("pointerup", unhold);
     lb.addEventListener("pointercancel", unhold);
     $("#listScroll").addEventListener("scroll", unhold, { passive: true });
