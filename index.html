@@ -26,6 +26,7 @@
 <!-- shown before app.css and the scripts arrive; js/app.js picks a tip and fades it out once there's something to show -->
 <style>
 html { background: #f2f3f5; }
+html:not(.ready) #app { visibility: hidden; }   /* until js/app.js has laid it out */
 @media (prefers-color-scheme: dark) { html { background: #16181b; } }
 #splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #f2f3f5; color: #1d2125;
           font: 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: opacity 250ms; }

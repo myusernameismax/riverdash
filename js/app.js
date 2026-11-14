@@ -674,10 +674,17 @@ function endSearch(keep = false) {
 const wideMQ = matchMedia("(min-width: 760px)");
 const wide = () => wideMQ.matches && !document.documentElement.dataset.embed;
 const listShown = () => S.listing || (wide() && !S.listHidden);   // the places list is on screen
+// Starting up, or the window crossing 760 px, puts the pane in place at once: only the
+// list button slides it.
+let wideWas = null;
 function applyWide() {
-    document.documentElement.classList.toggle("wide", wide());
-    document.body.classList.toggle("list-hidden", wide() && S.listHidden);
-    if (wide()) S.listing = false;   // the list is a pane there, not a page
+    const root = document.documentElement, w = wide(), jump = w !== wideWas;
+    wideWas = w;
+    if (jump) root.classList.add("no-slide");
+    root.classList.toggle("wide", w);
+    document.body.classList.toggle("list-hidden", w && S.listHidden);
+    if (w) S.listing = false;   // the list is a pane there, not a page
+    if (jump) { void root.offsetWidth; requestAnimationFrame(() => root.classList.remove("no-slide")); }
 }
 // The list button on a wide screen: slide the list pane away or back. The place gets
 // the room; its chart is redrawn at the new width once the slide is done.
@@ -2717,6 +2724,9 @@ if (navigator.standalone === true) {
 }
 wire();
 render();
+// The page stays hidden (under the splash) until this first render has laid it out, so
+// nothing on it moves after it shows: speed tests count that as "layout shift".
+document.documentElement.classList.add("ready");
 // Show the last saved readings straight away (no waiting on a weak signal), then update.
 // Instant: the snapshot from the last refresh, carried forward to now (see "as of now").
 try {

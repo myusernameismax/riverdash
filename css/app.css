@@ -567,6 +567,7 @@ html.wide body.list-hidden #listPage { transform: translateX(-100%); visibility:
 html.wide #details { left: calc(var(--listw) + var(--sl)); padding-right: var(--sr);
                      transition: left var(--anim) var(--ease), transform var(--anim) var(--ease), opacity var(--anim); }
 html.wide #addPage, html.wide #movePage { left: calc(var(--listw) + var(--sl)); }
+html.no-slide #details, html.no-slide #listPage, html.no-slide #addPage, html.no-slide #movePage { transition: none !important; }
 html.wide body.list-hidden #details, html.wide body.list-hidden #addPage, html.wide body.list-hidden #movePage { left: 0; }
 html.wide body.list-hidden #details { padding-left: var(--sl); }
 /* the place fills the right side: the chart grows taller with the width (it reads its
