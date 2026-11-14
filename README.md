@@ -307,7 +307,8 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   blink). After 8 s it says "Slow connection · still loading…"; after the refresh
   finishes (or fails), or 30 s at most, it fades out either way. Before the page
   itself loads, iOS shows `icons/launch-1125x2436-*.png` (the same logo, sized for the
-  iPhone 13 mini, light and dark). iOS may only pick that picture up when the icon
+  iPhone 13 mini, light and dark). The logo sits at the exact center of the screen,
+  where iOS draws the icon as the app zooms open, so it hands over without a jump. iOS may only pick that picture up when the icon
   is added to the home screen.
 - **Loading order:** the app opens at once on the saved data (carried forward to now).
   Then it downloads the place on screen first, in full, then all the others together
