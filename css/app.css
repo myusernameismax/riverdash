@@ -5,6 +5,7 @@
     --bg: #f2f3f5;
     --text: #1d2125;
     --negative: #d63a3a;
+    --remove: #ff3b30;   /* Edit's trash can / − : iOS's bright red */
     --disabled: #a8aeb4;
     --link: #2b8fe0;
     --tint: color-mix(in srgb, var(--text) 5%, transparent);      /* section boxes */
@@ -28,12 +29,13 @@
         --bg: #16181b;
         --text: #eef0f2;
         --negative: #ff6b6b;
+        --remove: #ff453a;
         --disabled: #6f767e;
         --link: #5cb8ff;
     }
 }
 :root[data-theme="dark"] {
-    --bg: #16181b; --text: #eef0f2; --negative: #ff6b6b; --disabled: #6f767e; --link: #5cb8ff;
+    --bg: #16181b; --text: #eef0f2; --negative: #ff6b6b; --remove: #ff453a; --disabled: #6f767e; --link: #5cb8ff;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -372,7 +374,7 @@ body.editing .psub.full { margin-left: 32px; }
           color: #fff; font-weight: 700; font-size: 18px; line-height: 1; padding-bottom: 2px; background: #5cb8ff;
           transition: transform 120ms; }
 .bubble:active { transform: scale(.85); }
-.bubble.neg { background: none; color: var(--negative); font-size: 26px; font-weight: 500; }   /* ungroup: just a red minus */
+.bubble.neg { background: none; color: var(--remove); font-size: 26px; font-weight: 500; }   /* ungroup: just a red minus */
 .bubble.neg.trash { width: 26px; height: 26px; }   /* delete a place: a red trash can */
 
 /* empty / search states */
