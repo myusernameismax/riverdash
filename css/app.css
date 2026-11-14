@@ -376,6 +376,10 @@ body.editing .psub.full { margin-left: 32px; }
 .bubble:active { transform: scale(.85); }
 .bubble.neg { background: none; color: var(--remove); font-size: 26px; font-weight: 500; }
 .bubble.neg.trash { width: 26px; height: 26px; }   /* Edit: a red trash can deletes a place, a red − (drawn, so it sits centered) ungroups */
+/* a place's trash can sits in the middle of its row's height (its name, station lines and
+   all), where it was across; the name keeps its spot */
+body.editing .prow > .bubble.trash[data-act=remove] { position: absolute; top: 50%; margin-top: -13px; }
+body.editing .prow > .bubble.trash[data-act=remove] + .pmain { margin-left: 36px; }
 
 /* empty / search states */
 /* no places yet: the icon, words and buttons centered as one group in the space between
