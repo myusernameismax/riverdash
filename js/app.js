@@ -1229,10 +1229,25 @@ function tile({ title, num, unit, detail, mode, active, accent, shape: k = null,
     </button>`;
 }
 
+// The header changing height (another place with fewer station lines after a delete,
+// the wind line opening) glides to its new height instead of jumping the page under it.
+function glideHeight(el, was) {
+    clearTimeout(el._glide);
+    el.style.transition = "none"; el.style.height = ""; el.style.overflow = "";
+    const now = el.getBoundingClientRect().height;
+    const seen = document.documentElement.classList.contains("ready") && (!S.listing || wide());   // not the first draw (under the splash)
+    if (!ANIM || !seen || !was || Math.abs(now - was) < 1) return;
+    el.style.height = was + "px"; el.style.overflow = "hidden";
+    el.offsetHeight;   // start from there
+    el.style.transition = `height ${ANIM * 1.2}ms cubic-bezier(.33,1,.68,1)`;
+    el.style.height = now + "px";
+    el._glide = setTimeout(() => { el.style.transition = el.style.height = el.style.overflow = ""; }, ANIM * 1.2 + 40);
+}
 function renderHeader(cur) {
     const hdr = $("#hdr");
     const place = S.places[S.selected];
-    if (!place) { morphInto(hdr, ""); return; }
+    const was = hdr.getBoundingClientRect().height;
+    if (!place) { morphInto(hdr, ""); glideHeight(hdr, was); return; }
     const d = cur.d, r = cur.r, t = cur.t;
     // a station whose charts are all switched off (Customize → Show) isn't named
     const off = ms => ms.every(m => hidden(place, m));
@@ -1259,6 +1274,7 @@ function renderHeader(cur) {
         <button class="hstar${isPin ? " on" : ""}" data-act="pin" data-i="${S.selected}">${icon("star", 24)}</button>
     </div>
     ${S.nowOpen && n ? `<div class="hnow">${has(n.feels) ? `Feels like ${n.feels}° · ` : ""}Wind ${n.wind} mph ${compass(n.windDir)}, gusts ${n.gust} mph</div>` : ""}`);
+    glideHeight(hdr, was);
 }
 
 // past the last measurement: say the number is from the forecast, or how old it is
