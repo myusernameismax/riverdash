@@ -2152,8 +2152,23 @@ function startDrag(e, handle) {
         } else if (over) before = Y < mid(over) ? over : top[idx + 1] || null;
         else before = idx >= 0 ? top[idx] : null;                               // in a gap: before what comes next
         if (ph.parentNode === parent && nextOf(ph) === before) return;
+        // The rows the gap passes are pushed out of its way: each slides from where it
+        // was to its new spot instead of jumping there. Measured against its own box (or
+        // the list), so a place inside a box that moves isn't moved twice.
+        const els = [...list.querySelectorAll(".prow, .gbox")].filter(x => x !== actual && !actual.contains(x));
+        const rel = x => { const b = x.parentNode.closest(".gbox") || list; return x.getBoundingClientRect().top - b.getBoundingClientRect().top; };
+        const was = els.map(rel), lt = () => list.getBoundingClientRect().top;
+        const phWas = ph.getBoundingClientRect().top - lt();   // the gap glides along too
         parent.insertBefore(ph, before);
+        els.forEach(x => { x.style.transition = "none"; x.style.transform = ""; });
+        ph.style.transition = "none"; ph.style.transform = "";
+        els.push(ph); was.push(phWas);
+        const now = els.map(x => x === ph ? ph.getBoundingClientRect().top - lt() : rel(x));
+        els.forEach((x, k) => { if (Math.abs(was[k] - now[k]) > 0.5) { x.style.transform = `translateY(${was[k] - now[k]}px)`; pushed.add(x); } });
+        list.offsetHeight;   // start from there
+        els.forEach(x => { x.style.transition = `transform ${ANIM}ms cubic-bezier(.33,1,.68,1)`; x.style.transform = ""; });
     };
+    const pushed = new Set();
     const frame = () => {
         const D = dragging;
         if (!D || D.dropping) return;
@@ -2180,6 +2195,7 @@ function startDrag(e, handle) {
         D.row.classList.remove("lifted");
         setTimeout(() => {
             try {
+                pushed.forEach(x => { x.style.transition = ""; x.style.transform = ""; });
                 document.body.classList.remove("dragging");
                 if (ph.parentNode) ph.parentNode.insertBefore(D.row, ph);
                 ph.remove();
