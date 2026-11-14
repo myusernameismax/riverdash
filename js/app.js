@@ -1910,7 +1910,7 @@ function splashTip() {
     try { last = +(localStorage.getItem("rt:tip") ?? -1); } catch (e) { /* fine */ }
     let i = Math.floor(Math.random() * (SPLASH_TIPS.length - 1));
     if (i >= last && last >= 0) i++;
-    el.innerHTML = SPLASH_TIPS[i]();
+    el.innerHTML = "<b>Tip:</b> " + SPLASH_TIPS[i]();
     try { localStorage.setItem("rt:tip", String(i)); } catch (e) { /* fine */ }
 }
 function hideSplash() {
