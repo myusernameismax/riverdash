@@ -565,9 +565,8 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 /* Share sits in the middle of the page (still scrolls from the top when it doesn't fit) */
 #moveBody.mv-center { margin: auto 0; }
 #moveBody.mv-center .mv-card { margin-top: 0; }
-.mv-switch { align-self: center; width: 100%; max-width: 340px; display: flex; align-items: center; gap: 12px;
-             padding: 10px 12px; border-radius: var(--radius); background: var(--tint); text-align: left; }
-.mv-sw-title { flex: 1; min-width: 0; font-weight: 600; }
+.mv-switch { align-self: center; display: flex; align-items: center; gap: 10px; text-align: left; }
+.mv-sw-title { padding: 10px 14px; border-radius: var(--radius); background: var(--tint); font-weight: 600; }
 .mv-switch + .mv-sub { margin-top: -4px; }
 .mv-sw-knob { position: relative; flex: none; width: 46px; height: 28px; border-radius: 14px;
               background: color-mix(in srgb, var(--text) 22%, transparent); transition: background var(--anim); }

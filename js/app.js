@@ -999,7 +999,7 @@ function renderMove() {
                 ${navigator.share ? `<button class="ph-btn" data-act="shareSheet"${S.shareLink ? "" : " disabled"}>${icon("share", 16)}Share…</button>` : ""}
             </div>
             <button class="mv-switch" role="switch" aria-checked="${on}" data-act="shareSettings">
-                <span class="mv-sw-title">${on ? "Share the app with your settings included" : "Share just the app"}</span>
+                <span class="mv-sw-title">Include your settings in the link</span>
                 <span class="mv-sw-knob"></span></button>
             <div class="mv-sub">${n} ${n === 1 ? "place" : "places"}  ·  ${k} ${k === 1 ? "setting" : "settings"}</div>
             <div class="mv-btns mv-import"><button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import someone's link</button></div>

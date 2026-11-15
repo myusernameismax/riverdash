@@ -62,8 +62,8 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
   because its two lines are easy to mix up.
   Also the splash screen's one tip per start ("Tip: Add a tide station to a river with" + the
   sliders symbol), shown only when the start is slow enough to read it.
-  Also the Share page: the toggle's label says what the link holds ("Share the app with
-  your settings included" / "Share just the app") with a count under it, and the Import button has
+  Also the Share page: "Include your settings in the link" in a tinted box with its switch
+  beside it and a count under them, and the Import button has
   one gray line under it saying what importing does, because not everyone sharing is
   comfortable with apps.
 - Data in tooltips and labels is fine ("Forecast · measured 8 h ago").
