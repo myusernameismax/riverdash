@@ -88,4 +88,5 @@ export function codeFrom(text) {
     return /^[zj][A-Za-z0-9_-]{8,}$/.test(t) ? t : "";
 }
 
-export const shareUrl = code => new URL("./", location.href).href.replace(/[?#].*$/, "") + "#import=" + code;
+export const siteUrl = () => new URL("./", location.href).href.replace(/[?#].*$/, "");
+export const shareUrl = code => siteUrl() + "#import=" + code;

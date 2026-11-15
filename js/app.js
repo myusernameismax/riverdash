@@ -9,7 +9,7 @@ import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
 import { morphInto } from "./morph.js";
 import { qrSvg } from "./qr.js";
-import { packSetup, unpackSetup, codeFrom, shareUrl } from "./share.js";
+import { packSetup, unpackSetup, codeFrom, shareUrl, siteUrl, cleanPlace } from "./share.js";
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -90,6 +90,7 @@ const S = {
     // share / import page
     moving: "",              // "share" | "import" | ""
     shareLink: "",
+    shareSettings: true,     // the share link carries your places and settings; off = just the app's address (a fresh start)
     incoming: null,          // {places, pinned} from a link, waiting for Add / Replace
     importError: "",
     nowOpen: false,          // feels-like / wind line under the header
@@ -910,10 +911,21 @@ function addResult(item) {
 // Share: a link (and its QR code) holding the places and their settings.
 // Import: open such a link, scan its QR code, or paste it. Data downloads fresh.
 const sameStation = (a, b) => (a.river && a.river === b.river) || (a.tide && a.tide === b.tide);
+// Off: just the app's address, so whoever opens it starts fresh.
+let shareSeq = 0;
+function makeShareLink() {
+    const seq = ++shareSeq;
+    if (!S.shareSettings) { S.shareLink = siteUrl(); return; }
+    packSetup(S.places, pinned()).then(code => { if (seq === shareSeq) { S.shareLink = shareUrl(code); render(); } });
+}
+// Settings in the link: each good range, hidden tab, group choice and surf limit.
+const settingsCount = places => places.map(cleanPlace).filter(x => x).reduce((n, p) => n
+    + Object.keys(p.ideal || {}).length + (p.hide || []).length + (typeof p.group === "string" ? 1 : 0)
+    + Object.keys(p.jetty || {}).length, 0);
 function openShare() {
     S.moving = "share"; S.editing = false; S.shareLink = "";
     render();
-    packSetup(S.places, pinned()).then(code => { S.shareLink = shareUrl(code); render(); });
+    makeShareLink();
 }
 // With no places yet (someone new opening a shared or demo link), the link's
 // places load straight away and the app opens on its ★ place: no import screen.
@@ -980,14 +992,18 @@ function renderMove() {
     $("#moveTitle").textContent = S.moving === "share" ? "Share places" : "Import places";
     let html = "";
     if (S.moving === "share") {
-        const n = S.places.length;
+        const on = S.shareSettings, n = on ? S.places.length : 0, k = on ? settingsCount(S.places) : 0;
         html = `<div class="mv-card">${S.shareLink ? qrSvg(S.shareLink, 232) : `<span class="spinner big"></span>`}</div>
-            <div class="mv-sub">${n} ${n === 1 ? "place" : "places"}  ·  ★ ${esc(placeName(pinned()))}</div>
             <div class="mv-btns">
                 <button class="ph-btn" data-act="copyLink"${S.shareLink ? "" : " disabled"}>${icon("copy", 16)}Copy link</button>
                 ${navigator.share ? `<button class="ph-btn" data-act="shareSheet"${S.shareLink ? "" : " disabled"}>${icon("share", 16)}Share…</button>` : ""}
             </div>
-            <div class="mv-btns"><button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import</button></div>`;
+            <button class="mv-switch" role="switch" aria-checked="${on}" data-act="shareSettings">
+                <span class="mv-sw-title">${on ? "Share the app with your settings" : "Share just the app"}</span>
+                <span class="mv-sw-knob"></span></button>
+            <div class="mv-sub">${n} ${n === 1 ? "place" : "places"}  ·  ${k} ${k === 1 ? "setting" : "settings"}</div>
+            <div class="mv-btns mv-import"><button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import someone's link</button></div>
+            <div class="mv-sub">Got a link or QR code from a friend? Import it to add their places and settings to yours.</div>`;
     } else if (S.moving === "import") {
         const inc = S.incoming;
         if (!inc) {
@@ -1015,6 +1031,7 @@ function renderMove() {
     }
     const body = $("#moveBody");
     const keep = document.activeElement && document.activeElement.id === "importText" ? document.activeElement.value : null;
+    body.classList.toggle("mv-center", S.moving === "share");
     morphInto(body, html);
     if (keep !== null && $("#importText")) { $("#importText").value = keep; }
 }
@@ -2559,6 +2576,7 @@ const ACTIONS = {
     pin: el => { const i = +el.dataset.i; if (i !== pinned()) pin(i); },
     share: () => { openShare(); return "skip"; },
     importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus({ preventScroll: true }); }, ANIM + 20); return "skip"; },
+    shareSettings: () => { S.shareSettings = !S.shareSettings; makeShareLink(); },
     copyLink: () => { copyText(S.shareLink).then(ok => { toast(ok ? "Link copied" : "Couldn't copy", "", null); render(); }); return "skip"; },
     shareSheet: () => { navigator.share({ title: "Flow Tides places", url: S.shareLink }).catch(() => {}); return "skip"; },
     paste: () => {
