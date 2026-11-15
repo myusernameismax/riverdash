@@ -377,12 +377,13 @@ export class Chart {
                 const tv = typ.length ? valueOn(typ, t) : NaN;
                 const label = fmt(v) + unit + "  ·  " + when + (isNaN(tv) ? "" : "  ·  average " + fmt(tv))
                     + (past.length && t > past[past.length - 1][0] && fut.length ? " (forecast)" : "");
-                // a rounded chip tinted with the chart's own color, no outline (STYLE.md): the
+                // a rounded chip tinted with the chart's own color, no outline (STYLE.md), capping
+                // the top of the reading bar: the
                 // lines under it are cleared away so whatever is behind the chart shows through
                 // (the page, or the Linux panel's see-through popup)
                 const w = ctx.measureText(label).width + 16, h = px + 10, r = h / 2;
                 const bx = Math.min(Math.max(x - w / 2, left), right - w);
-                const by = y - h - 8 < 0 ? y + 8 : y - h - 8;
+                const by = 0;   // pinned to the top of the bar, so only x follows the pointer
                 const chip = () => { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, w, h, r); else ctx.rect(bx, by, w, h); };
                 ctx.save(); chip(); ctx.clip(); ctx.clearRect(bx, by, w, h); ctx.restore();
                 ctx.globalAlpha = 0.18; ctx.fillStyle = color; chip(); ctx.fill();
