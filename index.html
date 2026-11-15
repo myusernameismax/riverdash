@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en">
+<!-- dark for now, whatever the device is set to (the light colors stay in app.css; drop data-theme to follow the device again) -->
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -13,24 +14,22 @@
 <meta name="referrer" content="no-referrer">
 <meta name="format-detection" content="telephone=no">
 <!-- the page is dark from its very first frame in dark mode (before app.css, and during an update's reload) -->
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#16181b">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
 <!-- iPhone 13 mini launch screen (same picture as #splash, so it hands over without a jump) -->
-<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" href="icons/launch-1125x2436-light.png">
-<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" href="icons/launch-1125x2436-dark.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="icons/launch-1125x2436-dark.png">
 <!-- logo + name + status centered as one group (the logo alone sits 31 px above the middle) -->
 <!-- shown before app.css and the scripts arrive; js/app.js picks a tip and fades it out once there's something to show -->
 <style>
-html { background: #f2f3f5; }
+html { background: #16181b; }
+html[data-theme="light"] { background: #f2f3f5; }   /* (the Linux panel on a light Plasma theme) */
 html:not(.ready) #app { visibility: hidden; }   /* until js/app.js has laid it out */
-@media (prefers-color-scheme: dark) { html { background: #16181b; } }
-#splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #f2f3f5; color: #1d2125;
+#splash { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 50; background: #16181b; color: #eef0f2;
           font: 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; transition: opacity 250ms; }
-@media (prefers-color-scheme: dark) { #splash { background: #16181b; color: #eef0f2; } }
+html[data-theme="light"] #splash { background: #f2f3f5; color: #1d2125; }
 /* the logo dead-center: where iOS draws the icon while the app zooms open, so the hand-over doesn't jump */
 #splash img { position: absolute; left: 50%; top: calc(50% - 48px); width: 96px; height: 96px; margin-left: -48px; border-radius: 22px; }
 #splash .sp-name { position: absolute; left: 0; right: 0; top: calc(50% + 62px); text-align: center; font-size: 20px; font-weight: 700; }

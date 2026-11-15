@@ -34,6 +34,8 @@
         --link: #5cb8ff;
     }
 }
+:root[data-theme="dark"] { color-scheme: dark; }   /* (scrollbars and form controls too) */
+:root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] {
     --bg: #16181b; --text: #eef0f2; --negative: #ff6b6b; --remove: #ff453a; --disabled: #6f767e; --link: #5cb8ff;
 }
@@ -545,7 +547,7 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 #toast.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 #toastText { overflow: hidden; text-overflow: ellipsis; }
 #toastAct { color: #5cb8ff; font-weight: 700; padding: 4px 0; flex: none; }
-@media (prefers-color-scheme: light) { #toastAct { color: #8fd0ff; } }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) #toastAct { color: #8fd0ff; } }
 
 /* ── share / import page ───────────────────────────────────────────── */
 #moveTitle { flex: 1; min-width: 0; margin: 0; text-align: right; font-size: 16px; font-weight: 700;

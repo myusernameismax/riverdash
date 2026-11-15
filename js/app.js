@@ -1047,6 +1047,37 @@ function goBack() {
     else return false;
     return true;
 }
+// goBack would do something (the same steps, without doing them)
+const canGoBack = () => !!(S.sortOpen || S.adding || S.moving || (listShown() && S.lsearch) || S.editing || S.listing
+    || S.customizing || S.hist || S.focusDay >= 0 || (S.places.length && S.selected !== pinned()));
+
+// The mouse's back button on a computer. Chrome hands it to the page (mouseup, button 3);
+// other browsers and the Linux panel's web view go back in the page's history instead. So
+// while there's something to go back from, one extra history entry is kept on top: going
+// back from it is one goBack step (and the entry is put back while steps remain). With
+// nothing left, the browser goes back as usual (leaves the app); the panel closes its popup.
+// Phones keep their own back swipe (no history entries there).
+const histBack = () => !!(window.history && window.history.pushState) && (!matchMedia("(pointer: coarse)").matches || embedded());
+let backEntry = false, lastBackAt = 0;
+function syncBackEntry() {
+    if (backEntry || !canGoBack() || !histBack()) return;
+    try { window.history.pushState({ ftBack: 1 }, "", location.href); backEntry = true; } catch (e) { /* not allowed here */ }
+}
+// One press can arrive both ways (a mouseup and a history step); only the first counts.
+function backPressed() {
+    const now = Date.now();
+    if (now - lastBackAt < 400) return true;
+    if (goBack()) { lastBackAt = now; render(); return true; }
+    return false;
+}
+function onPopState() {
+    if (!backEntry) return;
+    backEntry = false;
+    if (backPressed()) { syncBackEntry(); return; }
+    if (embedded()) { backAtTop(); syncBackEntry(); return; }
+    window.history.back();   // nothing to go back from in the app: the browser's own back (`history` is data.js's)
+}
+
 // Nothing left to go back from: a desktop wrapper (Linux panel) closes its popup.
 const embedded = () => !!document.documentElement.dataset.embed;
 function backAtTop() { if (embedded()) console.info("flowtides:close"); }
@@ -1958,6 +1989,7 @@ function renderToast() {
 // The drop draws everything.
 function render() {
     if (dragging) { dragging.pending = true; return; }
+    syncBackEntry();
     const place = S.places[S.selected] || null;
     const d = dataFor(S.selected);
     const cur = { place, d, r: d ? d.river : null, t: d ? d.tide : null, mode: bestMode(d, S.chartMode, place) };
@@ -3020,11 +3052,13 @@ function wire() {
     });
 
     // mouse back button (button 3): same as Esc. Handled steps don't leave the page.
+    // (see syncBackEntry: other browsers and the panel come back through popstate)
     document.addEventListener("mouseup", e => {
         if (e.button !== 3) return;
-        if (goBack()) { e.preventDefault(); render(); }
+        if (backPressed()) e.preventDefault();
         else if (embedded()) { e.preventDefault(); backAtTop(); }
     });
+    window.addEventListener("popstate", onPopState);
 
     window.addEventListener("resize", () => paint());
     // Charts are drawn at their size when painted. Turning the phone (or the list pane

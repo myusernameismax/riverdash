@@ -55,9 +55,36 @@ export function wxIconName(c, day) {
          : c === 71 || c === 85 ? "snow-scattered" : c === 73 || c === 75 || c === 77 || c === 86 ? "snow"
          : c >= 95 ? "storm" : "none";
 }
+// Each picture's extent on the 32×32 grid [x0, y0, x1, y1], strokes included (measured with
+// getBBox, +1 all round). Some were drawn past the edge (overcast's back cloud) or off to
+// one side, so wxIcon centers each one and shrinks it to fit if it's too big. Measure
+// again after changing a picture above.
+const EXTENT = {
+    "clear": [3.3, 3.3, 28.7, 28.7],
+    "clear-night": [7.9, 6.9, 25, 24.9],
+    "few": [0.3, 0.3, 30.2, 27],
+    "few-night": [4.8, 2.9, 30.2, 27],
+    "clouds": [-0.2, -0.2, 30.8, 26.8],
+    "clouds-night": [3.2, 2.4, 30.8, 26.8],
+    "overcast": [-2.5, 0.5, 30.8, 25.8],
+    "fog": [2.2, 1.9, 29.8, 30],
+    "scattered": [-1, -1, 30.8, 30.9],
+    "scattered-night": [3.2, 1.9, 30.8, 30.9],
+    "showers": [2.4, 3.3, 31.3, 30.9],
+    "freezing": [2.4, 3.3, 31.3, 30.9],
+    "snow-scattered": [2.4, 3.3, 31.3, 30.3],
+    "snow": [2.4, 3.3, 31.3, 30.3],
+    "storm": [2.4, 2.3, 31.3, 33],
+};
 export function wxIcon(c, day, size = 24) {
-    const art = ART[wxIconName(c, day)] || ART.none;
-    return `<svg class="wx" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">${art()}</svg>`;
+    const name = wxIconName(c, day), art = ART[name] || ART.none, e = EXTENT[name];
+    let g = art();
+    if (e) {
+        const s = Math.min(1, 30 / (e[2] - e[0]), 30 / (e[3] - e[1]));
+        const tx = 16 - s * (e[0] + e[2]) / 2, ty = 16 - s * (e[1] + e[3]) / 2;
+        g = `<g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})">${g}</g>`;
+    }
+    return `<svg class="wx" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">${g}</svg>`;
 }
 
 // UI symbols, drawn with currentColor

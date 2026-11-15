@@ -67,6 +67,9 @@ Colors and timing values live in `js/config.js`; theme colors in `css/app.css` (
 
 ## Color meaning
 
+- **Dark for now**: the app is always dark (`data-theme="dark"` on `<html>` in index.html), whatever
+  the device is set to. The light colors are still in app.css; the Linux panel still follows Plasma.
+
 - Each kind of reading has one accent: height blue, flow teal, water temp pink, tide
   purple, waves orange (`js/config.js`).
 - Status: green = in shape / calm, yellow = caution, red = out of shape / sketchy,

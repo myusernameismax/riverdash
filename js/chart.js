@@ -220,7 +220,10 @@ export class Chart {
         const cv = this.cv;
         if (!cv || !cv.isConnected) return;
         const [ctx, width, height] = sizeCanvas(cv);
-        const g = this.g, minimal = this.minimal, lineWidth = this.lineWidth;
+        const g = this.g, minimal = this.minimal;
+        // the big chart's line (and its dots) thicken a little as the chart gets wider (a big
+        // window), up to 1.6×; the places list's mini graphs keep theirs
+        const lineWidth = minimal ? this.lineWidth : this.lineWidth * Math.min(1.6, Math.max(1, Math.sqrt(width / 380)));
         const past = clean(g.series), fut = clean(g.forecast), typ = minimal ? [] : clean(g.typical);
         const all = past.concat(fut);
         if (all.length < 2) return;
