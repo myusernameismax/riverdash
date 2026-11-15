@@ -924,8 +924,8 @@ const settingsCount = places => places.map(cleanPlace).filter(x => x).reduce((n,
     + Object.keys(p.jetty || {}).length, 0);
 function openShare() {
     S.moving = "share"; S.editing = false; S.shareLink = "";
+    makeShareLink();   // "just the app" is ready at once; with settings it renders when packed
     render();
-    makeShareLink();
 }
 // With no places yet (someone new opening a shared or demo link), the link's
 // places load straight away and the app opens on its ★ place: no import screen.
@@ -999,7 +999,7 @@ function renderMove() {
                 ${navigator.share ? `<button class="ph-btn" data-act="shareSheet"${S.shareLink ? "" : " disabled"}>${icon("share", 16)}Share…</button>` : ""}
             </div>
             <button class="mv-switch" role="switch" aria-checked="${on}" data-act="shareSettings">
-                <span class="mv-sw-title">${on ? "Share the app with your settings" : "Share just the app"}</span>
+                <span class="mv-sw-title">${on ? "Share the app with your settings included" : "Share just the app"}</span>
                 <span class="mv-sw-knob"></span></button>
             <div class="mv-sub">${n} ${n === 1 ? "place" : "places"}  ·  ${k} ${k === 1 ? "setting" : "settings"}</div>
             <div class="mv-btns mv-import"><button class="ph-btn quiet" data-act="importOpen">${icon("receive", 16)}Import someone's link</button></div>
