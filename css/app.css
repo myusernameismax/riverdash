@@ -526,6 +526,9 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 @media (hover: hover) and (pointer: fine) {
     .hit:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
     .hit.picked:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+    /* weather days: a light tint under the mouse, brighter still on the day the chart's bar is on */
+    .wx-day:hover { background: color-mix(in srgb, #9ec5e8 10%, transparent); }
+    .wx-day.hl:hover { background: color-mix(in srgb, #9ec5e8 32%, transparent); }
 }
 .hit.have .hit-name { opacity: .5; white-space: normal; }   /* added: the full name, on two lines if needed */
 .hit-main { flex: 1; min-width: 0; }
