@@ -568,6 +568,7 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 .mv-switch { align-self: center; display: flex; align-items: center; gap: 10px; text-align: left; }
 .mv-sw-title { padding: 10px 14px; border-radius: var(--radius); background: var(--tint); font-weight: 600; }
 .mv-switch + .mv-sub { margin-top: -4px; }
+.mv-switch:active .mv-sw-title { background: color-mix(in srgb, var(--text) 16%, transparent); }
 .mv-sw-knob { position: relative; flex: none; width: 46px; height: 28px; border-radius: 14px;
               background: color-mix(in srgb, var(--text) 22%, transparent); transition: background var(--anim); }
 .mv-sw-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%;
@@ -582,6 +583,9 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 .ph-btn.primary { background: var(--link); color: #fff; }
 .ph-btn.quiet { background: none; color: var(--link); }
 .ph-btn:disabled { opacity: .5; }
+.ph-btn:not(:disabled):active { background: color-mix(in srgb, var(--text) 16%, transparent); }
+.ph-btn.primary:active { background: color-mix(in srgb, var(--link) 75%, var(--text)); }
+.ph-btn.quiet:active { background: var(--hover); }
 .mv-paste { margin: 8px 0 0; }
 .mv-paste input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font-size: 16px; height: 100%; padding: 0; color: var(--text); }
 .mv-paste input::placeholder { color: var(--text); opacity: .45; }

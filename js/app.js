@@ -2577,7 +2577,7 @@ const ACTIONS = {
     share: () => { openShare(); return "skip"; },
     importOpen: () => { openImport(""); setTimeout(() => { const f = $("#importText"); if (f) f.focus({ preventScroll: true }); }, ANIM + 20); return "skip"; },
     shareSettings: () => { S.shareSettings = !S.shareSettings; makeShareLink(); },
-    copyLink: () => { copyText(S.shareLink).then(ok => { toast(ok ? "Link copied" : "Couldn't copy", "", null); render(); }); return "skip"; },
+    copyLink: () => { copyText(S.shareLink).then(ok => { toast(ok ? (S.shareSettings ? "Link copied" : "App link copied") : "Couldn't copy", "", null); render(); }); return "skip"; },
     shareSheet: () => { navigator.share({ title: "Flow Tides places", url: S.shareLink }).catch(() => {}); return "skip"; },
     paste: () => {
         navigator.clipboard.readText().then(t => openImport(t)).catch(() => { S.importError = "Couldn't paste"; render(); });
