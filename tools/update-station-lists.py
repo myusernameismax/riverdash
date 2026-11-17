@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Refresh the station lists shipped with the app (data/gauges.json, data/tides.json,
-data/usgs.json).
+data/usgs.json, data/hads.json).
 
 Search uses these so the first search on the phone is instant. The app downloads
 fresh lists from NOAA on its own once they are over 90 days (tides) / 180 days
 (gauges) old, so running this is optional; it just keeps the shipped copy fresh.
 
     python3 -I tools/update-station-lists.py      # ~30 s, then commit + push
+    python3 -I tools/update-station-lists.py hads # only data/hads.json (a few seconds)
 """
-import json, math, os, time, urllib.error, urllib.parse, urllib.request
+import json, math, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -175,16 +176,54 @@ def same_spot(noaa_rows, ids, usgs_rows):
     return keep, found
 
 
-def save(name, rows):
+# State-run gauges that are in neither NOAA's river service nor USGS's (docs/oregon-gauges.md).
+# They send their readings by satellite; NOAA's HADS decodes them, and the Iowa Environmental
+# Mesonet (IEM) republishes HADS in a form a browser may read. Height only: none send flow.
+HADS_DEFS = "https://hads.ncep.noaa.gov/compressed_defs/all_dcp_defs.txt"
+IEM = "https://mesonet.agron.iastate.edu/api/1"
+HADS_OWNERS = {"OREERD": "OWRD", "OREWRD": "OWRD"}     # HADS owner code -> who runs the gauge (Oregon Water Resources Dept)
+HADS_STATE, HADS_BY = "OR", "OWRD"
+HADS_TYPOS = {"WILLOWA": "WALLOWA"}
+
+
+def hads_gauges(noaa_lids):
+    """[lid, name, state, lat, lon] for the owners' gauges that report height, that NOAA's
+    list doesn't have, and that IEM has a height reading for from the last 2 days."""
+    req = urllib.request.Request(HADS_DEFS, headers={"User-Agent": "riverdash-station-lists"})
+    with urllib.request.urlopen(req, timeout=90) as r:
+        defs = [[c.strip() for c in line.split("|")] for line in r.read().decode("latin-1").splitlines()]
+    # nesdis id | lid | owner | state | wfo | lat | lon | ... | name | type | then 5 columns per sensor (code first)
+    mine = {d[1]: d[9] for d in defs if len(d) > 11 and d[2] in HADS_OWNERS and "HG" in d[11::5]}
+    network = HADS_STATE + "_DCP"
+    iem = {f["properties"]["id"]: f["properties"] for f in get(f"{IEM}/network/{network}.geojson")["features"]}
+    live = {x["station"] for x in get(f"{IEM}/shef_currents.json", {"pe": "HG", "duration": "I", "days": 2})["data"]}
+    rows, zones = [], set()
+    for lid, name in mine.items():
+        if lid in noaa_lids or lid not in iem or lid not in live:
+            continue
+        name = re.sub(r"\s*--\s*", " NEAR ", name.upper())
+        name = re.sub(r"\s+\d+\s?[NSEW]{1,3}$", "", name)          # "... NEAR SISTERS 11NW": miles and direction from town
+        name = " ".join(HADS_TYPOS.get(w, w) for w in name.split())
+        zones.add(iem[lid]["tzname"])
+        rows.append([lid, nice_name(name, HADS_STATE), HADS_STATE, iem[lid]["latitude"], iem[lid]["longitude"]])
+    # the app asks IEM for a station's calendar days, so it needs the stations' time zone
+    assert len(zones) == 1, f"stations in more than one time zone: {zones}"
+    return sorted(rows, key=lambda r: r[1]), {"by": HADS_BY, "network": network, "tz": zones.pop()}
+
+
+def save(name, rows, extra=None):
     # [id, name, state, lat, lon] (+ the USGS number for NOAA gauges that are USGS gauges, so it's searchable)
     rows = [[r[0], (r[1] or "").strip(), r[2] or "", None if r[3] in (None, "") else round(float(r[3]), 4),
              None if r[4] in (None, "") else round(float(r[4]), 4)] + [x for x in r[5:6] if x] for r in rows]
     with open(os.path.join(HERE, "..", "data", name), "w") as f:
-        json.dump({"made": int(time.time() * 1000), "rows": rows}, f, separators=(",", ":"))
+        json.dump({"made": int(time.time() * 1000), **(extra or {}), "rows": rows}, f, separators=(",", ":"))
     print(f"{name}: {len(rows)} stations")
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["hads"]:      # only the state-run gauges, against the NOAA list already here
+        save("hads.json", *hads_gauges({r[0] for r in json.load(open(os.path.join(HERE, "..", "data", "gauges.json")))["rows"]}))
+        sys.exit()
     gauges = all_gauges()
     ids = noaa_usgs_ids([r[0] for r in gauges])
     usgs, found = same_spot(gauges, ids, usgs_gauges(ids))
@@ -192,3 +231,4 @@ if __name__ == "__main__":
     save("gauges.json", [r + [ids.get(r[0]) or found.get(r[0]) or ""] for r in gauges])
     save("tides.json", tide_stations())
     save("usgs.json", usgs)
+    save("hads.json", *hads_gauges({r[0] for r in gauges}))

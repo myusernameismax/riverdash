@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, isUsgs, tidyName } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, runBy, tidyName } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -1419,7 +1419,7 @@ function renderChart(cur) {
     if (g.series.length <= 1) return "";
     const b = g.ideal, rng = !b ? "" : " · good " + (isNaN(b.lo) ? "below " + b.hi : isNaN(b.hi) ? "above " + b.lo : b.lo + "–" + b.hi);
     const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs"
-        : mode === "temp" ? "Water temperature · °F · USGS, measured" : "Height · ft") + rng;
+        : mode === "temp" ? "Water temperature · °F · " + (r && !r.usgs ? runBy(r.id) : "USGS") + ", measured" : "Height · ft") + rng;
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
     const hist = S.focusDay < 0 && histSite(cur);
@@ -1807,13 +1807,13 @@ function sortChips() {
 // Under a place's name in the list: its stations, like under the name at the top of a
 // place (a station whose charts are all switched off isn't named; before the first
 // download only the id line), one per line: a river gauge and a tide station stack.
-// The last line: who runs each of those stations and its id ("NOAA SILO3 · NOAA 9435380"),
+// The last line: who runs each of those stations and its id ("NOAA SILO3 · NOAA 9435380", "OWRD MLSO3"),
 // so two gauges with nearly the same name can be told apart.
 function stationLines(i) {
     const p = S.places[i], d = S.results[keyOf(p)] || {};
     const off = ms => ms.every(m => hidden(p, m));
     const river = p.river && !off(["stage", "flow", "temp"]), tide = p.tide && !off(["tide", "surf"]);
-    const ids = [river ? (isUsgs(p.river) ? "USGS " : "NOAA ") + p.river : "", tide ? "NOAA " + p.tide : ""].filter(x => x).join(" · ");
+    const ids = [river ? runBy(p.river) + " " + p.river : "", tide ? "NOAA " + p.tide : ""].filter(x => x).join(" · ");
     return [river && d.river && d.river.name, tide && d.tide && d.tide.name && "Tides: " + d.tide.name].filter(x => x).map(l => `<div class="pst">${esc(l)}</div>`).join("")
          + (ids ? `<div class="pst pid">${esc(ids)}</div>` : "");
 }
@@ -1970,7 +1970,7 @@ function hitsHtml(rivers, tides, qlen) {
                 const picked = addedNow(h), have = !picked && alreadyHave(h);
                 return `<div class="hit${have ? " have" : ""}${picked ? " picked" : ""}" style="--accent:${g.color}" data-act="${have || picked ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
-                        <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : ""].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
+                        <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : "", h.by].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
                     ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">Map<span class="hmap-arrow">↗</span></a>` : ""}
                     <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have || picked ? "✓" : "+"}</span>
                 </div>`;
