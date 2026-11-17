@@ -76,6 +76,27 @@ so the app can't read them. A request went to OWRD asking for
 `Access-Control-Allow-Origin: *` on the download pages; they offered a call. If they add
 it, flow and the remaining gauges can come straight from OWRD.
 
+## Other sources checked (2026-11-16)
+
+IEM is the only place found that both has these gauges and lets a browser read them.
+
+| Source | Has the gauges? | Browser can read it? |
+|---|---|---|
+| NOAA NWPS (`api.water.noaa.gov`) | no ("could not find gauge ID") | yes |
+| NOAA `api.weather.gov` | no (404 for MLSO3) | yes |
+| NOAA NWRFC (`www.nwrfc.noaa.gov`: XML, text page) | yes, height | no |
+| NOAA HADS itself (`hads.ncep.noaa.gov`) | yes | no |
+| NOAA MADIS public | no match | no |
+| OWRD download pages (`apps.wrd.state.or.us`) | yes, with flow | no |
+| OWRD ArcGIS server (`gis.wrd.state.or.us`) | station list only, no readings | yes |
+| Reclamation Hydromet (`www.usbr.gov/pn-bin/instant.pl`) | some, with flow (Whychus at Sisters = SQSO: height and cfs) | no |
+| Oregon open data (`data.oregon.gov`) | no readings | yes |
+| Army Corps CWMS (`cwms-data.usace.army.mil`) | no | yes |
+| ArcGIS Online | a consultant's Midcoast layer only | yes |
+
+So the lasting fix is still OWRD (or Reclamation) adding the header to pages they already
+have; a relay of our own is the fallback if IEM ever goes away.
+
 ## Options looked at and turned down
 
 - **A small relay** (e.g. a free Cloudflare Worker) that fetches a gauge on request and
