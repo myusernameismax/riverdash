@@ -321,6 +321,13 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
 ## Troubleshooting
 
 - **A red line under the name:** a data site (NOAA, USGS, Open-Meteo, the Iowa Environmental Mesonet) is down, or an id is wrong. The last copy keeps showing meanwhile.
+- **A red line ending in a code like `IEM-NET`:** a state-run (OWRD) gauge couldn't be updated; the
+  last readings keep showing. `IEM-NET` / `IEM-TIMEOUT`: the Iowa Environmental Mesonet couldn't be
+  reached or didn't answer. `IEM-HTTP-503` (any number): it answered with that error (429 = too many
+  requests, 5xx = trouble on its side, 404 / 422 = its address changed). `IEM-FORMAT`: it answered in
+  a shape the app doesn't know (the service changed). `IEM-EMPTY`: it works but has had nothing from
+  that gauge for 3 days (the gauge is silent or was dropped; `tools/update-station-lists.py hads`
+  refreshes the list). The codes are listed above `hadsSeries` in `js/data.js`.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
 - **Updates:** no need to reinstall. The app always opens from the copy saved on the
   phone (instant, works with no signal) and checks GitHub for a new version in the

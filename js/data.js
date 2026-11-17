@@ -74,6 +74,7 @@ async function getOnce(url, params, timeout) {
     if (!r.ok) {
         const e = new Error((body && (body.message || body.reason)) || `HTTP Error ${r.status}`);
         e.busy = r.status === 429 || r.status >= 500;
+        e.status = r.status;
         throw e;
     }
     if (body === null) throw new Error("bad response");
@@ -456,10 +457,31 @@ function stationDays(tz) {
 // can be null), kept on the phone per day:
 // today is downloaded again after 15 min, a finished day once more after it's over
 // (the last readings of a day arrive up to an hour or so late), then never again.
-// So a refresh is one small request. If a download fails, what's saved is used.
+// So a refresh is one small request. If a download fails, what's saved is used, and
+// the failure is passed along as `warn` so the place still says what went wrong.
+// -> {pts, warn}
+//
+// Every failure on this route ends in a code, so a screenshot is enough to tell what broke:
+//   IEM-NET       couldn't reach the Mesonet at all (it's down, or blocked on this network)
+//   IEM-TIMEOUT   it didn't answer in 30 s
+//   IEM-HTTP-503  it answered with that HTTP status (429 = too many requests, 5xx = trouble on its side,
+//                 404 / 422 = the address or its parameters changed)
+//   IEM-FORMAT    it answered, but not in the shape expected (the service changed)
+//   IEM-EMPTY     it works, but has no height from this gauge for 3 days (the gauge is silent,
+//                 was renamed, or was dropped: rerun tools/update-station-lists.py hads)
+function iemError(e) {
+    const m = e && e.message;
+    // (worded so the app's "the phone is offline, don't list every failed download" rule
+    // only hides these when the phone itself says it has no connection)
+    if (navigator.onLine === false && (m === "timed out" || m === "can't connect")) return m;
+    return m === "timed out" ? "the Iowa Mesonet didn't answer in 30 s · IEM-TIMEOUT"
+         : m === "can't connect" ? "couldn't reach the Iowa Mesonet · IEM-NET"
+         : e && e.status ? `the Iowa Mesonet answered HTTP ${e.status} · IEM-HTTP-${e.status}`
+         : "the Iowa Mesonet's answer wasn't readable · IEM-FORMAT";
+}
 async function hadsSeries(id) {
     const name = `hads-${id}.json`, c = await readCache(name), days = (c && c.data) || {};
-    const all = () => Object.keys(days).sort().flatMap(d => days[d].pts);
+    const all = warn => ({ pts: Object.keys(days).sort().flatMap(d => days[d].pts), warn });
     if (savedOnly) { if (!c) throw new Error("nothing saved yet"); seen(c.t); return all(); }
     const { hour, dates } = stationDays(hads.tz), today = dates[2];
     for (const d of Object.keys(days)) if (!dates.includes(d)) delete days[d];
@@ -468,8 +490,9 @@ async function hadsSeries(id) {
     await Promise.all(todo.map(async d => {
         try {
             const j = await get(IEM_OBS, { station: id, network: hads.network, date: d }, 30);
+            if (!Array.isArray(j.data)) throw new Error("bad response");
             const pts = [];
-            for (const r of Array.isArray(j.data) ? j.data : []) {
+            for (const r of j.data) {
                 // "2026-11-16T08:00Z"; HGIRGZZ = height (HG), TWIRGZZ = water temperature (TW, °F):
                 // instantaneous (I), from the gauge's own sensor by satellite (RG)
                 const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(r && r.utc_valid);
@@ -482,17 +505,17 @@ async function hadsSeries(id) {
             got++;
         } catch (e) { failed = e; }
     }));
-    if (failed && !Object.keys(days).length) throw failed;
+    if (failed && !Object.keys(days).length) throw new Error(iemError(failed));
     if (got) await writeCache(name, days);
     seen(failed ? (c ? c.t : 0) : days[today] ? days[today].t : Date.now());
-    return all();
+    return all(failed ? iemError(failed) : "");
 }
 async function hadsRiver(id, full = true, need = { series: true, temp: true }) {
     id = id.trim().toUpperCase();
     const row = hads.ids.get(id);
-    const all = need.series || need.temp ? await hadsSeries(id) : [];
+    const { pts: all, warn } = need.series || need.temp ? await hadsSeries(id) : { pts: [], warn: "" };
     let pts = need.series ? all.filter(p => p[1] !== null).map(p => [p[0], p[1], null]) : [];
-    if (need.series && !pts.length) throw new Error(`No readings from ${hads.by} gauge ${id} in the last 3 days`);
+    if (need.series && !pts.length) throw new Error(warn || `no height from ${hads.by} gauge ${id} in 3 days · IEM-EMPTY`);
     const last = pts.length ? pts[pts.length - 1] : null, t = last ? last[0] : null;
     pts = pts.filter(p => p[0] >= t - 2 * DAY * 1000);
     const before = last ? valueNear(pts, t - 3 * HOUR * 1000, 1) : null;
@@ -509,6 +532,7 @@ async function hadsRiver(id, full = true, need = { series: true, temp: true }) {
         flow: null, flowTime: t, flowNote: hads.by, flowNative: true, flowTrend: null,
         category: "", categoryLabel: "", flood: {}, forecastPeak: null,
         series: thin(pts), forecast: [], temp, tempTried: true, averages: null, usgs: "",
+        warn,                      // "" or why the latest download failed (the saved readings are shown)
     };
 }
 
@@ -810,6 +834,7 @@ async function place(p, full = true, onPart) {
     const riverFn = async id => isUsgs(id) ? usgsRiver : await isHads(id) ? hadsRiver : river;
     if (p.river) tasks.push(riverFn(p.river).then(fn => fn(p.river, full, need)).then(r => {
         out.river = r;
+        if (r.warn) out.errors.push(`River ${p.river}: ${r.warn}`);
         if (need.series) out.asked.push("stage", "flow");
         if (need.temp && r.tempTried !== false) out.asked.push("temp");   // a failed download doesn't mean "no sensor"
     }, e => { out.errors.push(`River ${p.river}: ${e.message}`); }));
