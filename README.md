@@ -4,7 +4,7 @@ River height and flow, tides, jetty/surf conditions and weather for the
 places you pick, in one screen. A phone version of my KDE Plasma
 "River & Tides" taskbar widget, as a web app you add to the iPhone home
 screen. Same data, same sections, same rules for switching charts and days. Designed for an iPhone 13 mini in Safari (375 pt wide).
-There's no server: the phone downloads straight from NOAA, USGS and Open-Meteo.
+There's no server: the phone downloads straight from NOAA, USGS, Open-Meteo and (for a few state-run Oregon gauges) the Iowa Environmental Mesonet.
 
 ## Install on the phone
 
@@ -18,7 +18,8 @@ The list has a search bar at the top: type a river, town, bay or gauge id (NOAA'
 like VIDO3, or a USGS number, like 14162500) and the results take the list's place
 (the Places title and Edit slide up out of the way, so the search bar has the top).
 It starts empty: **Add a place** opens that search. Gauges come from NOAA (with forecasts and
-flood stages) and, where NOAA has none, straight from USGS.
+flood stages) and, where NOAA has none, straight from USGS. 39 Oregon gauges that neither has
+(run by the state, marked **OWRD** in the results) are there too, with height and, at some, water temperature.
 Tapping a result adds it (✓) and starts loading its data; the results stay up so several
 can go in at once (every gauge on a river, say). A floating **Add 2 Rivers To List**
 button (1/5 of the way up the screen, in thumb reach; above the keyboard while it's up) keeps them and goes back to the Places list, scrolled to the new places (they light up for a moment); **Cancel** (or Back, or the back swipe) takes them out
@@ -166,7 +167,7 @@ shows which side each gauge is on; a group of your own puts them back together.
   into view (never past its name).
   Places with the same name show where they are ("McKenzie · Vida").
   Under a place's station names, a quieter line names who runs each station and its id
-  ("NOAA SILO3", "USGS 14305800", "NOAA SILO3 · NOAA 9435380" with a tide station), so
+  ("NOAA SILO3", "USGS 14305800", "OWRD MLSO3", "NOAA SILO3 · NOAA 9435380" with a tide station), so
   look-alike gauges ("Siletz River at Siletz" / "near Siletz") are easy to tell apart.
   Station names that come in ALL CAPS are shown like the rest ("Mid Fork Willamette R
   below Hills Creek Dam near Oakridge"); state codes, ids and USCG-style abbreviations stay as they are.
@@ -296,12 +297,14 @@ sea grid cell to the tide station, not a buoy reading.
 | `js/qr.js` | QR code maker (written for this app, no outside code) |
 | `data/gauges.json`, `data/tides.json` | Station lists for search, shipped so search is instant (NOAA gauges carry their USGS number, so searching 14162500 finds the McKenzie near Vida) |
 | `data/usgs.json` | USGS gauges NOAA doesn't carry (only shipped; refresh with the tool) |
+| `data/hads.json` | State-run gauges neither has (Oregon's, 39; only shipped; refresh with `tools/update-station-lists.py hads`) |
 | `sw.js` | Lets the app open with no signal (shows the last data) |
 | `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new NOAA lists itself when they're old). Looks up which USGS gauge each NOAA gauge is; `tools/noaa-usgs-ids.json` keeps those so reruns are quick |
 
 Downloads are cached on the phone for the same times as the widget (river
 history 3 h, tides 6 h, waves 3 h, weather 1 h, current readings 5 min; USGS-only
-gauges 15 min, water temperature 30 min, typical flow 30 days).
+gauges 15 min, water temperature 30 min, typical flow 30 days; state-run gauges 15 min
+for today's readings, and a finished day is downloaded once and kept).
 
 ## Trying it on the PC
 
@@ -317,7 +320,14 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
 
 ## Troubleshooting
 
-- **A red line under the name:** a data site (NOAA, USGS, Open-Meteo) is down, or an id is wrong. The last copy keeps showing meanwhile.
+- **A red line under the name:** a data site (NOAA, USGS, Open-Meteo, the Iowa Environmental Mesonet) is down, or an id is wrong. The last copy keeps showing meanwhile.
+- **A red line ending in a code like `IEM-NET`:** a state-run (OWRD) gauge couldn't be updated; the
+  last readings keep showing. `IEM-NET` / `IEM-TIMEOUT`: the Iowa Environmental Mesonet couldn't be
+  reached or didn't answer. `IEM-HTTP-503` (any number): it answered with that error (429 = too many
+  requests, 5xx = trouble on its side, 404 / 422 = its address changed). `IEM-FORMAT`: it answered in
+  a shape the app doesn't know (the service changed). `IEM-EMPTY`: it works but has had nothing from
+  that gauge for 3 days (the gauge is silent or was dropped; `tools/update-station-lists.py hads`
+  refreshes the list). The codes are listed above `hadsSeries` in `js/data.js`.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
 - **Updates:** no need to reinstall. The app always opens from the copy saved on the
   phone (instant, works with no signal) and checks GitHub for a new version in the
@@ -372,11 +382,16 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
 | Flow when NOAA has none (e.g. the tidal Willamette at Portland, which runs backwards on a rising tide): the last 2 days, or only the latest number at gauges without a real-time series (the Flow tab then says "No flow history at this gauge") | USGS Water Data |
 | Gauges NOAA doesn't carry (about half of USGS's real-time gauges, mostly creeks): height and flow every 15 min, last 2 days; no forecast or flood stages | USGS Water Data |
 | Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
+| State-run Oregon gauges in neither service (39, e.g. the Metolius above Allingham, MLSO3): height every 15 min, last 2 days, and water temperature at about half; no flow, forecast, flood stages or View History | NOAA's satellite relay (HADS), read from the [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/api/) |
 | Typical (median) flow for each calendar date (over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |
 
-Some Oregon gauges (run by the state, e.g. the Metolius above Allingham, MLSO3) aren't in
-NOAA's or USGS's services yet; see [docs/oregon-gauges.md](docs/oregon-gauges.md).
+The state-run gauges show the numbers the gauge itself sends by satellite, the same as on
+NOAA's Northwest River Forecast Center pages. The state (Oregon Water Resources Department)
+corrects them afterwards on its own site, so its height can differ by a few hundredths of a
+foot, and nobody checks the water temperature: treat it as a rough reading (ones water can't
+have, below 31 °F or above 100 °F, aren't shown). The Mesonet is a free service run by
+Iowa State University, not by NOAA or the state. More in [docs/oregon-gauges.md](docs/oregon-gauges.md).
 
 The jetty rating is a rough model forecast, not a buoy reading. Look at the
 water yourself before going out on rocks or a jetty.

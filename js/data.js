@@ -7,12 +7,15 @@
 // A place is {name, river: "<NWPS gauge id or USGS site number>", tide: "<CO-OPS station id>"};
 // river and tide are each optional. NOAA gauge ids always have letters (VIDO3), USGS
 // site numbers are all digits (14162500): gauges NOAA doesn't carry come from USGS.
+// A few state-run gauges are in neither (MLSO3, the Metolius): those are listed in
+// data/hads.json and come from NOAA's satellite relay (HADS), see hadsRiver().
 //
 // Sources (all free, no key, all allow requests straight from a browser):
 //   River stage/flow/forecast/flood levels: NOAA National Water Prediction Service
 //   Tides: NOAA CO-OPS (Tides & Currents)
 //   Flow fallback when NOAA has none (e.g. tidal Willamette at Portland): USGS
 //   Gauges NOAA doesn't carry (about half of USGS's, mostly creeks): USGS Water Data
+//   State-run gauges in neither (height only): NOAA HADS, read from the Iowa Environmental Mesonet
 //   Swell + wind forecast for coastal tide stations: Open-Meteo (marine + weather)
 //   7-day weather for every place: Open-Meteo (weather)
 //
@@ -25,6 +28,7 @@ const COOPS_STATIONS = "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/
 const MARINE = "https://marine-api.open-meteo.com/v1/marine";
 const WEATHER = "https://api.open-meteo.com/v1/forecast";
 const USGS_LATEST = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/latest-continuous/items";
+const IEM_OBS = "https://mesonet.agron.iastate.edu/api/1/obhistory.json";
 const UA = "river-tides-web";
 const MIN = 60, HOUR = 3600, DAY = 86400;
 
@@ -70,6 +74,7 @@ async function getOnce(url, params, timeout) {
     if (!r.ok) {
         const e = new Error((body && (body.message || body.reason)) || `HTTP Error ${r.status}`);
         e.busy = r.status === 429 || r.status >= 500;
+        e.status = r.status;
         throw e;
     }
     if (body === null) throw new Error("bad response");
@@ -422,6 +427,115 @@ async function usgsRiver(site, full = true, need = { series: true, flow: true, t
     };
 }
 
+// A state-run gauge that's in neither NOAA's river service nor USGS's (data/hads.json;
+// Oregon Water Resources Department's for now), in the same shape as river(). It sends
+// its readings by satellite; NOAA's HADS decodes them and the Iowa Environmental Mesonet
+// (IEM) hands them on in a form a browser may read. The same numbers as on NOAA's
+// Northwest River Forecast Center pages: height every 15 min, and water temperature
+// where the gauge has a sensor. No flow, forecast or flood stages. These are the gauge's
+// raw numbers, before the state's own corrections; a temperature water can't have
+// (a broken sensor sends −13107 °F, say) is dropped.
+let hadsP = null, hads = { by: "", network: "", tz: "", ids: new Map() };
+function hadsGauges() {
+    return hadsP || (hadsP = fetch("data/hads.json").then(r => { if (!r.ok) throw new Error(`HTTP Error ${r.status}`); return r.json(); })
+        .then(j => { hads = { by: String(j.by), network: String(j.network), tz: String(j.tz), ids: new Map(j.rows.map(r => [r[0], r])) }; return j.rows; })
+        .catch(e => { hadsP = null; throw e; }));
+}
+const isHads = id => hadsGauges().then(() => hads.ids.has(id.trim().toUpperCase()), () => false);
+// Who runs a river gauge ("NOAA", "USGS", "OWRD"), for the line under a place's stations.
+export const runBy = id => isUsgs(id) ? "USGS" : hads.ids.has(String(id || "").trim().toUpperCase()) ? hads.by : "NOAA";
+
+// IEM gives one of the station's own calendar days per request: today and the two
+// before it ("yyyy-mm-dd", oldest first), and the hour there now.
+function stationDays(tz) {
+    const p = {};
+    for (const x of new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric" })
+        .formatToParts(new Date())) p[x.type] = +x.value;
+    return { hour: p.hour, dates: [2, 1, 0].map(n => new Date(Date.UTC(p.year, p.month - 1, p.day - n)).toISOString().slice(0, 10)) };
+}
+// Height and water temperature for the last 3 calendar days as [[ms, ft, °F]] (either
+// can be null), kept on the phone per day:
+// today is downloaded again after 15 min, a finished day once more after it's over
+// (the last readings of a day arrive up to an hour or so late), then never again.
+// So a refresh is one small request. If a download fails, what's saved is used, and
+// the failure is passed along as `warn` so the place still says what went wrong.
+// -> {pts, warn}
+//
+// Every failure on this route ends in a code, so a screenshot is enough to tell what broke:
+//   IEM-NET       couldn't reach the Mesonet at all (it's down, or blocked on this network)
+//   IEM-TIMEOUT   it didn't answer in 30 s
+//   IEM-HTTP-503  it answered with that HTTP status (429 = too many requests, 5xx = trouble on its side,
+//                 404 / 422 = the address or its parameters changed)
+//   IEM-FORMAT    it answered, but not in the shape expected (the service changed)
+//   IEM-EMPTY     it works, but has no height from this gauge for 3 days (the gauge is silent,
+//                 was renamed, or was dropped: rerun tools/update-station-lists.py hads)
+function iemError(e) {
+    const m = e && e.message;
+    // (worded so the app's "the phone is offline, don't list every failed download" rule
+    // only hides these when the phone itself says it has no connection)
+    if (navigator.onLine === false && (m === "timed out" || m === "can't connect")) return m;
+    return m === "timed out" ? "the Iowa Mesonet didn't answer in 30 s · IEM-TIMEOUT"
+         : m === "can't connect" ? "couldn't reach the Iowa Mesonet · IEM-NET"
+         : e && e.status ? `the Iowa Mesonet answered HTTP ${e.status} · IEM-HTTP-${e.status}`
+         : "the Iowa Mesonet's answer wasn't readable · IEM-FORMAT";
+}
+async function hadsSeries(id) {
+    const name = `hads-${id}.json`, c = await readCache(name), days = (c && c.data) || {};
+    const all = warn => ({ pts: Object.keys(days).sort().flatMap(d => days[d].pts), warn });
+    if (savedOnly) { if (!c) throw new Error("nothing saved yet"); seen(c.t); return all(); }
+    const { hour, dates } = stationDays(hads.tz), today = dates[2];
+    for (const d of Object.keys(days)) if (!dates.includes(d)) delete days[d];
+    const todo = dates.filter(d => !days[d] || !(days[d].done || Date.now() - days[d].t < 15 * MIN * 1000));
+    let failed = null, got = 0;
+    await Promise.all(todo.map(async d => {
+        try {
+            const j = await get(IEM_OBS, { station: id, network: hads.network, date: d }, 30);
+            if (!Array.isArray(j.data)) throw new Error("bad response");
+            const pts = [];
+            for (const r of j.data) {
+                // "2026-11-16T08:00Z"; HGIRGZZ = height (HG), TWIRGZZ = water temperature (TW, °F):
+                // instantaneous (I), from the gauge's own sensor by satellite (RG)
+                const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(r && r.utc_valid);
+                const ok = (v, lo, hi) => typeof v === "number" && isFinite(v) && v > lo && v < hi;
+                const h = m && ok(r.HGIRGZZ, -900, 10000) ? round(r.HGIRGZZ, 2) : null;
+                const w = m && ok(r.TWIRGZZ, 31, 100) ? round(r.TWIRGZZ, 1) : null;     // liquid water only
+                if (h !== null || w !== null) pts.push([Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]), h, w]);
+            }
+            days[d] = { t: Date.now(), done: d < today && (d < dates[1] || hour >= 2), pts: pts.sort((a, b) => a[0] - b[0]) };
+            got++;
+        } catch (e) { failed = e; }
+    }));
+    if (failed && !Object.keys(days).length) throw new Error(iemError(failed));
+    if (got) await writeCache(name, days);
+    seen(failed ? (c ? c.t : 0) : days[today] ? days[today].t : Date.now());
+    return all(failed ? iemError(failed) : "");
+}
+async function hadsRiver(id, full = true, need = { series: true, temp: true }) {
+    id = id.trim().toUpperCase();
+    const row = hads.ids.get(id);
+    const { pts: all, warn } = need.series || need.temp ? await hadsSeries(id) : { pts: [], warn: "" };
+    let pts = need.series ? all.filter(p => p[1] !== null).map(p => [p[0], p[1], null]) : [];
+    if (need.series && !pts.length) throw new Error(warn || `no height from ${hads.by} gauge ${id} in 3 days · IEM-EMPTY`);
+    const last = pts.length ? pts[pts.length - 1] : null, t = last ? last[0] : null;
+    pts = pts.filter(p => p[0] >= t - 2 * DAY * 1000);
+    const before = last ? valueNear(pts, t - 3 * HOUR * 1000, 1) : null;
+    // like usgsTemp(): nothing if the sensor has been quiet for a day
+    let temp = null;
+    const tw = need.temp ? all.filter(p => p[2] !== null).map(p => [p[0], p[2]]) : [];
+    if (tw.length && Date.now() - tw[tw.length - 1][0] < DAY * 1000) {
+        const [wt, wv] = tw[tw.length - 1], was = valueNear(tw, wt - 3 * HOUR * 1000, 1);
+        temp = { value: wv, time: wt, trend: was === null ? null : round(wv - was, 1), series: thin(tw) };
+    }
+    return {
+        id, name: tidyName(row[1]) || id, time: t, lat: row[3], lon: row[4],
+        stage: last ? last[1] : null, stageTrend: before === null ? null : round(last[1] - before, 2),
+        flow: null, flowTime: t, flowNote: hads.by, flowNative: true, flowTrend: null,
+        category: "", categoryLabel: "", flood: {}, forecastPeak: null,
+        series: thin(pts), forecast: [], temp, tempTried: true, averages: null, usgs: "",
+        warn,                      // "" or why the latest download failed (the saved readings are shown)
+    };
+}
+
 // ---------------------------------------------------------------- station lists (for search)
 
 // Shipped with the app (data/*.json, made by tools/update-station-lists.py) so the
@@ -469,7 +583,7 @@ function usgsGauges() {
         .then(j => j.rows).catch(e => { usgsRowsP = null; throw e; }));
 }
 // Start loading the lists before the first keystroke.
-export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); usgsGauges().catch(() => {}); }
+export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); usgsGauges().catch(() => {}); hadsGauges().catch(() => {}); }
 
 // ---------------------------------------------------------------- tides
 
@@ -717,8 +831,10 @@ async function place(p, full = true, onPart) {
     const off = m => Array.isArray(p.hide) && p.hide.includes(m);
     const need = { series: !off("stage") || !off("flow"), flow: !off("flow"), temp: !off("temp") && full };
     const tasks = [];
-    if (p.river) tasks.push((isUsgs(p.river) ? usgsRiver : river)(p.river, full, need).then(r => {
+    const riverFn = async id => isUsgs(id) ? usgsRiver : await isHads(id) ? hadsRiver : river;
+    if (p.river) tasks.push(riverFn(p.river).then(fn => fn(p.river, full, need)).then(r => {
         out.river = r;
+        if (r.warn) out.errors.push(`River ${p.river}: ${r.warn}`);
         if (need.series) out.asked.push("stage", "flow");
         if (need.temp && r.tempTried !== false) out.asked.push("temp");   // a failed download doesn't mean "no sensor"
     }, e => { out.errors.push(`River ${p.river}: ${e.message}`); }));
@@ -774,12 +890,16 @@ function indexOf(rows) {
     return ix;
 }
 
-// River gauges for search: NOAA's (with forecasts) and the USGS ones NOAA doesn't
-// carry, as one list (kept, so its search index is built once).
+// River gauges for search: NOAA's (with forecasts), the USGS ones NOAA doesn't carry
+// and the state-run ones neither has, as one list (kept, so its search index is built
+// once). A state-run gauge NOAA's list has picked up since is found as NOAA's only.
 let riverCache = null;
 async function riverRows() {
-    const [a, b] = await Promise.all([allGauges(), usgsGauges().catch(() => [])]);
-    if (!riverCache || riverCache.a !== a || riverCache.b !== b) riverCache = { a, b, rows: a.concat(b) };
+    const [a, b, c] = await Promise.all([allGauges(), usgsGauges().catch(() => []), hadsGauges().catch(() => [])]);
+    if (!riverCache || riverCache.a !== a || riverCache.b !== b || riverCache.c !== c) {
+        const noaa = new Set(a.map(r => r[0]));
+        riverCache = { a, b, c, rows: a.concat(b, c.filter(r => !noaa.has(r[0]))) };
+    }
     return riverCache.rows;
 }
 
@@ -799,7 +919,8 @@ export async function search(text) {
         // every search word starts some word of "id name state"
         rows.forEach((r, i) => {
             if (words.every(w => ix[i].some(h => h.startsWith(w))))
-                out.push({ kind, id: r[0], name: tidyName(r[1].trim()), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : "") });
+                out.push({ kind, id: r[0], name: tidyName(r[1].trim()), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : ""),
+                           by: hads.ids.get(r[0]) === r ? hads.by : "" });   // by: a state-run gauge's agency
         });
         // names that start with the first word (or exact ids) first
         const k = r => [r.id.toLowerCase() !== words[0] && r.usgs !== words[0] ? 1 : 0, r.name.toLowerCase().startsWith(words[0]) ? 0 : 1];
