@@ -447,8 +447,6 @@ function hadsGauges() {
 }
 const isHads = id => hadsGauges().then(() => hads.ids.has(id.trim().toUpperCase()), () => false);
 // Who runs a river gauge ("NOAA", "USGS", "OWRD"), for the line under a place's stations.
-// Where a gauge's own readings are downloaded from ("NOAA", "USGS", "Iowa Mesonet", "OWRD"), for the status lines.
-export const sourceOf = id => isOwrd(id) ? "OWRD" : isUsgs(id) ? "USGS" : hads.ids.has(String(id || "").trim().toUpperCase()) ? "Iowa Mesonet" : "NOAA";
 export const runBy = id => isOwrd(id) ? "OWRD" : isUsgs(id) ? "USGS" : hads.ids.has(String(id || "").trim().toUpperCase()) ? hads.by : "NOAA";
 
 // ---------------------------------------------------------------- OWRD (the state's own readings)

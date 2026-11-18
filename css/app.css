@@ -405,7 +405,7 @@ body.editing .prow:has(> .handle[data-i]) > .pmain { margin-right: 50px; min-hei
 /* ── footer (stays put) ────────────────────────────────────────────── */
 .ftr { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 4px calc(var(--gutter) - 4px) calc(var(--bote) + 4px) calc(var(--gutter) + 2px);
        border-top: 1px solid var(--hair); background: var(--bg); }
-.fstat { flex: 1; font-size: var(--small); opacity: .6; white-space: pre; }
+.fstat { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--small); opacity: .6; white-space: pre; }
 /* the easter egg: in the gap the page leaves when pushed up past its end */
 .egg { position: absolute; left: 0; right: 0; bottom: 100%; height: calc(var(--egg-px, 0px) + 20px);   /* + #body's bottom padding */ display: flex; align-items: center;
        justify-content: center; overflow: hidden; font-size: var(--small); opacity: calc(var(--egg, 0) * .6); pointer-events: none; }

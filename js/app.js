@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, runBy, sourceOf, tidyName } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, runBy, tidyName } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -1418,8 +1418,10 @@ function renderChart(cur) {
             <div class="chart-label">${esc("Latest " + commas(r.flow) + " cfs · " + r.flowNote + " · " + ago(r.flowTime))}</div>` });
     if (g.series.length <= 1) return "";
     const b = g.ideal, rng = !b ? "" : " · good " + (isNaN(b.lo) ? "below " + b.hi : isNaN(b.hi) ? "above " + b.lo : b.lo + "–" + b.hi);
+    const src = sourceFor(r, mode);
     const what = (mode === "surf" ? "Waves (swell + wind waves) · ft" : mode === "tide" ? "Tide · ft" : mode === "flow" ? "Flow · cfs"
-        : mode === "temp" ? "Water temperature · °F · " + (r && !r.usgs ? runBy(r.id) : "USGS") + ", measured" : "Height · ft") + rng;
+        : mode === "temp" ? "Water temperature · °F" : "Height · ft") + (src ? " · " + src : "");
+    const kind = src && (mode === "stage" || mode === "flow" || mode === "temp") ? `<span id="chartKind">${kindText(g, bigChart.hoverT)}</span>` : "";
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
     const hist = S.focusDay < 0 && histSite(cur);
@@ -1429,7 +1431,7 @@ function renderChart(cur) {
         : S.focusDay < 0 && (mode === "flow" || mode === "temp") && r ? `<div class="chart-peak">No history data for this site</div>` : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
-        <div class="chart-label">${esc(what + day)}</div>
+        <div class="chart-label">${esc(what)}${kind}${esc(rng + day)}</div>
         ${under}` });
 }
 
@@ -1897,7 +1899,7 @@ function renderBody(cur) {
         const errs = [S.error].concat(cur.d ? cur.d.errors : []).filter(s => s && !(S.offline && /can't connect|timed out/.test(s)));
         let sel = "";
         if (errs.length) sel += `<div class="errors">${errs.map(esc).join("<br>")}</div>`;
-        if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest from ${esc(sayList(sourcesFor(place, cur.d)))}…</div>`;
+        if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest data…</div>`;
         if (flooding(cur.r)) sel += `<div class="flood" style="--accent:${categoryColor(cur.r.category)}">⚠ ${esc(cur.r.categoryLabel)}</div>`;
         sel += renderCustomize(cur);
         sel += renderTiles(cur);
@@ -1910,33 +1912,26 @@ function renderBody(cur) {
     morphInto($("#body"), html);
 }
 
-// Every source a place's data comes from, in plain words ("NOAA, USGS, Open-Meteo"): the river
-// gauge's own, a USGS or OWRD flow / temperature filled in for it, the tide station, the weather.
-// Before the data is there it's what the place will ask for; after, what it really used.
-function sourcesFor(p, d) {
-    const s = [], add = x => { if (x && !s.includes(x)) s.push(x); };
-    const r = d && d.river;
-    if (p && p.river) {
-        add(sourceOf(p.river));
-        if (r) {
-            if (r.flow !== null && (r.flowNote === "USGS" || r.flowNote === "OWRD")) add(r.flowNote);
-            if (r.tempNote) add(r.tempNote); else if (r.temp && r.usgs) add("USGS");
-        }
-    }
-    if (p && p.tide) add("NOAA");
-    if (p && (p.river || p.tide)) add("Open-Meteo");
-    return s.length ? s : ["NOAA"];
+// Where one chart's numbers come from, for its caption ("NOAA", "USGS", "Iowa Mesonet", "OWRD"):
+// the gauge's own, or the one that filled in a flow or temperature it lacks.
+function sourceFor(r, mode) {
+    if (mode === "tide") return "NOAA";
+    if (mode === "surf") return "Open-Meteo";
+    if (!r) return "";
+    if (mode === "flow" && r.flow !== null && r.flowNote) return r.flowNote;
+    if (mode === "temp") return r.tempNote || (r.usgs ? "USGS" : runBy(r.id));
+    return runBy(r.id);   // the state's own sensors (OWRD) even where the Iowa Mesonet passes them on
 }
-const sayList = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+// River readings are measured; past the last one, where the reading bar sits on the forecast, they're predicted.
+const kindText = (g, t) => ", " + (!isNaN(t) && g.forecast && g.forecast.length && g.series.length && t > g.series[g.series.length - 1][0] ? "predicted" : "measured");
 
 // The bottom bar's status is the place on screen's: "Updating…" only while it's
 // downloading (not while other places are), else when it was last brought up to date.
 function footStatus() {
     const p = S.places[S.selected], k = p ? keyOf(p) : "";
-    const src = sourcesFor(p, S.results[k]).join(", ");
-    if (k && loadingKeys.has(k)) return "Updating…  ·  " + src;
+    if (k && loadingKeys.has(k)) return "Updating…";
     const t = placeUpdated[k] || S.updated;
-    return S.offline ? "Offline" + (t ? "  ·  updated " + dayClock(t) : "") : t ? "Updated " + dayClock(t) + "  ·  " + src : src;
+    return S.offline ? "Offline" + (t ? "  ·  updated " + dayClock(t) : "") : t ? "Updated " + dayClock(t) : "";
 }
 function renderFooter() {
     morphInto($("#ftr"), `
@@ -2102,6 +2097,8 @@ function syncWeather(t) {
     const ok = !isNaN(t) && !!$("#bigChart");
     const av = $("#chartAvg");
     if (av && lastCur && lastCur.r) { const s = avgText(lastCur.r, t); if (s) av.textContent = s; }
+    const ck = $("#chartKind");
+    if (ck && lastCur && lastCur.g) ck.textContent = kindText(lastCur.g, t);
     document.querySelectorAll(".wx-day").forEach(el => {
         const a = +el.dataset.start;
         el.classList.toggle("hl", ok && t >= a && t < a + DAY_MS);
