@@ -1,0 +1,15 @@
+name: OWRD reachability test
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch flow and height from OWRD
+        run: |
+          U='https://apps.wrd.state.or.us/apps/sw/hydro_near_real_time/hydro_download.aspx'
+          for ds in Instantaneous_Flow Instantaneous_Stage; do
+            echo "== $ds"
+            curl -sS -m 60 -w '\nHTTP %{http_code}, %{size_download} bytes\n' \
+              "$U?station_nbr=14088500&start_date=11/17/2026&end_date=11/18/2026&dataset=$ds&format=tsv" | tail -4
+          done
