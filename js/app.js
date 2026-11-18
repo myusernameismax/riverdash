@@ -3,7 +3,7 @@
 // Data: data.js (NOAA etc.). Look: config.js + css/app.css.
 
 import { LOOK, DEFAULT_PLACES } from "./config.js";
-import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, runBy, tidyName } from "./data.js";
+import { fetchPlaces, savedPlaces, search as searchStations, warmSearch, history, gaugeStates, runBy, sourceOf, tidyName } from "./data.js";
 import { Chart, drawSpark } from "./chart.js";
 import { wxIcon, icon } from "./icons.js";
 import { fmtTime, fmtDay, fmtDayLong, fmtMonthDay, sameDay } from "./fmt.js";
@@ -1424,7 +1424,9 @@ function renderChart(cur) {
     const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
     const hist = S.focusDay < 0 && histSite(cur);
     const under = hist ? `<div class="hist-row">${avg ? `<span class="chart-peak" id="chartAvg">${esc(avg)}</span>` : ""}<button class="edit-btn" data-act="history" style="color:${mode === "temp" ? LOOK.tempColor : LOOK.flowColor}">View History</button></div>`
-        : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>` : "";
+        : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>`
+        // no USGS gauge behind it, so no long history or typical flow: say so instead of leaving a gap
+        : S.focusDay < 0 && (mode === "flow" || mode === "temp") && r ? `<div class="chart-peak">No history data for this site</div>` : "";
     return section({ pad: 9, body: `
         <canvas id="bigChart" class="big-chart" style="height:${LOOK.chartHeight}px"></canvas>
         <div class="chart-label">${esc(what + day)}</div>
@@ -1895,7 +1897,7 @@ function renderBody(cur) {
         const errs = [S.error].concat(cur.d ? cur.d.errors : []).filter(s => s && !(S.offline && /can't connect|timed out/.test(s)));
         let sel = "";
         if (errs.length) sel += `<div class="errors">${errs.map(esc).join("<br>")}</div>`;
-        if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest from NOAA…</div>`;
+        if (!cur.d) sel += `<div class="loading"><span class="spinner"></span>Getting the latest from ${esc(sayList(sourcesFor(place, cur.d)))}…</div>`;
         if (flooding(cur.r)) sel += `<div class="flood" style="--accent:${categoryColor(cur.r.category)}">⚠ ${esc(cur.r.categoryLabel)}</div>`;
         sel += renderCustomize(cur);
         sel += renderTiles(cur);
@@ -1908,13 +1910,33 @@ function renderBody(cur) {
     morphInto($("#body"), html);
 }
 
+// Every source a place's data comes from, in plain words ("NOAA, USGS, Open-Meteo"): the river
+// gauge's own, a USGS or OWRD flow / temperature filled in for it, the tide station, the weather.
+// Before the data is there it's what the place will ask for; after, what it really used.
+function sourcesFor(p, d) {
+    const s = [], add = x => { if (x && !s.includes(x)) s.push(x); };
+    const r = d && d.river;
+    if (p && p.river) {
+        add(sourceOf(p.river));
+        if (r) {
+            if (r.flow !== null && (r.flowNote === "USGS" || r.flowNote === "OWRD")) add(r.flowNote);
+            if (r.tempNote) add(r.tempNote); else if (r.temp && r.usgs) add("USGS");
+        }
+    }
+    if (p && p.tide) add("NOAA");
+    if (p && (p.river || p.tide)) add("Open-Meteo");
+    return s.length ? s : ["NOAA"];
+}
+const sayList = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+
 // The bottom bar's status is the place on screen's: "Updating…" only while it's
 // downloading (not while other places are), else when it was last brought up to date.
 function footStatus() {
     const p = S.places[S.selected], k = p ? keyOf(p) : "";
-    if (k && loadingKeys.has(k)) return "Updating…  ·  NOAA";
+    const src = sourcesFor(p, S.results[k]).join(", ");
+    if (k && loadingKeys.has(k)) return "Updating…  ·  " + src;
     const t = placeUpdated[k] || S.updated;
-    return S.offline ? "Offline" + (t ? "  ·  updated " + dayClock(t) : "") : t ? "Updated " + dayClock(t) + "  ·  NOAA" : "NOAA";
+    return S.offline ? "Offline" + (t ? "  ·  updated " + dayClock(t) : "") : t ? "Updated " + dayClock(t) + "  ·  " + src : src;
 }
 function renderFooter() {
     morphInto($("#ftr"), `
@@ -3145,7 +3167,7 @@ function reloadForUpdate() {
 }
 
 document.documentElement.style.setProperty("--anim", ANIM + "ms");
-splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest from NOAA…");
+splashText(navigator.onLine === false ? "No signal · waiting for data…" : "Getting the latest data…");
 splashSlow = setTimeout(() => splashText("Slow connection · still loading…"), 8000);
 splashTip();
 setTimeout(hideSplash, 30000);                        // never stuck behind it
