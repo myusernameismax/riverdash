@@ -16,6 +16,9 @@
 //   Flow fallback when NOAA has none (e.g. tidal Willamette at Portland): USGS
 //   Gauges NOAA doesn't carry (about half of USGS's, mostly creeks): USGS Water Data
 //   State-run gauges in neither (height only): NOAA HADS, read from the Iowa Environmental Mesonet
+//   State-run gauges (OWRD, data/owrd.json): the state's own readings, copied hourly by a GitHub job
+//     onto the repo's "data" branch; they're new places, or fill in a flow / water temperature
+//     that a NOAA, USGS or Mesonet gauge in the app doesn't have (see the OWRD section)
 //   Swell + wind forecast for coastal tide stations: Open-Meteo (marine + weather)
 //   7-day weather for every place: Open-Meteo (weather)
 //
@@ -29,6 +32,7 @@ const MARINE = "https://marine-api.open-meteo.com/v1/marine";
 const WEATHER = "https://api.open-meteo.com/v1/forecast";
 const USGS_LATEST = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/latest-continuous/items";
 const IEM_OBS = "https://mesonet.agron.iastate.edu/api/1/obhistory.json";
+const OWRD_FILES = "https://raw.githubusercontent.com/myusernameismax/riverdash/data/";
 const UA = "river-tides-web";
 const MIN = 60, HOUR = 3600, DAY = 86400;
 
@@ -443,7 +447,124 @@ function hadsGauges() {
 }
 const isHads = id => hadsGauges().then(() => hads.ids.has(id.trim().toUpperCase()), () => false);
 // Who runs a river gauge ("NOAA", "USGS", "OWRD"), for the line under a place's stations.
-export const runBy = id => isUsgs(id) ? "USGS" : hads.ids.has(String(id || "").trim().toUpperCase()) ? hads.by : "NOAA";
+export const runBy = id => isOwrd(id) ? "OWRD" : isUsgs(id) ? "USGS" : hads.ids.has(String(id || "").trim().toUpperCase()) ? hads.by : "NOAA";
+
+// ---------------------------------------------------------------- OWRD (the state's own readings)
+// data/owrd.json lists the Oregon Water Resources Department gauges worth having. An hourly
+// GitHub job (.github/workflows/owrd.yml) downloads each one's last 2 days of flow, height
+// and water temperature and publishes one small file per gauge (<station>.json on the repo's
+// "data" branch), because OWRD's own pages can't be read from a browser. Rows:
+// [station, name, state, lat, lon, has height, has temperature, link, adds]
+//   link ""    a place of its own, id "OWRD-<station>" (OWRD station numbers are all digits,
+//              like USGS site numbers, so the prefix keeps the two apart)
+//   link <id>  the same river spot as a NOAA / USGS / state-run gauge already in the app;
+//              `adds` (flow, temp) are the parts that gauge doesn't have: OWRD's are used for
+//              those only, so the gauge keeps its own (fresher) height
+// A part is looked for on every refresh until it's found, like USGS temperature, and a
+// download that fails leaves the gauge as it was. Failures of a place of its own end in a code:
+//   OWRD-NET / OWRD-TIMEOUT   couldn't reach GitHub / no answer in 30 s
+//   OWRD-HTTP-404             the gauge has no file yet (the job hasn't run since it was added)
+//   OWRD-FORMAT               the file isn't in the expected shape
+//   OWRD-EMPTY                the file has no readings (the gauge is silent)
+//   OWRD-STALE                the readings are over 4 hours old (the hourly job is failing)
+export const isOwrd = id => /^OWRD-\d+$/i.test(String(id || "").trim());
+let owrdP = null, owrd = { ids: new Map(), links: new Map() };
+function owrdGauges() {
+    return owrdP || (owrdP = fetch("data/owrd.json").then(r => { if (!r.ok) throw new Error(`HTTP Error ${r.status}`); return r.json(); })
+        .then(j => {
+            owrd = { ids: new Map(j.rows.filter(r => !r[7]).map(r => ["OWRD-" + r[0], r])),
+                     links: new Map(j.rows.filter(r => r[7] && r[8].length).map(r => [r[7].toUpperCase(), r])) };
+            return [...owrd.ids].map(([id, r]) => [id, r[1], r[2], r[3], r[4]]);
+        }).catch(e => { owrdP = null; throw e; }));
+}
+function owrdError(e) {
+    const m = e && e.message;
+    if (navigator.onLine === false && (m === "timed out" || m === "can't connect")) return m;
+    return m === "timed out" ? "OWRD's readings didn't arrive in 30 s · OWRD-TIMEOUT"
+         : m === "can't connect" ? "couldn't reach OWRD's readings on GitHub · OWRD-NET"
+         : e && e.status ? `OWRD's readings answered HTTP ${e.status} · OWRD-HTTP-${e.status}`
+         : "OWRD's readings weren't readable · OWRD-FORMAT";
+}
+// One gauge's file: {made, flow, stage, temp}, each [[ms, value]] (temperature in °F).
+function owrdFile(station) {
+    return cached(`owrd-${station}.json`, 20 * MIN, async () => {
+        const d = await get(OWRD_FILES + station + ".json", null, 30);
+        if (!d || !Array.isArray(d.flow)) throw new Error("bad response");
+        return d;
+    });
+}
+const owrdPts = a => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]));
+const owrdTemp = d => {   // like usgsTemp(): nothing if the sensor has been quiet for a day or reads what water can't
+    const tw = owrdPts(d.temp).filter(p => p[1] >= 31 && p[1] <= 100);
+    if (!tw.length || Date.now() - tw[tw.length - 1][0] > DAY * 1000) return null;
+    const [t, v] = tw[tw.length - 1], was = valueNear(tw, t - 3 * HOUR * 1000, 1);
+    return { value: round(v, 1), time: t, trend: was === null ? null : round(v - was, 1), series: thin(tw) };
+};
+
+// Started alongside a gauge's own download: OWRD's file for a gauge that has parts to add
+// (-> {row, d}), or null. Never fails; the gauge just stays as it is.
+async function owrdCompanion(id, need) {
+    try {
+        await owrdGauges();
+        const row = owrd.links.get(String(id || "").trim().toUpperCase());
+        if (!row || !((need.flow && row[8].includes("flow")) || (need.temp && row[8].includes("temp")))) return null;
+        return { row, d: await owrdFile(row[0]) };
+    } catch (e) { return null; }
+}
+function owrdApply(c, r, need) {
+    if (!c || !r) return;
+    const { row, d } = c;
+    if (need.flow && r.flow === null && row[8].includes("flow")) {
+        const pts = owrdPts(d.flow);
+        if (pts.length && Date.now() - pts[pts.length - 1][0] < DAY * 1000) {
+            const [t, v] = pts[pts.length - 1], b = valueNear(pts, t - 3 * HOUR * 1000, 1);
+            r.flow = Math.round(v); r.flowTime = t; r.flowNote = "OWRD"; r.flowNative = false;
+            r.flowSeries = thin(pts.filter(p => p[0] >= t - 2 * DAY * 1000).map(p => [p[0], Math.round(p[1])]));
+            r.flowTrend = b === null ? null : Math.round(v - b);
+        }
+    }
+    if (need.temp && r.temp === null && row[8].includes("temp")) {
+        const t = owrdTemp(d);
+        if (t) { r.temp = t; r.tempTried = true; }
+    }
+}
+
+// A place of its own, in the same shape as river(): height and flow every 15 min for 2 days,
+// and water temperature where the gauge has a sensor. No forecast, flood stages or typical flow.
+async function owrdRiver(id, full = true, need = { series: true, flow: true, temp: true }) {
+    id = id.trim().toUpperCase();
+    await owrdGauges();
+    const row = owrd.ids.get(id);
+    if (!row) throw new Error(`No OWRD gauge ${id}`);
+    let d;
+    try { d = await owrdFile(row[0]); } catch (e) { throw new Error(owrdError(e)); }
+    const byTime = new Map();
+    for (const [col, a] of [[1, d.stage], [2, d.flow]]) for (const p of owrdPts(a)) {
+        const r = byTime.get(p[0]) || [p[0], null, null];
+        r[col] = col === 1 ? round(p[1], 2) : Math.round(p[1]);
+        byTime.set(p[0], r);
+    }
+    let pts = [...byTime.values()].sort((a, b) => a[0] - b[0]);
+    if (!pts.length) throw new Error(`no readings from OWRD gauge ${row[0]} · OWRD-EMPTY`);
+    const t = pts[pts.length - 1][0];
+    pts = pts.filter(p => p[0] >= t - 2 * DAY * 1000);
+    const last = col => { for (let i = pts.length - 1; i >= 0; i--) if (pts[i][col] !== null) return pts[i]; return null; };
+    const ls = last(1), lf = last(2);
+    const trend = (col, p) => {
+        if (!p) return null;
+        const b = valueNear(pts, p[0] - 3 * HOUR * 1000, col);
+        return b === null ? null : round(p[col] - b, 2);
+    };
+    const old = Date.now() - (d.made || t);
+    return {
+        id, name: row[1], time: t, lat: row[3], lon: row[4],
+        stage: ls ? ls[1] : null, stageTrend: trend(1, ls),
+        flow: lf ? lf[2] : null, flowTime: lf ? lf[0] : t, flowNote: "OWRD", flowNative: true, flowTrend: trend(2, lf),
+        category: "", categoryLabel: "", flood: {}, forecastPeak: null,
+        series: thin(pts), forecast: [], temp: need.temp ? owrdTemp(d) : null, tempTried: true, averages: null, usgs: "",
+        warn: old > 4 * HOUR * 1000 ? `OWRD's readings are ${Math.round(old / HOUR / 1000)} hours old; showing the last ones · OWRD-STALE` : "",
+    };
+}
 
 // IEM gives one of the station's own calendar days per request: today and the two
 // before it ("yyyy-mm-dd", oldest first), and the hour there now.
@@ -583,7 +704,7 @@ function usgsGauges() {
         .then(j => j.rows).catch(e => { usgsRowsP = null; throw e; }));
 }
 // Start loading the lists before the first keystroke.
-export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); usgsGauges().catch(() => {}); hadsGauges().catch(() => {}); }
+export function warmSearch() { allGauges().catch(() => {}); tideStations().catch(() => {}); usgsGauges().catch(() => {}); hadsGauges().catch(() => {}); owrdGauges().catch(() => {}); }
 
 // ---------------------------------------------------------------- tides
 
@@ -831,8 +952,10 @@ async function place(p, full = true, onPart) {
     const off = m => Array.isArray(p.hide) && p.hide.includes(m);
     const need = { series: !off("stage") || !off("flow"), flow: !off("flow"), temp: !off("temp") && full };
     const tasks = [];
-    const riverFn = async id => isUsgs(id) ? usgsRiver : await isHads(id) ? hadsRiver : river;
-    if (p.river) tasks.push(riverFn(p.river).then(fn => fn(p.river, full, need)).then(r => {
+    const riverFn = async id => isOwrd(id) ? owrdRiver : isUsgs(id) ? usgsRiver : await isHads(id) ? hadsRiver : river;
+    // OWRD's file for a gauge that has parts to add starts downloading along with the gauge itself
+    const comp = p.river && !isOwrd(p.river) ? owrdCompanion(p.river, need) : null;
+    if (p.river) tasks.push(riverFn(p.river).then(fn => fn(p.river, full, need)).then(async r => { owrdApply(await comp, r, need); return r; }).then(r => {
         out.river = r;
         if (r.warn) out.errors.push(`River ${p.river}: ${r.warn}`);
         if (need.series) out.asked.push("stage", "flow");
@@ -895,10 +1018,10 @@ function indexOf(rows) {
 // once). A state-run gauge NOAA's list has picked up since is found as NOAA's only.
 let riverCache = null;
 async function riverRows() {
-    const [a, b, c] = await Promise.all([allGauges(), usgsGauges().catch(() => []), hadsGauges().catch(() => [])]);
-    if (!riverCache || riverCache.a !== a || riverCache.b !== b || riverCache.c !== c) {
+    const [a, b, c, o] = await Promise.all([allGauges(), usgsGauges().catch(() => []), hadsGauges().catch(() => []), owrdGauges().catch(() => [])]);
+    if (!riverCache || riverCache.a !== a || riverCache.b !== b || riverCache.c !== c || riverCache.o !== o) {
         const noaa = new Set(a.map(r => r[0]));
-        riverCache = { a, b, c, rows: a.concat(b, c.filter(r => !noaa.has(r[0]))) };
+        riverCache = { a, b, c, o, rows: a.concat(b, c.filter(r => !noaa.has(r[0])), o) };
     }
     return riverCache.rows;
 }
@@ -920,7 +1043,7 @@ export async function search(text) {
         rows.forEach((r, i) => {
             if (words.every(w => ix[i].some(h => h.startsWith(w))))
                 out.push({ kind, id: r[0], name: tidyName(r[1].trim()), state: r[2], lat: r[3], lon: r[4], usgs: r[5] || (isUsgs(r[0]) ? r[0] : ""),
-                           by: hads.ids.get(r[0]) === r ? hads.by : "" });   // by: a state-run gauge's agency
+                           by: hads.ids.get(r[0]) === r ? hads.by : owrd.ids.has(r[0]) ? "OWRD" : "" });   // by: a state-run gauge's agency
         });
         // names that start with the first word (or exact ids) first
         const k = r => [r.id.toLowerCase() !== words[0] && r.usgs !== words[0] ? 1 : 0, r.name.toLowerCase().startsWith(words[0]) ? 0 : 1];

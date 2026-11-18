@@ -1813,7 +1813,7 @@ function stationLines(i) {
     const p = S.places[i], d = S.results[keyOf(p)] || {};
     const off = ms => ms.every(m => hidden(p, m));
     const river = p.river && !off(["stage", "flow", "temp"]), tide = p.tide && !off(["tide", "surf"]);
-    const ids = [river ? runBy(p.river) + " " + p.river : "", tide ? "NOAA " + p.tide : ""].filter(x => x).join(" · ");
+    const ids = [river ? runBy(p.river) + " " + p.river.replace(/^OWRD-/i, "") : "", tide ? "NOAA " + p.tide : ""].filter(x => x).join(" · ");
     return [river && d.river && d.river.name, tide && d.tide && d.tide.name && "Tides: " + d.tide.name].filter(x => x).map(l => `<div class="pst">${esc(l)}</div>`).join("")
          + (ids ? `<div class="pst pid">${esc(ids)}</div>` : "");
 }
@@ -1970,7 +1970,7 @@ function hitsHtml(rivers, tides, qlen) {
                 const picked = addedNow(h), have = !picked && alreadyHave(h);
                 return `<div class="hit${have ? " have" : ""}${picked ? " picked" : ""}" style="--accent:${g.color}" data-act="${have || picked ? "unHit" : "addHit"}" data-kind="${h.kind}" data-id="${esc(h.id)}">
                     <div class="hit-main"><div class="hit-name">${esc(h.name)}</div>
-                        <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id, h.usgs ? "USGS " + h.usgs : "", h.by].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
+                        <div class="hit-sub">${esc([h.state, h.usgs === h.id ? "" : h.id.replace(/^OWRD-/i, ""), h.usgs ? "USGS " + h.usgs : "", h.by].filter(s => s).join("  ·  ") + (have ? "  ·  already added" : ""))}</div></div>
                     ${isFinite(parseFloat(h.lat)) && isFinite(parseFloat(h.lon)) ? `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${parseFloat(h.lat)},${parseFloat(h.lon)}" target="_blank" rel="noopener">Map<span class="hmap-arrow">↗</span></a>` : ""}
                     <span class="bubble" style="background:${have ? "var(--disabled)" : g.color}">${have || picked ? "✓" : "+"}</span>
                 </div>`;

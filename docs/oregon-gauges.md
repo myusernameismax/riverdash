@@ -1,7 +1,9 @@
 # Oregon state gauges
 
-Status: **in the app** for the 39 gauges that report by satellite (height, and water
-temperature at about half). Flow and the state's other gauges still wait on the state.
+Status: **in the app**, two ways. The 39 satellite gauges come from the Iowa Mesonet (height,
+water temperature at about half). Since 2026-11-18 the state's own readings, including **flow**,
+come through a GitHub job (see "The hourly job" at the end); they're new places or fill in a
+missing flow or temperature. The sections below on OWRD's download pages explain why the job is needed.
 
 ## What was missing
 
@@ -110,3 +112,23 @@ have; a relay of our own is the fallback if IEM ever goes away.
   one meant for apps.
 - **Working flow out from height** with OWRD's rating curve: the curve shifts and OWRD
   corrects the height first, so the number would be off.
+
+## The hourly job (2026-11-18)
+
+OWRD gave us a script; its download works from a server but not from a browser (no CORS header).
+So `.github/workflows/owrd.yml` runs at :17 every hour, `tools/fetch-owrd.py` downloads each
+listed gauge's last 2 days (flow and height from the plain download URL, water temperature only
+through the page's form, in °C), and one file per gauge (`<station>.json`) is force-pushed to a
+one-commit `data` branch, so `main` and Pages are untouched. The app reads
+`raw.githubusercontent.com/myusernameismax/riverdash/data/<station>.json` (CORS `*`, 5 min cache).
+A gauge that fails keeps its previous file; `index.json` says how many updated. Free for a public repo.
+Readings can be up to about 2 hours old (OWRD's own lag plus the hourly schedule), so a gauge
+already in the app keeps its own height and only takes what it lacks.
+
+`data/owrd.json` rows: `[station, name, state, lat, lon, has height, has temperature, link, adds]`.
+`link` empty = a place of its own (id `OWRD-<station>`, prefixed because OWRD numbers look like
+USGS ones); otherwise the NOAA / USGS / Mesonet id of the gauge at the same spot, and `adds` are
+the parts it lacks (flow, temp). The list was picked by hand: active streams with flow that
+NOAA/USGS don't already match, no canals or ditches, no small creeks (under 300 sq mi) and no
+rivers under 30 sq mi. To add a gauge, add a row (and nothing else: the job and app read the list).
+The 18 Mesonet-only gauges not on the list (small creeks) still work through the Mesonet.

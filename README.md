@@ -19,7 +19,7 @@ like VIDO3, or a USGS number, like 14162500) and the results take the list's pla
 (the Places title and Edit slide up out of the way, so the search bar has the top).
 It starts empty: **Add a place** opens that search. Gauges come from NOAA (with forecasts and
 flood stages) and, where NOAA has none, straight from USGS. 39 Oregon gauges that neither has
-(run by the state, marked **OWRD** in the results) are there too, with height and, at some, water temperature.
+(run by the state, marked **OWRD** in the results) are there too, with height and, at some, water temperature. 10 more Oregon rivers (Crooked, Umatilla, Walla Walla, Elk, Ana, Fall) come from the state's own readings, with flow, and OWRD's flow or water temperature is added to 36 gauges that lacked one.
 Tapping a result adds it (✓) and starts loading its data; the results stay up so several
 can go in at once (every gauge on a river, say). A floating **Add 2 Rivers To List**
 button (1/5 of the way up the screen, in thumb reach; above the keyboard while it's up) keeps them and goes back to the Places list, scrolled to the new places (they light up for a moment); **Cancel** (or Back, or the back swipe) takes them out
@@ -297,6 +297,7 @@ sea grid cell to the tide station, not a buoy reading.
 | `js/qr.js` | QR code maker (written for this app, no outside code) |
 | `data/gauges.json`, `data/tides.json` | Station lists for search, shipped so search is instant (NOAA gauges carry their USGS number, so searching 14162500 finds the McKenzie near Vida) |
 | `data/usgs.json` | USGS gauges NOAA doesn't carry (only shipped; refresh with the tool) |
+| `data/owrd.json` | The 46 chosen OWRD gauges (made by hand; see `docs/oregon-gauges.md`) |
 | `data/hads.json` | State-run gauges neither has (Oregon's, 39; only shipped; refresh with `tools/update-station-lists.py hads`) |
 | `sw.js` | Lets the app open with no signal (shows the last data) |
 | `tools/update-station-lists.py` | Refreshes the shipped station lists (optional; the app fetches new NOAA lists itself when they're old). Looks up which USGS gauge each NOAA gauge is; `tools/noaa-usgs-ids.json` keeps those so reruns are quick |
@@ -328,6 +329,12 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
   a shape the app doesn't know (the service changed). `IEM-EMPTY`: it works but has had nothing from
   that gauge for 3 days (the gauge is silent or was dropped; `tools/update-station-lists.py hads`
   refreshes the list). The codes are listed above `hadsSeries` in `js/data.js`.
+- **A red line ending in a code like `OWRD-NET`:** the state's readings (copied hourly onto this repo's
+  `data` branch) couldn't be loaded. `OWRD-NET` / `OWRD-TIMEOUT`: GitHub couldn't be reached or didn't
+  answer. `OWRD-HTTP-404`: the gauge has no file yet (the hourly job hasn't run since it was added).
+  `OWRD-STALE`: the readings are over 4 hours old, so the hourly job is failing (see the Actions tab).
+  `OWRD-EMPTY` / `OWRD-FORMAT`: no readings / an unexpected file. A gauge that only gets flow or
+  temperature added from OWRD just leaves that part out when it fails, with no message.
 - **Places got messed up / start over:** iPhone Settings → Apps → Safari → Advanced → Website Data → remove the site, then reopen the app. It starts empty.
 - **Updates:** no need to reinstall. The app always opens from the copy saved on the
   phone (instant, works with no signal) and checks GitHub for a new version in the
@@ -383,6 +390,7 @@ results, the row under the pointer is tinted so it's clear which one the + adds.
 | Gauges NOAA doesn't carry (about half of USGS's real-time gauges, mostly creeks): height and flow every 15 min, last 2 days; no forecast or flood stages | USGS Water Data |
 | Water temperature (last 3 days, measured; no forecast exists) | USGS Water Data, at gauges that have a sensor |
 | State-run Oregon gauges in neither service (39, e.g. the Metolius above Allingham, MLSO3): height every 15 min, last 2 days, and water temperature at about half; no flow, forecast, flood stages or View History | NOAA's satellite relay (HADS), read from the [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/api/) |
+| OWRD gauges (10 places of their own; flow and water temperature added to 36 others) | The state's readings, copied hourly by a GitHub job (`.github/workflows/owrd.yml`, `tools/fetch-owrd.py`) onto the repo's `data` branch and read from `raw.githubusercontent.com` |
 | Typical (median) flow for each calendar date (over all years) | USGS statistics service |
 | Waves, wind, weather | Open-Meteo |
 
