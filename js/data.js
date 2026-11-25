@@ -221,6 +221,17 @@ async function usgsTemp(site) {
     const before = valueNear(pts, t - 3 * HOUR * 1000, 1);
     return { value: v, time: t, trend: before === null ? null : round(v - before, 1), series: thin(pts) };
 }
+// usgsTemp() plus the typical (median) water temperature for each calendar date over every
+// year the gauge has, as {"MM-DD": °F} in .typical (null if USGS has no statistics for it).
+async function usgsTempTypical(site) {
+    const temp = await usgsTemp(site);
+    if (temp) temp.typical = await usgsAverages(site, "00010").then(a => {
+        const out = {};
+        for (const k in a) out[k] = round(a[k] * 9 / 5 + 32, 1);
+        return Object.keys(out).length ? out : null;
+    }).catch(() => null);
+    return temp;
+}
 
 // Typical flow for each calendar day: the median of that date's daily flows over every
 // year the gauge has (USGS statistics; the median, so flood years don't inflate it).
@@ -317,7 +328,7 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
     // the USGS extras start right away, alongside the history (USGS can take a while);
     // a failed temperature download is undefined (vs. null = this gauge has no sensor)
     const extras = g.usgsId && full ? Promise.all([
-        need.temp ? usgsTemp(g.usgsId).catch(() => undefined) : null,
+        need.temp ? usgsTempTypical(g.usgsId).catch(() => undefined) : null,
         need.flow ? usgsAverages(g.usgsId).catch(() => null) : null,
     ]) : Promise.resolve([null, null]);
     const sf = need.series ? await cached(`stageflow-${lid}.json`, 3 * HOUR, () => stageflow(lid)) : { observed: [], forecast: [] };
@@ -377,7 +388,7 @@ async function river(lid, full = true, need = { series: true, flow: true, temp: 
         forecastPeak: peak ? { time: peak[0], stage: peak[1], flow: peak[2] } : null,
         series: thin(series.filter(p => p[0] >= (t || 0) - 2 * DAY * 1000)),
         forecast: thin(fc, 160),   // whole forecast (the chart opens on the first 3 days)
-        temp,                      // {value °F, time, trend (3 h), series} or null
+        temp,                      // {value °F, time, trend (3 h), series, typical: {"MM-DD": °F} or null} or null
         tempTried,                 // false: the temperature download failed (try again later)
         averages,                  // {"MM-DD": typical (median) cfs for that calendar date} or null
     };
@@ -416,7 +427,7 @@ async function usgsRiver(site, full = true, need = { series: true, flow: true, t
     };
     let temp = null, averages = null;
     if (full) [temp, averages] = await Promise.all([
-        need.temp ? usgsTemp(site).catch(() => undefined) : null,
+        need.temp ? usgsTempTypical(site).catch(() => undefined) : null,
         flow !== null && need.flow ? usgsAverages(site).catch(() => null) : null,
     ]);
     const tempTried = temp !== undefined;

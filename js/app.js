@@ -1270,11 +1270,17 @@ function section({ title = "", leading = "", trailing = "", pad = 12, gap = 6, b
     return `<div class="sec ${cls}"${id ? ` id="${id}"` : ""}>${head}<div class="sec-box" style="padding:${pad}px;gap:${gap}px">${body}</div></div>`;
 }
 
-// Under the flow chart: the typical (median) flow on this calendar date over every year
-// the USGS gauge has. Follows the reading bar's day, else the picked day, else today.
-function avgText(r, t) {
+// Under the Flow and Water temp charts: the typical (median) flow or water temperature on
+// this calendar date over every year the USGS gauge has. Follows the reading bar's day,
+// else the picked day, else today.
+function avgText(r, t, mode) {
     const d = new Date(isNaN(t) ? (S.focusDay >= 0 ? S.focusDay : Date.now()) : t);
-    const v = r && r.averages && r.averages[String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")];
+    const k = String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    if (mode === "temp") {
+        const v = r && r.temp && r.temp.typical && r.temp.typical[k];
+        return num(v) ? "Typical water temp on " + fmtMonthDay(d.getTime()) + ": " + v.toFixed(1) + " °F" : "";
+    }
+    const v = r && r.averages && r.averages[k];
     return num(v) ? "Typical flow on " + fmtMonthDay(d.getTime()) + ": " + cfs(v) : "";
 }
 function tile({ title, num, unit, detail, mode, active, accent, shape: k = null, wait = false }) {
@@ -1423,7 +1429,7 @@ function renderChart(cur) {
         : mode === "temp" ? "Water temperature · °F" : "Height · ft") + (src ? " · " + src : "");
     const kind = src && (mode === "stage" || mode === "flow" || mode === "temp") ? `<span id="chartKind">${kindText(g, bigChart.hoverT)}</span>` : "";
     const day = S.focusDay < 0 ? "" : g.dayCovered ? " · " + dayLabel(S.focusDay) : " · no data for " + dayLabel(S.focusDay);
-    const avg = r && mode === "flow" ? avgText(r, bigChart.hoverT) : "";
+    const avg = r && (mode === "flow" || mode === "temp") ? avgText(r, bigChart.hoverT, mode) : "";
     const hist = S.focusDay < 0 && histSite(cur);
     const under = hist ? `<div class="hist-row">${avg ? `<span class="chart-peak" id="chartAvg">${esc(avg)}</span>` : ""}<button class="edit-btn" data-act="history" style="color:${mode === "temp" ? LOOK.tempColor : LOOK.flowColor}">View History</button></div>`
         : avg ? `<div class="chart-peak" id="chartAvg">${esc(avg)}</div>`
@@ -2096,7 +2102,7 @@ function syncWeather(t) {
     if (S.hist) return;   // history dates aren't this week's weather
     const ok = !isNaN(t) && !!$("#bigChart");
     const av = $("#chartAvg");
-    if (av && lastCur && lastCur.r) { const s = avgText(lastCur.r, t); if (s) av.textContent = s; }
+    if (av && lastCur && lastCur.r) { const s = avgText(lastCur.r, t, lastCur.mode); if (s) av.textContent = s; }
     const ck = $("#chartKind");
     if (ck && lastCur && lastCur.g) ck.textContent = kindText(lastCur.g, t);
     document.querySelectorAll(".wx-day").forEach(el => {
